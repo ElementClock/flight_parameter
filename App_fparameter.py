@@ -26,7 +26,7 @@ class App(customtkinter.CTk):
         screen_height = self.winfo_screenheight()
         user32 = ctypes.windll.user32
         real_screen_width = user32.GetSystemMetrics(0)
-        real_screen_height = user32.GetSystemMetrics(1)
+        # real_screen_height = user32.GetSystemMetrics(1)
         # 由于geometry 大小为缩放后的像素大小，位置为真实像素位置，因此需要计算dpi恢复真实位置
         real_dpi = real_screen_width // screen_width
         window_width = 500  # 窗口长度 系统DPI缩放后的值
@@ -37,7 +37,7 @@ class App(customtkinter.CTk):
         self.resizable(False, False)
         # 设置侧边栏
         self.sidebar_frame = customtkinter.CTkFrame(self, width=140, corner_radius=0)
-        self.sidebar_frame.grid(row=0, column=0, rowspan=1, sticky="nsew")  # rowspan指定跨域多少行
+        self.sidebar_frame.grid(row=0, column=0, rowspan=1, sticky="nsew")  # row span指定跨域多少行
         self.grid_columnconfigure(0, weight=0)
         # 设置侧边栏标题
         self.logo_label = customtkinter.CTkLabel(self.sidebar_frame, text="选择导出模式",
@@ -47,7 +47,6 @@ class App(customtkinter.CTk):
         self.sidebar_button_1 = customtkinter.CTkButton(self.sidebar_frame, command=self.single_button_event1,
                                                         text="单个文件导出")
         self.sidebar_button_1.grid(row=1, column=0, padx=20, pady=10)
-
         self.sidebar_button_2 = customtkinter.CTkButton(self.sidebar_frame, command=self.multi_button_event2,
                                                         text="多个文件导出")
         self.sidebar_button_2.grid(row=2, column=0, padx=20, pady=10)
@@ -57,8 +56,6 @@ class App(customtkinter.CTk):
 
     def multi_button_event2(self):
         ffp.multi_abstract(self.df_idx)
-
-
 
 
 if __name__ == "__main__":

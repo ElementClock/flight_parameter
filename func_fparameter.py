@@ -7,18 +7,28 @@ from tkinter import filedialog
 def single_abstract(df_idx):
     """"单个飞参文件提取"""
     f_path = filedialog.askopenfilename()
-    df_original = pd.read_csv(f_path, encoding='gbk')
-    # 数据提取
-    df = extract_flight_parameter(df_original, df_idx)
-    out_path = f_path[:-15] + '(数据提取).csv'
-    df.to_csv(out_path, index=False, encoding='utf-8-sig')
-
+    df = None  # 初始化df为None，确保总是返回一个值
+    if f_path:
+        try:
+            df_original = pd.read_csv(f_path, encoding='gbk')
+            df = extract_flight_parameter(df_original, df_idx)
+            # 确保文件名至少有15个字符来生成输出文件名
+            if len(f_path) >= 15:
+                out_path = f_path[:-15] + '(数据提取).csv'
+            else:
+                out_path = '提取数据.csv'  # 使用默认文件名
+            df.to_csv(out_path, index=False, encoding='utf-8-sig')
+        except Exception as e:
+            print(f"处理文件时发生错误: {e}")
     return df
 
 
 def multi_abstract(df_idx):
     """"多个飞参文件提取"""
     folder_path = filedialog.askdirectory()  # 返回选定的文件夹路径
+    if not folder_path:
+        # print("未选择文件夹。")
+        return  # 如果没有选择文件夹，则直接返回
     # 定义匹配规则
     pattern = '*_00_001_Phy.csv'
     # 使用glob找到所有匹配的文件
@@ -30,7 +40,6 @@ def multi_abstract(df_idx):
         df = extract_flight_parameter(df_original, df_idx)
         out_path = f_path[:-15] + '(数据提取).csv'
         df.to_csv(out_path, index=False, encoding='utf-8-sig')
-    return df
 
 
 def extract_flight_parameter(df_original, df_idx):
