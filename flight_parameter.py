@@ -6,9 +6,6 @@ import sys
 from tkinter import filedialog
 from tkinter import messagebox
 
-
-
-
 def extract_flight_parameter(df_original, df_idx):
     # 提取需要参数并修改名称
     columns_to_extract = df_idx.iloc[:, 0].tolist()
@@ -68,6 +65,7 @@ def on_button_click_2():
     # 关闭Tkinter窗口（虽然它已经被隐藏了）
     root.destroy()
 
+
 def data_fk():
     # 输出处理   起落数统计 开车关车时间统计  告警数统计及持续时间段
 
@@ -77,7 +75,15 @@ def data_fk():
 if __name__ == '__main__':
     # 初始化提取参数-通用
     root = tk.Tk()
-    center_window(root, 400, 300) # 创建主窗口
+    center_window(root, 500, 400)  # 创建主窗口
+    # # 调整DPI 避免字体模糊
+    # try:
+    #     # 尝试使用更精细的DPI意识级别
+    #     ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_DPI_AWARENESS_PER_MONITOR_AWARE
+    # except AttributeError:
+    #     # 如果SetProcessDpiAwareness不支持参数2，则回退到系统感知
+    #     ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PROCESS_DPI_AWARENESS_SYSTEM_AWARE
+
     root.title("飞参数据处理")
     if os.path.exists('init_flight_parameter.csv'):
         df_idx = pd.read_csv('init_flight_parameter.csv')
@@ -85,7 +91,6 @@ if __name__ == '__main__':
         # 如果文件不存在，创建一个新的空DataFrame
         messagebox.showinfo("文件缺失", "请新建文件init_flight_parameter.csv，并配置抽引参数")
         sys.exit()
-
     # 创建按钮并指定其点击时执行的函数
     # 单文件导出
     button1 = tk.Button(root, text="单个文件导出", command=on_button_click_1)

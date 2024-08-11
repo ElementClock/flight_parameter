@@ -2,3 +2,5 @@
 /.idea
 /build
 /dist
+__pycache__/func_fparameter.cpython-312.pyc
+demo.exe.spec
