@@ -1,6 +1,7 @@
 import ctypes
 import os
 import sys
+import time
 from tkinter import messagebox
 
 import customtkinter
@@ -12,6 +13,13 @@ import func_fparameter as ffp
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
+        # 设置窗口图标
+        icon_path = 'app_icon.ico'  # 图标文件的路径
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+        else:
+            print(f"图标文件 {icon_path} 未找到。")
+        # 初步导入
         if os.path.exists('init_flight_parameter.csv'):
             df_idx = pd.read_csv('init_flight_parameter.csv')
             # 将df_idx作为实例变量保存
@@ -49,9 +57,37 @@ class App(customtkinter.CTk):
                                                         text="多个文件导出")
         self.sidebar_button_del_msg = customtkinter.CTkButton(self.sidebar_frame, command=self.del_button_event,
                                                               text="重置信息框")
+
+        # 专业多选框（使用滚动框架）
+        self.scrollable_frame = customtkinter.CTkScrollableFrame(self.sidebar_frame, label_text="数据来源选择")
+        self.scrollable_frame.grid(row=4, column=0, padx=20, pady=10, sticky="nsew")
+        self.scrollable_frame.grid_rowconfigure(0, weight=1)
+        self.scrollable_frame.grid_columnconfigure(0, weight=1)
+
+        self.checkbox_vars = []
+        self.checkboxes = []
+        options = [
+            "全球卫星定位系统", "短报文", "航姿基准系统", "大气数据系统",
+            "惯性基准系统", "飞行管理系统", "显示控制系统", "无线电高度表", "环境感知与视频管理系统", "综合处理系统",
+            "显示告警系统", "综合自动调谐系统", "机电信息采集系统", "综合处理系统",
+            "气象雷达", "备份仪表", "飞参系统", "灭火任务系统", "波段L综合系统", "设备用具",
+            "燃油系统", "防冰和除雨", "空调系统", "座舱压力系统", "防火系统",
+            "起落架系统", "舱门系统", "电源系统", "主飞控系统", "襟翼控制系统", "刹车控制系统", "液压电控系统",
+            "前轮转弯系统", "自动飞行系统",
+        ]
+        for i, option in enumerate(options):
+            var = customtkinter.StringVar()
+            checkbox = customtkinter.CTkCheckBox(self.scrollable_frame, text=option,
+                                                 variable=var,
+                                                 onvalue="on", offvalue="off",
+                                                 font=customtkinter.CTkFont(size=12))  # 减小字体大小
+            self.checkbox_vars.append(var)
+            self.checkboxes.append(checkbox)
+            checkbox.grid(row=i, column=0, padx=5, pady=2, sticky="w")  # 减小边距和间距
+
         # 文本框
         self.textbox = customtkinter.CTkTextbox(self, width=280)
-        self.logo_msg_box = customtkinter.CTkLabel(self, text="数据分析结果",
+        self.logo_msg_box = customtkinter.CTkLabel(self, text="数据导出结果",
                                                    font=customtkinter.CTkFont(size=15, weight="bold"))
 
         """部件外观"""
@@ -71,8 +107,15 @@ class App(customtkinter.CTk):
         self.grid_columnconfigure(1, weight=1)  # 列配置 index列号，weight权重
 
     def single_button_event(self):
+        start_time = time.time()
+        # 获取选项框状态
+        checkbox_states = [var.get() for var in self.checkbox_vars]
+
         df, text_analyze, = ffp.single_abstract(self.df_idx)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
         # 使用 "1.0" 作为插入文本的起始位置，这表示从文本框的第1行第0列开始插入内容。
+        self.textbox.insert("1.0", f"数据提取完成，耗时: {elapsed_time:.2f}秒，")
         self.textbox.insert("1.0", text_analyze)
         return
 

@@ -1,14 +1,20 @@
 import glob
 import os
 import pandas as pd
+import numpy as np
 from tkinter import filedialog
 
 
 def single_abstract(df_idx):
-    """"单个飞参文件提取,返回df, text_analyze"""
+    """""
+    单个飞参文件提取,返回:df, text_analyze
+    使用自定义函数
+    extract_flight_parameter
+    single_analyze
+    """
     f_path = filedialog.askopenfilename()
-    df = None  # 初始化df为None，确保总是返回一个值
-    text_analyze = None
+    df = None              # 初始化返回变量
+    text_analyze = ""    # 初始化返回变量
     if f_path:
         df_original = pd.read_csv(f_path, encoding='gbk')
         df = extract_flight_parameter(df_original, df_idx)
@@ -18,9 +24,9 @@ def single_abstract(df_idx):
         else:
             out_path = '提取数据.csv'  # 使用默认文件名
         df.to_csv(out_path, index=False, encoding='utf-8-sig')
-        text_analyze = single_analyze(df, df_original)
+        # text_analyze = single_analyze(df, df_original, f_path)
     else:
-        text_analyze = "没有选择飞参文件\n"
+        text_analyze = ""
     return df, text_analyze
 
 
@@ -56,10 +62,10 @@ def extract_flight_parameter(df_original, df_idx):
     df_time.loc[:, '北京时间'] = df_time['UTC时间'] + pd.Timedelta(hours=8)
     df.loc[:, '飞行日期'] = pd.to_datetime(df_time['北京时间']).dt.date
     df.loc[:, '飞行时间'] = pd.to_datetime(df_time['北京时间']).dt.time
+    df = df.drop('飞行日期', axis=1) # 删除这一列，在dia分析中用不着
     return df
 
-
-def single_analyze(df, df_original):
+def single_analyze(df, df_original, f_path):
     """单文件数据分析"""
     # 起落架统计
     text_landing = landing_gear_analyze(df)
@@ -70,7 +76,8 @@ def single_analyze(df, df_original):
     # CAS汇报
     # text_cas = cas_analyze(df, df_original)
     # 总汇报
-    text_analyze = (f"{text_engine}\n"
+    text_analyze = (f"本次分析文件为{f_path[-29:]}\n"
+                    f"{text_engine}\n"
                     f"{text_landing}\n"
                     f"{text_ps}\n"
                     # f"{text_cas}\n"
@@ -90,37 +97,41 @@ def engine_analyze(df):
         first_times, last_times = zip(*times)
         text = f"开车时间: {min(first_times)}，关车时间： {max(last_times)}"
     else:
-        text = "本次数据分析飞机没有开车"
+        text = "数据显示本次飞机没有开车"
     return text
 
 
 def landing_gear_analyze(df):
     """起落架专业分析"""
 
-    def changes_count(landing_count):
+    def changes_count(landing_count, flag):
         changes = landing_count.diff(1) != 0
-        count = (changes.sum() - 1) // 2
+        if flag == 1:
+            indices = landing_count.index[changes].tolist()
+            # 计算相邻差值
+            diffs = np.diff(indices)
+            # 找到差值超过阈值的位置
+            split_indices = np.where(diffs > 90)[0] + 1
+            # 使用split函数分割数组
+            clusters = np.split(indices, split_indices)
+            count = len(clusters) - 2  # 首位数字必定为被分割和初始起飞与最终降落被分割
+            if count < 0:
+                count = 0
+        else:
+            count = (changes.sum() - 1) // 2
         return count
 
-    landing_gear_ups = changes_count(df['起落架收'])
-    landing_gear_downs = changes_count(df['起落架放'])
-    landing_load1 = changes_count(df['前轮载1'])
-    landing_load2 = changes_count(df['前轮载2'])
-    landing_load3 = changes_count(df['左主起轮载1'])
-    landing_load4 = changes_count(df['左主起轮载2'])
-    landing_load5 = changes_count(df['右主起轮载1'])
-    landing_load6 = changes_count(df['右主起轮载2'])
+    landing_gear_ups = changes_count(df['起落架收'], 0)
+    landing_gear_downs = changes_count(df['起落架放'], 0)
+    landing_load1 = changes_count(df['前轮载1'], 1)
+    landing_load2 = changes_count(df['前轮载2'], 1)
+    landing_load3 = changes_count(df['左主起轮载1'], 1)
+    landing_load4 = changes_count(df['左主起轮载2'], 1)
+    landing_load5 = changes_count(df['右主起轮载1'], 1)
+    landing_load6 = changes_count(df['右主起轮载2'], 1)
     if landing_gear_ups == landing_gear_downs:
-        if landing_gear_ups in (landing_load1, landing_load2, landing_load3):
-            text = f'起落架收放 {landing_gear_ups} 次\n飞机着陆起降 {landing_gear_ups} 次'
-        else:
-            text = (f'起落架收放{landing_gear_ups}次\n '
-                    f'前起轮载1着陆{landing_load1}次、'
-                    f'前起轮载2着陆{landing_load2}次、'
-                    f'左主起轮载1着陆{landing_load3}次、'
-                    f'左主起轮载2着陆{landing_load4}次、'
-                    f'右主起轮载1着陆{landing_load5}次、'
-                    f'右主起轮载2着陆{landing_load6}次、')
+        landing_load = max(landing_load1, landing_load2, landing_load3, landing_load4, landing_load5, landing_load6)
+        text = f'起落架收放 {landing_gear_ups} 次\n飞机着陆起降 {landing_load} 次'
     else:
         text = '起落架收放计数存在异常，请检查相关数据'
     return text
@@ -147,15 +158,12 @@ def cas_analyze(df, df_original):
     for column in selected_columns:
         # 获取该列值为 1 的时间段
         alarm_times = df[df[column] == 1]['飞行时间']
-
         if not alarm_times.empty:
             start_time = None
-
             # 遍历每个时间点，找到连续时间段
             for i, time in enumerate(alarm_times):
                 if start_time is None:
                     start_time = time
-
                 # 如果下一个时间点与当前时间点不连续，则输出一个时间段
                 if i == len(alarm_times) - 1 or (alarm_times.iloc[i + 1] - time).seconds > 600:  # 超过10分钟不连续
                     end_time = time
