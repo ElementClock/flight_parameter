@@ -11,12 +11,20 @@ import func_fparameter as ffp
 
 def calculate_window_geometry():
     import wx
+    # 启用高DPI支持
+    if hasattr(wx, 'EnableHighDPIAware'):
+        wx.EnableHighDPIAware()
+    # 设置进程DPI感知级别（适用于Windows）
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # 2表示PerMonitorV2，支持每个监视器的DPI设置
+    except AttributeError:
+        pass
     screen_width, screen_height = wx.GetDisplaySize()
     user32 = ctypes.windll.user32
     real_screen_width = user32.GetSystemMetrics(0)
     real_dpi = real_screen_width // screen_width
-    window_width = 1000
-    window_height = 680
+    window_width = 1618
+    window_height = 1000
     x = ((screen_width // 2) - (window_width // 2)) * real_dpi
     y = ((screen_height // 2) - (window_height // 2)) * real_dpi * 0.75
     return window_width, window_height, int(x), int(y)
@@ -27,7 +35,11 @@ class AppFrame(wx.Frame):
         width, height, x, y = calculate_window_geometry()
         super().__init__(parent, title=title, size=(width, height), pos=(x, y))
         self.df_idx = None
-        self.SetIcon(wx.Icon('app_icon.ico', wx.BITMAP_TYPE_ICO) if os.path.exists('app_icon.ico') else None)
+        # self.SetIcon(wx.Icon('app_icon.ico', wx.BITMAP_TYPE_ICO) if os.path.exists('app_icon.ico') else None)
+
+        # 设置窗口最小和最大尺寸，使其固定不变
+        self.SetMinSize((width, height))
+        self.SetMaxSize((width, height))
 
         # 创建主面板
         self.panel = wx.Panel(self)
