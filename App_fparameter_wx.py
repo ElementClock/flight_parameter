@@ -1,6 +1,7 @@
 import ctypes
 import json
 import os
+import sys
 import time
 
 import pandas as pd
@@ -35,11 +36,20 @@ class AppFrame(wx.Frame):
         width, height, x, y = calculate_window_geometry()
         super().__init__(parent, title=title, size=(width, height), pos=(x, y))
         self.df_idx = None
-        # self.SetIcon(wx.Icon('app_icon.ico', wx.BITMAP_TYPE_ICO) if os.path.exists('app_icon.ico') else None)
-
         # 设置窗口最小和最大尺寸，使其固定不变
         self.SetMinSize((width, height))
         self.SetMaxSize((width, height))
+
+        # 获取打包后的资源路径
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(base_path, 'app_icon.ico')
+
+        # 设置图标
+        if os.path.exists(icon_path):
+            self.SetIcon(wx.Icon(icon_path, wx.BITMAP_TYPE_ICO))
 
         # 创建主面板
         self.panel = wx.Panel(self)
