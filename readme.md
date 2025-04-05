@@ -1,5 +1,7 @@
 # 文件架构
 ## App_fparameter.py
+## App_fparameter_wx.py
+ui库不一样
 主程序
 涉及UI设计，事件
 ## func_fparameter.py 
