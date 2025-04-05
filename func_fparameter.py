@@ -6,6 +6,41 @@ import re
 from tkinter import filedialog
 
 
+# 提取飞行日期和时间列
+def extract_flight_date_time(df_original):
+    flight_date_col = None
+    flight_time_col = None
+    for col in df_original.columns:
+        if "全球卫星定位系统" in col and "年月日" in col:
+            flight_date_col = df_original[col]
+        elif "全球卫星定位系统" in col and "时分秒" in col:
+            flight_time_col = df_original[col]
+    return flight_date_col, flight_time_col
+
+
+# 转换时间为北京时间
+def convert_to_beijing_time(df):
+    df_time = df.loc[:, ('飞行日期', '飞行时间')]
+    df_time.loc[:, '飞行日期'] = df_time['飞行日期'].apply(lambda x: f'20{x[:2]}-{x[3:5]}-{x[6:]}')
+    df_time.loc[:, 'UTC时间'] = pd.to_datetime(df_time['飞行日期'] + ' ' + df_time['飞行时间'])
+    df_time.loc[:, '北京时间'] = df_time['UTC时间'] + pd.Timedelta(hours=8)
+    df.loc[:, '飞行日期'] = pd.to_datetime(df_time['北京时间']).dt.date
+    df.loc[:, '飞行时间'] = pd.to_datetime(df_time['北京时间']).dt.time
+    return df
+
+
+# 处理列名
+def process_column_name(col_name):
+    # 替换类似 _CD-013、_CLG-002 等的字符为 _，但保留包含 "TAWS", "TCAS" 的部分
+    if "TAWS" not in col_name and "TCAS" not in col_name:
+        col_name = re.sub(r'_[A-Z]+-\d+', '_', col_name)
+    # 替换类似 _L261_ 的字符为 _
+    col_name = re.sub(r'_L\d+_', '_', col_name)
+    # 替换类似 _SS21-001 的字符为 _
+    col_name = re.sub(r'_SS\d+-\d+', '_', col_name)
+    return col_name
+
+
 def single_abstract(df_idx):
     """
     单个飞参文件提取,返回:df, text_analyze
@@ -42,7 +77,6 @@ def multi_abstract(df_idx):
     """多个飞参文件提取"""
     folder_path = filedialog.askdirectory()  # 返回选定的文件夹路径
     if not folder_path:
-        # print("未选择文件夹。")
         return  # 如果没有选择文件夹，则直接返回
     # 定义匹配规则
     pattern = '*_00_001_Phy.csv'
@@ -90,13 +124,7 @@ def extract_flight_parameter(df_original, df_idx):
                     index = col.find(system)
                     # 截取提取词及其后面的字符
                     new_col_name = col[index:].lstrip('_')
-                    # 替换类似 _CD-013、_CLG-002 等的字符为 _，但保留包含 "TAWS", "TCAS" 的部分
-                    if "TAWS" not in new_col_name and "TCAS" not in new_col_name:
-                        new_col_name = re.sub(r'_[A-Z]+-\d+', '_', new_col_name)
-                    # 替换类似 _L261_ 的字符为 _
-                    new_col_name = re.sub(r'_L\d+_', '_', new_col_name)
-                    # 替换类似 _SS21-001 的字符为 _
-                    new_col_name = re.sub(r'_SS\d+-\d+', '_', new_col_name)
+                    new_col_name = process_column_name(new_col_name)
                     new_column_names.append(new_col_name)
 
         try:
@@ -110,25 +138,14 @@ def extract_flight_parameter(df_original, df_idx):
         return None
 
     # 提取飞行日期和飞行时间列
-    flight_date_col = None
-    flight_time_col = None
-    for col in df_original.columns:
-        if "全球卫星定位系统" in col and "年月日" in col:
-            flight_date_col = df_original[col]
-        elif "全球卫星定位系统" in col and "时分秒" in col:
-            flight_time_col = df_original[col]
+    flight_date_col, flight_time_col = extract_flight_date_time(df_original)
 
     if flight_date_col is not None and flight_time_col is not None:
         df.insert(0, "飞行时间", flight_time_col)
         df.insert(0, "飞行日期", flight_date_col)
 
     # 格林威治标准时间转为北京时间
-    df_time = df.loc[:, ('飞行日期', '飞行时间')]
-    df_time.loc[:, '飞行日期'] = df_time['飞行日期'].apply(lambda x: f'20{x[:2]}-{x[3:5]}-{x[6:]}')
-    df_time.loc[:, 'UTC时间'] = pd.to_datetime(df_time['飞行日期'] + ' ' + df_time['飞行时间'])
-    df_time.loc[:, '北京时间'] = df_time['UTC时间'] + pd.Timedelta(hours=8)
-    df.loc[:, '飞行日期'] = pd.to_datetime(df_time['北京时间']).dt.date
-    df.loc[:, '飞行时间'] = pd.to_datetime(df_time['北京时间']).dt.time
+    df = convert_to_beijing_time(df)
     df = df.drop('飞行日期', axis=1)  # 删除这一列，在dia分析中用不着
     return df
 
@@ -213,7 +230,6 @@ def landing_gear_analyze(df):
 
 def performance_stability_analyze(df):
     """性能操稳专业**简要分析**，起飞高度，最大飞行高度，飞行距离，最大飞行速度"""
-    text = " "
     high_max = df['气压高度'].max()
     high_min = df['气压高度'].min()
     v_max = df['校准空速'].max()
@@ -224,7 +240,6 @@ def performance_stability_analyze(df):
 
 def cas_analyze(df, df_original):
     """告警分析，出现告警参数以及告警的时间段"""
-    text = " "
     selected_columns = df_original.filter(like='显示告警系统').columns
     # 存储结果
     result = []

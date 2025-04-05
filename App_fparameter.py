@@ -206,8 +206,10 @@ class App(customtkinter.CTk):
             self.update_result("错误", str(e))
 
     def update_result(self, title, content):
-        self.textbox.delete("1.0", "end")
-        self.textbox.insert("1.0", f"【{title}】\n\n{content}")
+        # 删除清空文本框内容的代码
+        # self.textbox.delete("1.0", "end")
+        # 追加新内容到文本框末尾
+        self.textbox.insert("end", f"【{title}】\n\n{content}\n\n")
 
     def del_button_event(self):
         """删除导出文本框内容"""
