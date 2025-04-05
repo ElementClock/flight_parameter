@@ -1,9 +1,10 @@
 import glob
 import os
-import pandas as pd
-import numpy as np
 import re
 from tkinter import filedialog
+
+import numpy as np
+import pandas as pd
 
 
 # 提取飞行日期和时间列

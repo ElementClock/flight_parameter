@@ -1,7 +1,6 @@
 import ctypes
 import json
 import os
-import sys
 import time
 from tkinter import messagebox
 
