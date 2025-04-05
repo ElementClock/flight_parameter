@@ -21,11 +21,7 @@ class App(customtkinter.CTk):
         else:
             print(f"图标文件 {icon_path} 未找到。")
 
-        # 加载初始化参数
-        if not os.path.exists('init_flight_parameter.csv'):
-            messagebox.showinfo("文件缺失", "请新建文件init_flight_parameter.csv，并配置抽引参数")
-            sys.exit()
-        self.df_idx = pd.read_csv('init_flight_parameter.csv')
+        self.df_idx = None
 
         """主窗口配置"""
         self.title("飞行数据快速处理")
@@ -82,79 +78,129 @@ class App(customtkinter.CTk):
 
     def create_sidebar_buttons(self):
         """创建侧边栏按钮"""
+        button_frame = customtkinter.CTkFrame(self.sidebar_frame)
+        button_frame.pack(pady=10, padx=20, fill="x")
+
         self.sidebar_button_1 = customtkinter.CTkButton(
-            self.sidebar_frame,
+            button_frame,
             text="单个文件导出",
             command=self.single_button_event,
-            width=200
+            width=80  # 适当调整按钮宽度
         )
-        self.sidebar_button_1.pack(pady=10, padx=20)
+        self.sidebar_button_1.grid(row=0, column=0, padx=5, sticky="ew")
 
         self.sidebar_button_2 = customtkinter.CTkButton(
-            self.sidebar_frame,
+            button_frame,
             text="多个文件导出",
             command=self.multi_button_event,
-            width=200
+            width=80  # 适当调整按钮宽度
         )
-        self.sidebar_button_2.pack(pady=10, padx=20)
+        self.sidebar_button_2.grid(row=0, column=1, padx=5, sticky="ew")
 
         self.sidebar_button_del_msg = customtkinter.CTkButton(
-            self.sidebar_frame,
+            button_frame,
             text="重置信息框",
             command=self.del_button_event,
-            width=200
+            width=80  # 适当调整按钮宽度
         )
-        self.sidebar_button_del_msg.pack(pady=10, padx=20)
+        self.sidebar_button_del_msg.grid(row=0, column=2, padx=5, sticky="ew")
+
+        # 让列均匀分配空间
+        button_frame.columnconfigure(0, weight=1)
+        button_frame.columnconfigure(1, weight=1)
+        button_frame.columnconfigure(2, weight=1)
 
     def create_data_sources(self):
         """创建数据源多选框"""
-        # 设置 CTkScrollableFrame 的高度
-        self.scrollable_frame = customtkinter.CTkScrollableFrame(
+        # 使用普通的 CTkFrame 代替 CTkScrollableFrame
+        self.scrollable_frame = customtkinter.CTkFrame(
             self.sidebar_frame,
-            label_text="数据来源选择",
             width=250,
-            height=300  # 可根据需求调整高度
+            height=300  # 保持固定高度
         )
         self.scrollable_frame.pack(pady=10, padx=20, fill="both")
 
         self.checkbox_vars = []
         self.checkboxes = []
 
-        # 去重后的选项列表
-        options = list({"全球卫星定位系统", "短报文", "航姿基准系统", "大气数据系统", "惯性基准系统", "飞行管理系统",
+        # 直接使用列表来存储选项，保证顺序
+        self.options = ["全球卫星定位系统", "短报文", "航姿基准系统", "大气数据系统", "惯性基准系统", "飞行管理系统",
                         "显示控制系统", "无线电高度表", "气象雷达", "备份仪表", "飞参系统", "燃油系统", "灭火任务系统",
                         "环境感知与视频管理系统", "综合处理系统", "显示告警系统", "综合自动调谐系统",
                         "机电信息采集系统", "波段L综合系统", "设备用具", "防冰和除雨", "空调系统", "座舱压力系统",
                         "防火系统", "起落架系统", "舱门系统", "电源系统", "主飞控系统", "襟翼控制系统", "刹车控制系统",
-                        "液压电控系统", "前轮转弯系统", "自动飞行系统"})
+                        "液压电控系统", "前轮转弯系统", "自动飞行系统", "自定义"]
 
-        for i, option in enumerate(options):
+        num_columns = 2
+        for i, option in enumerate(self.options):
             var = customtkinter.StringVar(value="off")
-            checkbox = customtkinter.CTkCheckBox(
-                self.scrollable_frame,
-                text=option,
-                variable=var,
-                onvalue="on",
-                offvalue="off",
-                font=customtkinter.CTkFont(size=12)
-            )
-            checkbox.grid(row=i, column=0, padx=5, pady=2, sticky="w")
+            if option == "自定义":
+                checkbox = customtkinter.CTkCheckBox(
+                    self.scrollable_frame,
+                    text=option,
+                    variable=var,
+                    onvalue="on",
+                    offvalue="off",
+                    font=customtkinter.CTkFont(family="微软雅黑", size=12, weight="bold")
+                )
+            else:
+                checkbox = customtkinter.CTkCheckBox(
+                    self.scrollable_frame,
+                    text=option,
+                    variable=var,
+                    onvalue="on",
+                    offvalue="off",
+                    font=customtkinter.CTkFont(size=12)
+                )
+            row = i // num_columns
+            col = i % num_columns
+            checkbox.grid(row=row, column=col, padx=5, pady=2, sticky="w")
             self.checkbox_vars.append(var)
             self.checkboxes.append(checkbox)
 
+    def get_df_idx(self):
+        """根据自定义选项的勾选情况获取 df_idx"""
+        custom_checked = self.checkbox_vars[-1].get() == "on"
+        if custom_checked:
+            file_path = 'init_flight_parameter.csv'
+            if not os.path.exists(file_path):
+                messagebox.showinfo("文件缺失", "请新建文件init_flight_parameter.csv，并配置抽引参数")
+                # 更友好地退出程序
+                self.destroy()
+                return None
+            try:
+                self.df_idx = pd.read_csv(file_path)
+            except pd.errors.ParserError:
+                messagebox.showerror("文件解析错误", f"无法正确解析文件 {file_path}，请检查文件格式。")
+                self.destroy()
+                return None
+            except Exception as e:
+                messagebox.showerror("未知错误", f"读取文件 {file_path} 时发生未知错误: {e}")
+                self.destroy()
+                return None
+        else:
+            selected_systems = [var.get() == "on" for var in self.checkbox_vars[:-1]]
+            data = {
+                'system': self.options[:-1],
+                'selected': selected_systems
+            }
+            self.df_idx = pd.DataFrame(data)
+
+        return self.df_idx
+
     def single_button_event(self):
         start_time = time.time()
-        selected_systems = [var.get() == "on" for var in self.checkbox_vars]
+        df_idx = self.get_df_idx()
         try:
-            df, text_analyze = ffp.single_abstract(self.df_idx, selected_systems)
+            df, text_analyze = ffp.single_abstract(df_idx)
             self.update_result(f"数据提取完成，耗时: {time.time() - start_time:.2f}秒", text_analyze)
         except Exception as e:
             self.update_result("错误", str(e))
 
     def multi_button_event(self):
-        selected_systems = [var.get() == "on" for var in self.checkbox_vars]
+        df_idx = self.get_df_idx()
         try:
-            ffp.multi_abstract(self.df_idx, selected_systems)
+            ffp.multi_abstract(df_idx)
             self.update_result("批量处理完成", "所有文件已成功处理")
         except Exception as e:
             self.update_result("错误", str(e))
@@ -185,8 +231,6 @@ class App(customtkinter.CTk):
     def on_close(self):
         self.save_checkbox_states()
         self.destroy()
-
-    
 
 
 if __name__ == "__main__":
