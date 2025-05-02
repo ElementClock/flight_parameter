@@ -72,9 +72,13 @@ class AppFrame(wx.Frame):
         self.sidebar_button_2.Bind(wx.EVT_BUTTON, self.multi_button_event)
         button_sizer.Add(self.sidebar_button_2, 0, wx.ALL | wx.EXPAND, 5)
 
-        self.sidebar_button_del_msg = wx.Button(self.panel, label="重置信息框")
+        self.sidebar_button_del_msg = wx.Button(self.panel, label="重置信息")
         self.sidebar_button_del_msg.Bind(wx.EVT_BUTTON, self.del_button_event)
         button_sizer.Add(self.sidebar_button_del_msg, 0, wx.ALL | wx.EXPAND, 5)
+
+        self.copy_result_button = wx.Button(self.panel, label="复制信息")
+        self.copy_result_button.Bind(wx.EVT_BUTTON, self.copy_result_to_clipboard)
+        button_sizer.Add(self.copy_result_button, 0, wx.ALL | wx.EXPAND, 5)
 
         self.toggle_all_button = wx.Button(self.panel, label="全选/取消全选")
         self.toggle_all_button.Bind(wx.EVT_BUTTON, self.toggle_all_checkboxes)
@@ -219,6 +223,14 @@ class AppFrame(wx.Frame):
         # 切换除“自定义”外的所有复选框的状态
         for var in self.checkbox_vars[:-1]:
             var.SetValue(not all_checked)
+
+    def copy_result_to_clipboard(self, event):
+        """将数据导出结果框内的文字复制到剪贴板"""
+        if wx.TheClipboard.Open():
+            wx.TheClipboard.SetData(wx.TextDataObject(self.textbox.GetValue()))
+            wx.TheClipboard.Close()
+        else:
+            self.update_result("错误", "无法打开剪贴板")
 
 
 if __name__ == "__main__":
