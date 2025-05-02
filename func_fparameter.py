@@ -32,13 +32,13 @@ def convert_to_beijing_time(df):
 
 # 处理列名
 def process_column_name(col_name):
-    # 替换类似 _CD-013、_CLG-002 等的字符为 _，但保留包含 "TAWS", "TCAS" 的部分
-    if "TAWS" not in col_name and "TCAS" not in col_name:
-        col_name = re.sub(r'_[A-Z]+-\d+', '_', col_name)
+    # # 替换类似 _CD-013、_CLG-002 等的字符为 _，但保留包含 "TAWS", "TCAS" 的部分
+    # if "TAWS" not in col_name and "TCAS" not in col_name:
+    #     col_name = re.sub(r'_[A-Z]+-\d+', '_', col_name)
     # 替换类似 _L261_ 的字符为 _
     col_name = re.sub(r'_L\d+_', '_', col_name)
-    # 替换类似 _SS21-001 的字符为 _
-    col_name = re.sub(r'_SS\d+-\d+', '_', col_name)
+    # # 替换类似 _SS21-001 的字符为 _
+    # col_name = re.sub(r'_SS\d+-\d+', '_', col_name)
     return col_name
 
 
@@ -102,7 +102,16 @@ def multi_abstract(df_idx):
 
 
 def extract_flight_parameter(df_original, df_idx):
-    """提取需要参数并修改名称"""
+    """提取需要参数并修改名称
+
+    Args:
+        df_original: 原始数据DataFrame
+        df_idx: 包含参数映射关系的DataFrame
+
+    Returns:
+        提取并处理后的DataFrame
+    """
+    # 检查df_idx格式并提取所需列
     if '原始参数' in df_idx.columns and '简化参数' in df_idx.columns:
         columns_to_extract = df_idx.loc[:, '原始参数'].tolist()
         try:
@@ -112,18 +121,20 @@ def extract_flight_parameter(df_original, df_idx):
             return None
         new_column_names = df_idx['简化参数'].tolist()
         df.columns = new_column_names
+
     elif 'system' in df_idx.columns and 'selected' in df_idx.columns:
         selected_systems = df_idx[df_idx['selected'] == True]['system'].tolist()
         original_columns = df_original.columns
         columns_to_extract = []
         new_column_names = []
+
+        # 根据选择的系统提取相关列
         for system in selected_systems:
             for col in original_columns:
                 if system in col:
                     columns_to_extract.append(col)
-                    # 找到提取词的位置
+                    # 处理列名
                     index = col.find(system)
-                    # 截取提取词及其后面的字符
                     new_col_name = col[index:].lstrip('_')
                     new_col_name = process_column_name(new_col_name)
                     new_column_names.append(new_col_name)
@@ -138,16 +149,15 @@ def extract_flight_parameter(df_original, df_idx):
         print("df_idx 格式不支持，请检查列名。")
         return None
 
-    # 提取飞行日期和飞行时间列
+    # 提取并插入飞行日期和时间列
     flight_date_col, flight_time_col = extract_flight_date_time(df_original)
-
     if flight_date_col is not None and flight_time_col is not None:
         df.insert(0, "飞行时间", flight_time_col)
         df.insert(0, "飞行日期", flight_date_col)
 
-    # 格林威治标准时间转为北京时间
+    # 转换时区并清理数据
     df = convert_to_beijing_time(df)
-    df = df.drop('飞行日期', axis=1)  # 删除这一列，在dia分析中用不着
+    df = df.drop('飞行日期', axis=1)  # 删除不再需要的列
     return df
 
 
@@ -155,22 +165,63 @@ def single_analyze(df, df_original, f_path):
     """单文件数据分析"""
     if df is None:
         return f"文件 {f_path} 数据处理失败，无法进行分析。"
+
     # 起落架统计
-    text_landing = landing_gear_analyze(df)
+    # text_landing = landing_gear_analyze(df)
+    # print(f"起落架统计结果: {text_landing}")  # 调试信息
+
     # 开车时间统计
-    text_engine = engine_analyze(df)
+    # text_engine = engine_analyze(df)
+    # print(f"开车时间统计结果: {text_engine}")  # 调试信息
+
     # 总体汇报
-    text_ps = performance_stability_analyze(df)
+    # text_ps = performance_stability_analyze(df)
+    # print(f"总体汇报结果: {text_ps}")  # 调试信息
+
     # CAS汇报
-    # text_cas = cas_analyze(df, df_original)
+    text_cas = cas_analyze(df)
+    # print(f"CAS汇报结果: {text_cas}")  # 调试信息
+
     # 总汇报
     text_analyze = (f"本次分析文件为{f_path[-29:]}\n"
-                    f"{text_engine}\n"
-                    f"{text_landing}\n"
-                    f"{text_ps}\n"
-                    # f"{text_cas}\n"
+                    # f"{text_engine}\n"
+                    # f"{text_landing}\n"
+                    # f"{text_ps}\n"
+                    f"{text_cas}\n"
                     f"\n")
     return text_analyze
+
+
+def find_alarm_periods(alarm_times):
+    """找到连续告警的时间段
+    
+    Args:
+        alarm_times: 包含告警时间的Series
+        
+    Returns:
+        包含连续告警时间段的列表，每个时间段为(start_time, end_time)的元组
+    """
+    if alarm_times.empty:
+        return []
+
+    periods = []
+    start_time = None
+    alarm_times = pd.to_datetime(alarm_times, format='%H:%M:%S')  # 确保时间格式一致
+    
+    for i, time in enumerate(alarm_times):
+        if start_time is None:
+            start_time = time
+            
+        # 判断是否连续，只要存在间断，则结束当前时间段
+        if i < len(alarm_times) - 1 and (alarm_times.iloc[i + 1] - time).total_seconds() > 1:
+            end_time = time
+            periods.append((start_time, end_time))
+            start_time = None
+        elif i == len(alarm_times) - 1:
+            end_time = time
+            periods.append((start_time, end_time))
+            
+    return periods
 
 
 def engine_analyze(df):
@@ -239,28 +290,56 @@ def performance_stability_analyze(df):
     return text
 
 
-def cas_analyze(df, df_original):
-    """告警分析，出现告警参数以及告警的时间段"""
-    selected_columns = df_original.filter(like='显示告警系统').columns
-    # 存储结果
+def cas_analyze(df):
+    """
+    告警分析，出现告警参数以及告警的时间段
+    """
     result = []
-    # 遍历每一个告警系统列
-    for column in selected_columns:
-        if column not in df.columns:
-            continue
-        # 获取该列值为 1 的时间段
-        alarm_times = df[df[column] == 1]['飞行时间']
-        if not alarm_times.empty:
-            start_time = None
-            # 遍历每个时间点，找到连续时间段
-            for i, time in enumerate(alarm_times):
-                if start_time is None:
-                    start_time = time
-                # 如果下一个时间点与当前时间点不连续，则输出一个时间段
-                if i == len(alarm_times) - 1 or (
-                        pd.to_datetime(alarm_times.iloc[i + 1]) - pd.to_datetime(time)).seconds > 600:  # 超过10分钟不连续
-                    end_time = time
-                    result.append(f"{column}：告警时间从 {start_time} 到 {end_time}")
-                    start_time = None
-    text = "\n".join(result)
-    return text
+
+    # 检查输入的 DataFrame 是否为空
+    if df.empty:
+        result.append("输入的 DataFrame 为空，请检查数据源")
+    else:
+        # 检查 DataFrame 中是否存在 '飞行时间' 列
+        if '飞行时间' not in df.columns:
+            result.append("DataFrame 中缺少 '飞行时间' 列")
+        else:
+            # 获取包含 "显示告警系统" 的列名
+            alarm_columns = df.filter(like='显示告警系统').columns
+            if alarm_columns.empty:
+                result.append("未找到包含 '显示告警系统' 的列")
+            else:
+                # 提取包含 "显示告警系统" 的列以及 "飞行时间" 列
+                df_cas = df[['飞行时间'] + alarm_columns.tolist()]
+
+                # 遍历每一个告警系统列
+                for column in alarm_columns:
+                    try:
+                        # 检查索引操作是否正常
+                        mask = df_cas[column] == 1
+                        assert mask.ndim == 1, f"索引条件 {column} 不是一维的"
+                        alarm_times = df_cas.loc[mask, '飞行时间']
+                        # 确保 alarm_times 是一维的 Series 对象
+                        if isinstance(alarm_times, pd.DataFrame):
+                            alarm_times = alarm_times.squeeze()
+                    except KeyError:
+                        result.append(f"列 {column} 或 '飞行时间' 列存在问题，请检查数据完整性")
+                        continue
+                    except AssertionError as e:
+                        result.append(str(e))
+                        continue
+
+                    if not alarm_times.empty:
+                        # 找到所有连续告警时间段
+                        periods = find_alarm_periods(alarm_times)
+                        for start, end in periods:
+                            duration = (end - start).total_seconds()  # 计算持续时间（秒）
+                            if duration >= 60:
+                                minutes = int(duration // 60)
+                                seconds = int(duration % 60)
+                                result.append(f"{column}：告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {minutes} 分钟 {seconds} 秒")
+                            else:
+                                result.append(f"{column}：告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {duration:.0f} 秒")
+
+    # 拼接结果
+    return "\n".join(result)

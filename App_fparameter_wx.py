@@ -24,8 +24,8 @@ def calculate_window_geometry():
     user32 = ctypes.windll.user32
     real_screen_width = user32.GetSystemMetrics(0)
     real_dpi = real_screen_width // screen_width
-    window_width = 1618
-    window_height = 1000
+    window_width = 2200
+    window_height = 1400
     x = ((screen_width // 2) - (window_width // 2)) * real_dpi
     y = ((screen_height // 2) - (window_height // 2)) * real_dpi * 0.75
     return window_width, window_height, int(x), int(y)
@@ -61,18 +61,24 @@ class AppFrame(wx.Frame):
         logo_label.SetFont(font)
         sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 20)
 
-        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        # 替换按钮部分的代码如下：
+        button_sizer = wx.BoxSizer(wx.VERTICAL)  # 改为垂直布局
+
         self.sidebar_button_1 = wx.Button(self.panel, label="单个文件导出")
         self.sidebar_button_1.Bind(wx.EVT_BUTTON, self.single_button_event)
-        button_sizer.Add(self.sidebar_button_1, 1, wx.ALL | wx.EXPAND, 5)
+        button_sizer.Add(self.sidebar_button_1, 0, wx.ALL | wx.EXPAND, 5)
 
         self.sidebar_button_2 = wx.Button(self.panel, label="多个文件导出")
         self.sidebar_button_2.Bind(wx.EVT_BUTTON, self.multi_button_event)
-        button_sizer.Add(self.sidebar_button_2, 1, wx.ALL | wx.EXPAND, 5)
+        button_sizer.Add(self.sidebar_button_2, 0, wx.ALL | wx.EXPAND, 5)
 
         self.sidebar_button_del_msg = wx.Button(self.panel, label="重置信息框")
         self.sidebar_button_del_msg.Bind(wx.EVT_BUTTON, self.del_button_event)
-        button_sizer.Add(self.sidebar_button_del_msg, 1, wx.ALL | wx.EXPAND, 5)
+        button_sizer.Add(self.sidebar_button_del_msg, 0, wx.ALL | wx.EXPAND, 5)
+
+        self.toggle_all_button = wx.Button(self.panel, label="全选/取消全选")
+        self.toggle_all_button.Bind(wx.EVT_BUTTON, self.toggle_all_checkboxes)
+        button_sizer.Add(self.toggle_all_button, 0, wx.ALL | wx.EXPAND, 5)
 
         sidebar_sizer.Add(button_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
@@ -203,6 +209,11 @@ class AppFrame(wx.Frame):
         self.save_checkbox_states()
         self.Destroy()
 
+    def toggle_all_checkboxes(self, event):
+        """切换所有复选框的选中状态"""
+        all_checked = all(var.GetValue() for var in self.checkbox_vars)
+        for var in self.checkbox_vars:
+            var.SetValue(not all_checked)
 
 if __name__ == "__main__":
     app = wx.App()
