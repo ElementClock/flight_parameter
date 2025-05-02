@@ -30,7 +30,7 @@ def convert_to_beijing_time(df):
     return df
 
 
-# 处理列名
+# 重命名处理列名
 def process_column_name(col_name):
     # # 替换类似 _CD-013、_CLG-002 等的字符为 _，但保留包含 "TAWS", "TCAS" 的部分
     # if "TAWS" not in col_name and "TCAS" not in col_name:

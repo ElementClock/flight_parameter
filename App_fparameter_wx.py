@@ -127,9 +127,12 @@ class AppFrame(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
     def get_df_idx(self):
-        """根据自定义选项的勾选情况获取 df_idx"""
+        """
+        根据自定义选项的勾选情况获取 df_idx
+        自定义和勾选是冲突的，只能自定义或者勾选
+        """
         custom_checked = self.checkbox_vars[-1].GetValue()
-        if custom_checked:
+        if custom_checked:  # 如果自定义选项被选中，则从自定义文件读取 df_idx
             file_path = 'init_flight_parameter.csv'
             if not os.path.exists(file_path):
                 self.update_result("错误", "请新建文件init_flight_parameter.csv，并配置抽引参数")
@@ -210,10 +213,13 @@ class AppFrame(wx.Frame):
         self.Destroy()
 
     def toggle_all_checkboxes(self, event):
-        """切换所有复选框的选中状态"""
-        all_checked = all(var.GetValue() for var in self.checkbox_vars)
-        for var in self.checkbox_vars:
+        """切换所有复选框的选中状态，排除最后一个“自定义”选项"""
+        # 检查除“自定义”外的所有复选框是否都已选中
+        all_checked = all(var.GetValue() for var in self.checkbox_vars[:-1])
+        # 切换除“自定义”外的所有复选框的状态
+        for var in self.checkbox_vars[:-1]:
             var.SetValue(not all_checked)
+
 
 if __name__ == "__main__":
     app = wx.App()
