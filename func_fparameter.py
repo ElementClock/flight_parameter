@@ -18,8 +18,12 @@ def extract_flight_date_time(df_original):
     flight_time_col = None
     for col in df_original.columns:
         if "全球卫星定位系统" in col and "年月日" in col:
-            flight_date_col = df_original[col]
-        elif "全球卫星定位系统" in col and "时分秒" in col:
+            # 获取出现次数最多的值（众数）
+            most_common_value = df_original[col].mode()[0]
+            # 将该列所有值替换为出现次数最多的值
+            flight_date_col = df_original[col].apply(lambda x: most_common_value)
+
+        elif col == "飞参内部时间":  # 直接匹配列名
             flight_time_col = df_original[col]
     return flight_date_col, flight_time_col
 
@@ -149,14 +153,7 @@ def extract_flight_parameter(df_original, df_idx):
         print("df_idx 格式不支持，请检查列名。")
         return None
 
-    # 删除UTC时间源为0的行，避免运行报错
-    utc_time_source_col_index = 1  # 假设全球卫星定位系统_UTC时间源列的索引是 0
-    if df.columns[utc_time_source_col_index] == '全球卫星定位系统_UTC时间源':
-        df = df[df.iloc[:, utc_time_source_col_index] != 0]
 
-    df_original = df_original.loc[df.index]  # 确保索引与原始数据一致,确保提出无效值的df和df_original的索引一致,实现数据同步剔除
-    df_original = df_original.reset_index(drop=True)  # 重置索引
-    df = df.reset_index(drop=True)
 
     # 提取并插入飞行日期和时间列
     flight_date_col, flight_time_col = extract_flight_date_time(df_original)
