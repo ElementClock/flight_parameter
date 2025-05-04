@@ -5,7 +5,12 @@ from tkinter import filedialog
 
 import numpy as np
 import pandas as pd
+import logging
 
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+from analysis.cas_analysis import analyze_cas
 
 # 提取飞行日期和时间列
 def extract_flight_date_time(df_original):
@@ -32,13 +37,8 @@ def convert_to_beijing_time(df):
 
 # 重命名处理列名
 def process_column_name(col_name):
-    # # 替换类似 _CD-013、_CLG-002 等的字符为 _，但保留包含 "TAWS", "TCAS" 的部分
-    # if "TAWS" not in col_name and "TCAS" not in col_name:
-    #     col_name = re.sub(r'_[A-Z]+-\d+', '_', col_name)
     # 替换类似 _L261_ 的字符为 _
     col_name = re.sub(r'_L\d+_', '_', col_name)
-    # # 替换类似 _SS21-001 的字符为 _
-    # col_name = re.sub(r'_SS\d+-\d+', '_', col_name)
     return col_name
 
 
@@ -149,6 +149,11 @@ def extract_flight_parameter(df_original, df_idx):
         print("df_idx 格式不支持，请检查列名。")
         return None
 
+    # 删除UTC时间源为0的行，避免运行报错
+    utc_time_source_col = 'ATA345_GNSU1全球卫星定位系统_L150_UTC时间源'
+    if utc_time_source_col in df.columns:
+        df = df[df[utc_time_source_col] != 0]
+
     # 提取并插入飞行日期和时间列
     flight_date_col, flight_time_col = extract_flight_date_time(df_original)
     if flight_date_col is not None and flight_time_col is not None:
@@ -166,180 +171,11 @@ def single_analyze(df, df_original, f_path):
     if df is None:
         return f"文件 {f_path} 数据处理失败，无法进行分析。"
 
-    # 起落架统计
-    # text_landing = landing_gear_analyze(df)
-    # print(f"起落架统计结果: {text_landing}")  # 调试信息
-
-    # 开车时间统计
-    # text_engine = engine_analyze(df)
-    # print(f"开车时间统计结果: {text_engine}")  # 调试信息
-
-    # 总体汇报
-    # text_ps = performance_stability_analyze(df)
-    # print(f"总体汇报结果: {text_ps}")  # 调试信息
-
     # CAS汇报
-    text_cas = cas_analyze(df)
-    # print(f"CAS汇报结果: {text_cas}")  # 调试信息
+    text_cas = analyze_cas(df)
 
     # 总汇报
     text_analyze = (f"本次分析文件为{f_path[-29:]}\n"
-                    # f"{text_engine}\n"
-                    # f"{text_landing}\n"
-                    # f"{text_ps}\n"
                     f"{text_cas}\n"
                     f"\n")
     return text_analyze
-
-
-def find_alarm_periods(alarm_times):
-    """找到连续告警的时间段
-    
-    Args:
-        alarm_times: 包含告警时间的Series
-        
-    Returns:
-        包含连续告警时间段的列表，每个时间段为(start_time, end_time)的元组
-    """
-    if alarm_times.empty:
-        return []
-
-    periods = []
-    start_time = None
-    alarm_times = pd.to_datetime(alarm_times, format='%H:%M:%S')  # 确保时间格式一致
-    
-    for i, time in enumerate(alarm_times):
-        if start_time is None:
-            start_time = time
-            
-        # 判断是否连续，只要存在间断，则结束当前时间段
-        if i < len(alarm_times) - 1 and (alarm_times.iloc[i + 1] - time).total_seconds() > 1:
-            end_time = time
-            periods.append((start_time, end_time))
-            start_time = None
-        elif i == len(alarm_times) - 1:
-            end_time = time
-            periods.append((start_time, end_time))
-            
-    return periods
-
-
-def engine_analyze(df):
-    """动力专业分析"""
-    engine_columns = ["1发转速", "2发转速", "3发转速", "4发转速"]
-    # 提取每列的第一次和最后一次不为0的时间
-    times = []
-    for col in engine_columns:
-        non_zero_indices = df[df[col] != 0].index
-        if not non_zero_indices.empty:
-            first_time = df.loc[non_zero_indices.min(), "飞行时间"]
-            last_time = df.loc[non_zero_indices.max(), "飞行时间"]
-            times.append((first_time, last_time))
-    if times:
-        # 解压得到所有的第一次和最后一次时间列表，分别使用min和max来找出最早和最晚的时间
-        first_times, last_times = zip(*times)
-        text = f"开车时间: {min(first_times)}，关车时间： {max(last_times)}"
-    else:
-        text = "数据显示本次飞机没有开车"
-    return text
-
-
-def landing_gear_analyze(df):
-    """起落架专业分析"""
-
-    def changes_count(landing_count, flag):
-        changes = landing_count.diff(1) != 0
-        if flag == 1:
-            indices = landing_count.index[changes].tolist()
-            # 计算相邻差值
-            diffs = np.diff(indices)
-            # 找到差值超过阈值的位置
-            split_indices = np.where(diffs > 90)[0] + 1
-            # 使用split函数分割数组
-            clusters = np.split(indices, split_indices)
-            count = len(clusters) - 2  # 首位数字必定为被分割和初始起飞与最终降落被分割
-            if count < 0:
-                count = 0
-        else:
-            count = (changes.sum() - 1) // 2
-        return count
-
-    landing_gear_ups = changes_count(df['起落架收'], 0)
-    landing_gear_downs = changes_count(df['起落架放'], 0)
-    landing_load1 = changes_count(df['前轮载1'], 1)
-    landing_load2 = changes_count(df['前轮载2'], 1)
-    landing_load3 = changes_count(df['左主起轮载1'], 1)
-    landing_load4 = changes_count(df['左主起轮载2'], 1)
-    landing_load5 = changes_count(df['右主起轮载1'], 1)
-    landing_load6 = changes_count(df['右主起轮载2'], 1)
-    if landing_gear_ups == landing_gear_downs:
-        landing_load = max(landing_load1, landing_load2, landing_load3, landing_load4, landing_load5, landing_load6)
-        text = f'起落架收放 {landing_gear_ups} 次\n飞机着陆起降 {landing_load} 次'
-    else:
-        text = '起落架收放计数存在异常，请检查相关数据'
-    return text
-
-
-def performance_stability_analyze(df):
-    """性能操稳专业**简要分析**，起飞高度，最大飞行高度，飞行距离，最大飞行速度"""
-    high_max = df['气压高度'].max()
-    high_min = df['气压高度'].min()
-    v_max = df['校准空速'].max()
-    v_min = df['校准空速'].min()
-    text = f'起飞高度为 {high_min} m，最大飞行高度为 {high_max} m，最大飞行速度为 {v_max} km/h'
-    return text
-
-
-def cas_analyze(df):
-    """
-    告警分析，出现告警参数以及告警的时间段
-    """
-    result = []
-
-    # 检查输入的 DataFrame 是否为空
-    if df.empty:
-        result.append("输入的 DataFrame 为空，请检查数据源")
-    else:
-        # 检查 DataFrame 中是否存在 '飞行时间' 列
-        if '飞行时间' not in df.columns:
-            result.append("DataFrame 中缺少 '飞行时间' 列")
-        else:
-            # 获取包含 "显示告警系统" 的列名
-            alarm_columns = df.filter(like='显示告警系统').columns
-            if alarm_columns.empty:
-                result.append("未找到包含 '显示告警系统' 的列")
-            else:
-                # 提取包含 "显示告警系统" 的列以及 "飞行时间" 列
-                df_cas = df[['飞行时间'] + alarm_columns.tolist()]
-
-                # 遍历每一个告警系统列
-                for column in alarm_columns:
-                    try:
-                        # 检查索引操作是否正常
-                        mask = df_cas[column] == 1
-                        assert mask.ndim == 1, f"索引条件 {column} 不是一维的"
-                        alarm_times = df_cas.loc[mask, '飞行时间']
-                        # 确保 alarm_times 是一维的 Series 对象
-                        if isinstance(alarm_times, pd.DataFrame):
-                            alarm_times = alarm_times.squeeze()
-                    except KeyError:
-                        result.append(f"列 {column} 或 '飞行时间' 列存在问题，请检查数据完整性")
-                        continue
-                    except AssertionError as e:
-                        result.append(str(e))
-                        continue
-
-                    if not alarm_times.empty:
-                        # 找到所有连续告警时间段
-                        periods = find_alarm_periods(alarm_times)
-                        for start, end in periods:
-                            duration = (end - start).total_seconds()  # 计算持续时间（秒）
-                            if duration >= 60:
-                                minutes = int(duration // 60)
-                                seconds = int(duration % 60)
-                                result.append(f"{column}：告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {minutes} 分钟 {seconds} 秒")
-                            else:
-                                result.append(f"{column}：告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {duration:.0f} 秒")
-
-    # 拼接结果
-    return "\n".join(result)
