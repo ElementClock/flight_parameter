@@ -153,8 +153,6 @@ def extract_flight_parameter(df_original, df_idx):
         print("df_idx 格式不支持，请检查列名。")
         return None
 
-
-
     # 提取并插入飞行日期和时间列
     flight_date_col, flight_time_col = extract_flight_date_time(df_original)
     if flight_date_col is not None and flight_time_col is not None:

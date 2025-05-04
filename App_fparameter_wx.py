@@ -24,8 +24,8 @@ def calculate_window_geometry():
     user32 = ctypes.windll.user32
     real_screen_width = user32.GetSystemMetrics(0)
     real_dpi = real_screen_width // screen_width
-    window_width = 2200
-    window_height = 1400
+    window_width = 1800
+    window_height = 1200
     x = ((screen_width // 2) - (window_width // 2)) * real_dpi
     y = ((screen_height // 2) - (window_height // 2)) * real_dpi * 0.75
     return window_width, window_height, int(x), int(y)

@@ -78,6 +78,11 @@ def analyze_cas(df):
         if periods:
             alarm_periods_dict[column] = periods
 
+    # 修改: 使用 '--' 作为间隔符号，使输出文字长度固定为80字符，中间文字居中显示
+    title = "CAS告警分析结果"
+    formatted_title = title.center(100, '-')
+    result.append(formatted_title)
+
     for column, periods in alarm_periods_dict.items():
         result.append(f"{column}:")
         for start, end in periods:
@@ -85,9 +90,9 @@ def analyze_cas(df):
             if duration >= 60:
                 minutes, seconds = divmod(int(duration), 60)
                 result.append(
-                    f"  告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {minutes} 分钟 {seconds} 秒")
+                    f"\t告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {minutes} 分钟 {seconds} 秒")
             else:
                 result.append(
-                    f"  告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {duration:.0f} 秒")
+                    f"\t告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {duration:.0f} 秒")
 
     return "\n".join(result)
