@@ -1,16 +1,16 @@
 import glob
+import logging
 import os
 import re
 from tkinter import filedialog
 
-import numpy as np
 import pandas as pd
-import logging
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 from analysis.cas_analysis import analyze_cas
+
 
 # 提取飞行日期和时间列
 def extract_flight_date_time(df_original):
@@ -150,9 +150,13 @@ def extract_flight_parameter(df_original, df_idx):
         return None
 
     # 删除UTC时间源为0的行，避免运行报错
-    utc_time_source_col = 'ATA345_GNSU1全球卫星定位系统_L150_UTC时间源'
-    if utc_time_source_col in df.columns:
-        df = df[df[utc_time_source_col] != 0]
+    utc_time_source_col_index = 1  # 假设全球卫星定位系统_UTC时间源列的索引是 0
+    if df.columns[utc_time_source_col_index] == '全球卫星定位系统_UTC时间源':
+        df = df[df.iloc[:, utc_time_source_col_index] != 0]
+
+    df_original = df_original.loc[df.index]  # 确保索引与原始数据一致,确保提出无效值的df和df_original的索引一致,实现数据同步剔除
+    df_original = df_original.reset_index(drop=True)  # 重置索引
+    df = df.reset_index(drop=True)
 
     # 提取并插入飞行日期和时间列
     flight_date_col, flight_time_col = extract_flight_date_time(df_original)
