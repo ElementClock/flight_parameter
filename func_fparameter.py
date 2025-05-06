@@ -10,7 +10,7 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 from analysis.cas_analysis import analyze_cas
-
+from analysis.engine_analysis import analyze_engine
 
 # 提取飞行日期和时间列
 def extract_flight_date_time(df_original):
@@ -172,9 +172,11 @@ def single_analyze(df, df_original, f_path):
 
     # CAS汇报
     text_cas = analyze_cas(df)
+    text_engine = analyze_engine(df)
 
     # 总汇报
     text_analyze = (f"本次分析文件为{f_path[-29:]}\n"
+                    f"{text_engine}\n"
                     f"{text_cas}\n"
                     f"\n")
     return text_analyze
