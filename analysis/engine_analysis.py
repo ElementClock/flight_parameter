@@ -1,11 +1,16 @@
-import pandas as pd
 import re
+
+import pandas as pd
 
 
 def analyze_engine(df):
     """
     分析发动机数据：提取发动机转速和点火状态，计算转速变化
     """
+    # 生成分析结果
+    result = []
+    takeoff_info = []  # 存储符合条件的发动机信息
+    df_takeoff = pd.DataFrame(columns=['i', 'start_time'])  # 存储符合条件的发动机信息
     # 使用正则表达式匹配所有需要的列
     rpm_pattern = re.compile(r'(\d)发发动机转速')
     ignition_pattern = re.compile(r'(\d)发点火状态')
@@ -18,7 +23,9 @@ def analyze_engine(df):
 
     # 检查是否有数据
     if not rpm_columns or not ignition_columns:
-        raise ValueError("未找到发动机转速或点火状态数据，请检查数据源是否正确！")
+        result.append(f"未找到包含 '机电信息采集系统' 的列")
+        result.append(f"未找到包含 '主飞控系统' 的列")
+        return "\n".join(result)
 
     # 提取转速数据并计算转速变化
     engine_rpm = pd.DataFrame({f"engine_{i}_rpm": df[col] for i, col in enumerate(rpm_columns, 1)})
@@ -26,12 +33,6 @@ def analyze_engine(df):
 
     # 提取点火状态数据
     engine_ignition = pd.DataFrame({f"engine_{i}_ignition": df[col] for i, col in enumerate(ignition_columns, 1)})
-
-    # 生成分析结果
-    result = []
-    # 新增变量：用于存储符合条件的发动机信息
-    takeoff_info = []
-    df_takeoff = pd.DataFrame(columns=['i', 'start_time'])
 
     for i in range(1, len(rpm_columns) + 1):
         rpm = engine_rpm[f"engine_{i}_rpm"]
@@ -69,7 +70,6 @@ def analyze_engine(df):
         # 检查结束时间是否超出点火状态为1的持续期间
         if end_time > df.loc[period_data.index[-1], '飞行时间']:
             end_time = df.loc[period_data.index[-1], '飞行时间']
-            # result.append(f"发动机 {i} 分析：转速从0提升至80的时刻超出点火状态为1的持续期间！")
 
         # 新增逻辑：记录符合条件的发动机信息
         takeoff_info.append(f"{i}号发动机开车时间为 {start_time}")
