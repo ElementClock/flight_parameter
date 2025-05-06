@@ -110,7 +110,8 @@ class AppFrame(wx.Frame):
         # 结果显示区域
         result_sizer = wx.BoxSizer(wx.VERTICAL)
         logo_msg_box = wx.StaticText(self.panel, label="数据导出结果", style=wx.ALIGN_CENTER)
-        font = wx.Font(16, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        # 设置字体为等宽字体
+        font = wx.Font(16, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
         logo_msg_box.SetFont(font)
         result_sizer.Add(logo_msg_box, 0, wx.ALL | wx.EXPAND, 20)
 

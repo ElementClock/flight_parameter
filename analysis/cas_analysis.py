@@ -1,7 +1,6 @@
-import pandas as pd
-import numpy as np
 import logging
-from datetime import timedelta
+
+import pandas as pd
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,7 +13,9 @@ def find_alarm_periods(alarm_times):
 
     periods = []
     start_time = None
-    alarm_times = pd.to_datetime(alarm_times, format='%H:%M:%S')  # 确保时间格式一致
+
+    # 将 alarm_times 转换为字符串格式，确保可以正确解析为 datetime
+    alarm_times = pd.to_datetime(alarm_times.astype(str), format='%H:%M:%S')
 
     for i, time in enumerate(alarm_times):
         if start_time is None:
@@ -78,21 +79,53 @@ def analyze_cas(df):
         if periods:
             alarm_periods_dict[column] = periods
 
-    # 修改: 使用 '--' 作为间隔符号，使输出文字长度固定为80字符，中间文字居中显示
+    # 新建 df_summary 并填充数据
+    summary_data = []
+    for column, periods in alarm_periods_dict.items():
+        for start, end in periods:
+            duration = (end - start).total_seconds()
+            minutes, seconds = divmod(int(duration), 60)
+            duration_str = f"{minutes} 分钟 {seconds} 秒" if duration >= 60 else f"{duration:.0f} 秒"
+            summary_data.append({
+                '告警名称': column,
+                '开始时间': start.strftime('%H:%M:%S'),
+                '结束时间': end.strftime('%H:%M:%S'),
+                '持续时间': duration_str
+            })
+
+    df_summary = pd.DataFrame(summary_data)
+
+    # 使用 '--' 作为间隔符号，使输出文字长度固定为100字符，中间文字居中显示
     title = "CAS告警分析结果"
     formatted_title = title.center(100, '-')
     result.append(formatted_title)
 
-    for column, periods in alarm_periods_dict.items():
-        result.append(f"{column}:")
-        for start, end in periods:
-            duration = (end - start).total_seconds()
-            if duration >= 60:
-                minutes, seconds = divmod(int(duration), 60)
-                result.append(
-                    f"\t告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {minutes} 分钟 {seconds} 秒")
-            else:
-                result.append(
-                    f"\t告警时间从 {start.strftime('%H:%M:%S')} 到 {end.strftime('%H:%M:%S')}，持续时间 {duration:.0f} 秒")
+    # 自定义格式化输出
+    # 初始化当前告警变量为None，用于后续判断是否为同一个告警
+    current_alarm = None
+
+    # 定义各列名称及对应宽度，以便后续格式化输出
+    # 遍历摘要数据框的每一行，iterrows()返回索引和行数据
+    for _, row in df_summary.iterrows():
+        # 提取当前行的告警信息
+        alarm_name = row['告警名称']
+        start_time = row['开始时间']
+        end_time = row['结束时间']
+        duration = row['持续时间']
+
+        time_info = (
+            f"{' '.ljust(30, ' ')}"
+            f" 时间：{start_time}-{end_time.ljust(15)}"
+            f" 持续时间：{duration}"
+        )
+        # 判断当前告警与上一条告警是否相同
+        if alarm_name != current_alarm:
+            # 如果不相同，先输出告警名称
+            result.append(f"{alarm_name}")
+            result.append(time_info)
+            # 更新当前告警变量
+            current_alarm = alarm_name
+        else:
+            result.append(time_info)
 
     return "\n".join(result)
