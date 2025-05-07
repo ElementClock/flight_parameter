@@ -30,7 +30,8 @@ def analyze_engine(df):
     if not rpm_columns or not ignition_columns:
         result.append(f"未找到包含 '机电信息采集系统' 的列")
         result.append(f"未找到包含 '主飞控系统' 的列")
-        return "\n".join(result)
+        # 修改返回值为三元组避免解包错误
+        return "\n".join(result), None, None
 
     # 提取转速数据并计算转速变化
     engine_rpm = pd.DataFrame({f"engine_{i}_rpm": df[col] for i, col in enumerate(rpm_columns, 1)})
