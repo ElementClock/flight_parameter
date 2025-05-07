@@ -50,38 +50,40 @@ def analyze_engine(df):
         # 获取第一个期间的数据
         period_data = rpm[ignition_on_periods == first_period]
         if period_data.empty:  # 该期间没有数据
-            result.append(f"发动机 {i} 分析：点火状态为1的期间内无有效数据！")
+            result.append(f"发动机 {i} 分析：点火状态为1的期间内无有效数据")
             continue  # 跳过该期间
 
         # 找到转速从0提升至20的时刻
         rpm_0_to_20 = period_data[(period_data >= 0) & (period_data <= 20)]
+
         if rpm_0_to_20.empty:
-            result.append(f"发动机 {i} 分析：未找到转速从0提升至20的时刻！")
+            result.append(f"发动机 {i} 分析：未找到转速从0至20的时刻")
             continue
         start_time = df.loc[rpm_0_to_20.index[0], '飞行时间']
 
-        # 找到转速从不为0之后继续提升至80的时刻
+        # 找到转速0至80的时期
         rpm_not_0_to_80 = rpm[(rpm > 0) & (rpm <= 80)]
         if rpm_not_0_to_80.empty:
-            result.append(f"发动机 {i} 分析：未找到转速从不为0提升至80的时刻！")
+            result.append(f"发动机 {i} 分析：未找到转速从0至80的时刻")
             continue
         end_time = df.loc[rpm_not_0_to_80.index[-1], '飞行时间']
-
-        # 检查结束时间是否超出点火状态为1的持续期间
-        if end_time > df.loc[period_data.index[-1], '飞行时间']:
-            end_time = df.loc[period_data.index[-1], '飞行时间']
 
         # 新增逻辑：记录符合条件的发动机信息
         takeoff_info.append(f"{i}号发动机开车时间为 {start_time}")
         # 创建新行数据
-        new_row = pd.DataFrame({'i': [i], 'start_time': [start_time]})
+        new_row = pd.DataFrame({'i': [i], 'start_time': [start_time], 'end_time': [end_time]})
         # 将新行追加到 DataFrame
         df_takeoff = pd.concat([df_takeoff, new_row], ignore_index=True)
 
     # 新增逻辑：输出符合条件的发动机信息
     if takeoff_info:
-        takeoff_time = df_takeoff['start_time'].min()
-        result.append(f"\n开车时间为：{takeoff_time} ")
+        # 使用 '--' 作为间隔符号，使输出文字长度固定为100字符，中间文字居中显示
+        title = "动力分析结果"
+        formatted_title = title.center(100, '-')
+        result.append(formatted_title)
+        takeoff_time1 = df_takeoff['start_time'].min()
+        takeoff_time2 = df_takeoff['end_time'].max()
+        result.append(f"\n开车时间为：{takeoff_time1} 关车时间为：{takeoff_time2} ")
         result.extend(takeoff_info)
 
     return "\n".join(result)
