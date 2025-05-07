@@ -12,6 +12,10 @@ def analyze_engine(df):
     result = []
     takeoff_info = []  # 存储符合条件的发动机信息
     df_takeoff = pd.DataFrame(columns=['i', 'start_time'])  # 存储符合条件的发动机信息
+    # 新增初始化字段用于返回起飞时间
+    takeoff_start_time = None
+    takeoff_end_time = None
+
     # 使用正则表达式匹配所有需要的列
     rpm_pattern = re.compile(r'(\d)发发动机转速')
     ignition_pattern = re.compile(r'(\d)发点火状态')
@@ -74,6 +78,7 @@ def analyze_engine(df):
         # 创建新行数据
         new_row = pd.DataFrame({'i': [i], 'start_time': [start_time], 'end_time': [end_time]})
         # 将新行追加到 DataFrame
+        df_takeoff = df_takeoff.dropna(axis=1, how='all')
         df_takeoff = pd.concat([df_takeoff, new_row], ignore_index=True)
 
     # 新增逻辑：输出符合条件的发动机信息
@@ -82,12 +87,11 @@ def analyze_engine(df):
         title = "动力分析结果"
         formatted_title = title.center(100, '-')
         result.append(formatted_title)
-        takeoff_time1 = df_takeoff['start_time'].min()
-        takeoff_time2 = df_takeoff['end_time'].max()
-        start = datetime.datetime.combine(datetime.date.today(), takeoff_time1)
-        end = datetime.datetime.combine(datetime.date.today(), takeoff_time2)
-        gap_time = end - start
-        result.append(f" 开关车时间为：{takeoff_time1}-{takeoff_time2}，耗时：{gap_time} ")
+        takeoff_start_time = df_takeoff['start_time'].min()
+        takeoff_end_time = df_takeoff['end_time'].max()
+        gap_time = takeoff_end_time - takeoff_start_time
+        result.append(f" 开关车时间为：{takeoff_start_time}-{takeoff_end_time}，耗时：{gap_time} ")
         result.extend(takeoff_info)
 
-    return "\n".join(result)
+    # 修改返回值包含起飞时间字段
+    return "\n".join(result), takeoff_start_time, takeoff_end_time

@@ -12,6 +12,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 from analysis.cas_analysis import analyze_cas
 from analysis.engine_analysis import analyze_engine
 
+
 # 提取飞行日期和时间列
 def extract_flight_date_time(df_original):
     flight_date_col = None
@@ -34,8 +35,8 @@ def convert_to_beijing_time(df):
     df_time.loc[:, '飞行日期'] = df_time['飞行日期'].apply(lambda x: f'20{x[:2]}-{x[3:5]}-{x[6:]}')
     df_time.loc[:, 'UTC时间'] = pd.to_datetime(df_time['飞行日期'] + ' ' + df_time['飞行时间'])
     df_time.loc[:, '北京时间'] = df_time['UTC时间'] + pd.Timedelta(hours=8)
-    df.loc[:, '飞行日期'] = pd.to_datetime(df_time['北京时间']).dt.date
-    df.loc[:, '飞行时间'] = pd.to_datetime(df_time['北京时间']).dt.time
+    df.loc[:, '飞行时间'] = pd.to_datetime(df_time['北京时间'])
+    df = df.drop('飞行日期', axis=1)  # 删除不再需要的列
     return df
 
 
@@ -161,7 +162,6 @@ def extract_flight_parameter(df_original, df_idx):
 
     # 转换时区并清理数据
     df = convert_to_beijing_time(df)
-    df = df.drop('飞行日期', axis=1)  # 删除不再需要的列
     return df
 
 
@@ -169,10 +169,10 @@ def single_analyze(df, df_original, f_path):
     """单文件数据分析"""
     if df is None:
         return f"文件 {f_path} 数据处理失败，无法进行分析。"
-
+    # 动力专业汇报
+    [text_engine, engine_start_time, engine_end_time] = analyze_engine(df)
     # CAS汇报
-    text_cas = analyze_cas(df)
-    text_engine = analyze_engine(df)
+    text_cas = analyze_cas(df, engine_start_time, engine_end_time)
 
     # 总汇报
     text_analyze = (f"本次分析文件为{f_path[-29:]}\n"

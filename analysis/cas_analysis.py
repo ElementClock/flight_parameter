@@ -1,6 +1,6 @@
 import logging
-
 import pandas as pd
+from datetime import datetime, time  # 新增time模块导入
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -13,9 +13,6 @@ def find_alarm_periods(alarm_times):
 
     periods = []
     start_time = None
-
-    # 将 alarm_times 转换为字符串格式，确保可以正确解析为 datetime
-    alarm_times = pd.to_datetime(alarm_times.astype(str), format='%H:%M:%S')
 
     for i, time in enumerate(alarm_times):
         if start_time is None:
@@ -52,7 +49,7 @@ def extract_alarm_periods(df_cas, column):
         return []
 
 
-def analyze_cas(df):
+def analyze_cas(df, engine_start_time, engine_end_time):
     """
     告警分析主函数
     """
@@ -83,15 +80,17 @@ def analyze_cas(df):
     summary_data = []
     for column, periods in alarm_periods_dict.items():
         for start, end in periods:
-            duration = (end - start).total_seconds()
-            minutes, seconds = divmod(int(duration), 60)
-            duration_str = f"{minutes} 分钟 {seconds} 秒" if duration >= 60 else f"{duration:.0f} 秒"
-            summary_data.append({
-                '告警名称': column,
-                '开始时间': start.strftime('%H:%M:%S'),
-                '结束时间': end.strftime('%H:%M:%S'),
-                '持续时间': duration_str
-            })
+            # 添加时间范围过滤条件
+            if (engine_start_time is None or start >= engine_start_time) and (engine_end_time is None or end <= engine_end_time):
+                duration = (end - start).total_seconds()+1
+                minutes, seconds = divmod(int(duration), 60)
+                duration_str = f"{minutes} 分钟 {seconds} 秒" if duration >= 60 else f"{duration:.0f} 秒"
+                summary_data.append({
+                    '告警名称': column,
+                    '开始时间': start.strftime('%H:%M:%S'),
+                    '结束时间': end.strftime('%H:%M:%S'),
+                    '持续时间': duration_str
+                })
 
     df_summary = pd.DataFrame(summary_data)
 
