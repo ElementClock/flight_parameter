@@ -1,3 +1,4 @@
+import datetime
 import re
 
 import pandas as pd
@@ -83,7 +84,10 @@ def analyze_engine(df):
         result.append(formatted_title)
         takeoff_time1 = df_takeoff['start_time'].min()
         takeoff_time2 = df_takeoff['end_time'].max()
-        result.append(f"\n开车时间为：{takeoff_time1} 关车时间为：{takeoff_time2} ")
+        start = datetime.datetime.combine(datetime.date.today(), takeoff_time1)
+        end = datetime.datetime.combine(datetime.date.today(), takeoff_time2)
+        gap_time = end - start
+        result.append(f" 开关车时间为：{takeoff_time1}-{takeoff_time2}，耗时：{gap_time} ")
         result.extend(takeoff_info)
 
     return "\n".join(result)
