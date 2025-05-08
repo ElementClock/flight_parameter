@@ -5,7 +5,7 @@ import re
 from tkinter import filedialog
 import pandas as pd
 # 新增并行处理依赖包
-import concurrent.futures  # 删除:from analysis.cas_analysis import analyze_cas
+import concurrent.futures
 
 from analysis.cas_analysis import analyze_cas
 from analysis.engine_analysis import analyze_engine
@@ -49,16 +49,16 @@ def process_column_name(col_name):
 
 # 新增多文件并行处理函数
 def multi_abstract_parallel(df_idx):
-    """
-    并行处理多个飞参文件（新增函数）
-    使用线程池实现文件并行处理
-    """
+    """优化路径选择逻辑"""
     folder_path = filedialog.askdirectory()
     if not folder_path:
         return
     
-    pattern = '*_00_001_Phy.csv'
-    matching_files = glob.glob(os.path.join(folder_path, pattern))
+    # 提前编译正则表达式
+    pattern = re.compile(r'_00_001_Phy\.csv$')  # 使用原生正则表达式匹配
+    # 优化2：使用列表推导式替代glob
+    matching_files = [f for f in os.listdir(folder_path) if pattern.search(f)]
+    matching_files = [os.path.join(folder_path, f) for f in matching_files]
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # 提交所有文件处理任务
@@ -126,15 +126,13 @@ def single_abstract(df_idx, f_path=None):
 
 
 def extract_flight_parameter(df_original, df_idx):
-    """提取需要参数并修改名称
-
-    Args:
-        df_original: 原始数据DataFrame
-        df_idx: 包含参数映射关系的DataFrame
-
-    Returns:
-        提取并处理后的DataFrame
-    """
+    """添加列过滤逻辑，减少内存占用"""
+    # 优化1：提前过滤不需要的列
+    if '原始参数' in df_idx.columns:
+        columns_to_extract = df_idx['原始参数'].tolist()
+        # 仅读取需要的列
+        df_original = df_original[columns_to_extract]  # 减少内存占用
+    
     # 检查df_idx格式并提取所需列
     if '原始参数' in df_idx.columns and '简化参数' in df_idx.columns:
         columns_to_extract = df_idx.loc[:, '原始参数'].tolist()

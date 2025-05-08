@@ -1,3 +1,4 @@
+import concurrent.futures  # 新增线程池模块
 import ctypes
 import json
 import os
@@ -131,6 +132,8 @@ class AppFrame(wx.Frame):
         # 拦截窗口关闭事件
         self.Bind(wx.EVT_CLOSE, self.on_close)
 
+        self.executor = concurrent.futures.ThreadPoolExecutor()  # 初始化线程池执行器
+
     def get_df_idx(self):
         """
         根据自定义选项的勾选情况获取 df_idx
@@ -167,26 +170,36 @@ class AppFrame(wx.Frame):
         return self.df_idx
 
     def single_button_event(self, event):
-        start_time = time.time()
         df_idx = self.get_df_idx()
         if df_idx is None:
             return
-        try:
-            df, text_analyze = ffp.single_abstract(df_idx)
-            self.update_result(f"数据提取完成，耗时: {time.time() - start_time:.2f}秒", text_analyze)
-        except Exception as e:
-            self.update_result("错误", str(e))
+        # 提交任务到线程池
+        future = self.executor.submit(ffp.single_abstract, df_idx)
+        # 注册回调函数处理结果
+        future.add_done_callback(self.on_single_task_complete)
 
     def multi_button_event(self, event):
         df_idx = self.get_df_idx()
         if df_idx is None:
             return
-        start_time = time.time()
+        # 提交任务到线程池
+        future = self.executor.submit(ffp.multi_abstract_parallel, df_idx)
+        # 注册回调函数处理结果
+        future.add_done_callback(self.on_multi_task_complete)
+
+    def on_single_task_complete(self, future):
         try:
-            ffp.multi_abstract_parallel(df_idx)
-            self.update_result("批量处理完成", f"所有文件已成功处理，耗时: {time.time() - start_time:.2f}秒")
+            df, text_analyze = future.result()
+            wx.CallAfter(self.update_result, f"数据提取完成", text_analyze)
         except Exception as e:
-            self.update_result("错误", str(e))
+            wx.CallAfter(self.update_result, "错误", str(e))
+
+    def on_multi_task_complete(self, future):
+        try:
+            future.result()
+            wx.CallAfter(self.update_result, "批量处理完成", "所有文件已成功处理")
+        except Exception as e:
+            wx.CallAfter(self.update_result, "错误", str(e))
 
     def update_result(self, title, content):
         # 追加新内容到文本框末尾
