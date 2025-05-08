@@ -62,12 +62,33 @@ def single_abstract(df_idx):
             df_original = pd.read_csv(f_path, encoding='gbk')
             df = extract_flight_parameter(df_original, df_idx)
             # 确保文件名至少有15个字符来生成输出文件名
-            if len(f_path) >= 15:
-                out_path = f_path[:-15] + '(数据提取).csv'
+            [text_analyze, engine_start_time, engine_end_time] = single_analyze(df, f_path)
+            # 新增文件名生成逻辑
+            if engine_start_time is not None and engine_end_time is not None:
+                # 提取日期和时间
+                date_str = engine_start_time.strftime('%Y%m%d')
+                start_time_str1 = engine_start_time.strftime('%H')
+                start_time_str2 = engine_start_time.strftime('%M')
+                start_time_str3 = engine_start_time.strftime('%S')
+                end_time_str1 = engine_end_time.strftime('%H')
+                end_time_str2 = engine_end_time.strftime('%M')
+                end_time_str3 = engine_end_time.strftime('%S')
+                filename = f"{date_str}-{start_time_str1}h{start_time_str2}m-{end_time_str1}h{end_time_str2}m-开车.csv"
             else:
-                out_path = '提取数据.csv'  # 使用默认文件名
+                # 获取飞行时间第一行和最后一行
+                first_time = df['飞行时间'].iloc[0]
+                last_time = df['飞行时间'].iloc[-1]
+                date_str = first_time.strftime('%Y%m%d')
+                start_time_str1 = first_time.strftime('%H')
+                start_time_str2 = first_time.strftime('%M')
+                start_time_str3 = first_time.strftime('%S')
+                end_time_str1 = last_time.strftime('%H')
+                end_time_str2 = last_time.strftime('%M')
+                end_time_str3 = last_time.strftime('%S')
+                filename = f"{date_str}-{start_time_str1}h{start_time_str2}m-{end_time_str1}h{end_time_str2}m-未开车.csv"
+            # 保持原有路径结构
+            out_path = os.path.join(os.path.dirname(f_path), filename)
             df.to_csv(out_path, index=False, encoding='utf-8-sig')
-            text_analyze = single_analyze(df, df_original, f_path)
         except FileNotFoundError:
             text_analyze = f"文件 {f_path} 未找到。"
         except UnicodeDecodeError:
@@ -165,7 +186,7 @@ def extract_flight_parameter(df_original, df_idx):
     return df
 
 
-def single_analyze(df, df_original, f_path):
+def single_analyze(df, f_path):
     """单文件数据分析"""
     if df is None:
         return f"文件 {f_path} 数据处理失败，无法进行分析。"
@@ -179,4 +200,4 @@ def single_analyze(df, df_original, f_path):
                     f"{text_engine}\n"
                     f"{text_cas}\n"
                     f"\n")
-    return text_analyze
+    return text_analyze, engine_start_time, engine_end_time
