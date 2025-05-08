@@ -95,7 +95,7 @@ def single_abstract(df_idx, f_path=None):
             [text_analyze, engine_start_time, engine_end_time] = single_analyze(df, f_path)
             
             # 新增机载列检测逻辑
-            has_engine_col = any("机载信息采集系统" in col for col in df.columns)
+            has_engine_col = any("机电信息采集系统" in col for col in df.columns)
             # 文件名生成逻辑修改
             if has_engine_col:
                 if engine_start_time is not None and engine_end_time is not None:
