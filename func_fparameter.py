@@ -3,14 +3,14 @@ import logging
 import os
 import re
 from tkinter import filedialog
-
 import pandas as pd
-
-# 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# 新增并行处理依赖包
+import concurrent.futures  # 删除:from analysis.cas_analysis import analyze_cas
 
 from analysis.cas_analysis import analyze_cas
 from analysis.engine_analysis import analyze_engine
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 # 提取飞行日期和时间列
@@ -47,48 +47,72 @@ def process_column_name(col_name):
     return col_name
 
 
-def single_abstract(df_idx):
+# 新增多文件并行处理函数
+def multi_abstract_parallel(df_idx):
+    """
+    并行处理多个飞参文件（新增函数）
+    使用线程池实现文件并行处理
+    """
+    folder_path = filedialog.askdirectory()
+    if not folder_path:
+        return
+    
+    pattern = '*_00_001_Phy.csv'
+    matching_files = glob.glob(os.path.join(folder_path, pattern))
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # 提交所有文件处理任务
+        future_to_file = {
+            executor.submit(single_abstract, df_idx, f_path): f_path 
+            for f_path in matching_files
+        }
+        
+        # 处理执行结果
+        for future in concurrent.futures.as_completed(future_to_file):
+            f_path = future_to_file[future]
+            try:
+                future.result()  # 获取执行结果
+            except Exception as e:
+                logging.error(f"并行处理文件 {f_path} 时出现错误: {e}")
+                print(f"并行处理文件 {f_path} 时出现错误: {e}")
+
+# 修改单文件处理函数签名，增加文件路径参数
+def single_abstract(df_idx, f_path=None):
     """
     单个飞参文件提取,返回:df, text_analyze
-    使用自定义函数
-    extract_flight_parameter
-    single_analyze
+    使用自定义函数 extract_flight_parameter 和 single_analyze
     """
-    f_path = filedialog.askopenfilename()
-    df = None  # 初始化返回变量
-    text_analyze = ""  # 初始化返回变量
+    if not f_path:  # 如果未提供文件路径
+        f_path = filedialog.askopenfilename()  # 保留原有手动选择功能
+        
+    df = None
+    text_analyze = ""
+    
     if f_path:
         try:
             df_original = pd.read_csv(f_path, encoding='gbk')
             df = extract_flight_parameter(df_original, df_idx)
-            # 确保文件名至少有15个字符来生成输出文件名
             [text_analyze, engine_start_time, engine_end_time] = single_analyze(df, f_path)
-            # 新增文件名生成逻辑
-            if engine_start_time is not None and engine_end_time is not None:
-                # 提取日期和时间
-                date_str = engine_start_time.strftime('%Y%m%d')
-                start_time_str1 = engine_start_time.strftime('%H')
-                start_time_str2 = engine_start_time.strftime('%M')
-                start_time_str3 = engine_start_time.strftime('%S')
-                end_time_str1 = engine_end_time.strftime('%H')
-                end_time_str2 = engine_end_time.strftime('%M')
-                end_time_str3 = engine_end_time.strftime('%S')
-                filename = f"{date_str}-{start_time_str1}h{start_time_str2}m-{end_time_str1}h{end_time_str2}m-开车.csv"
+            
+            # 新增机载列检测逻辑
+            has_engine_col = any("机载信息采集系统" in col for col in df.columns)
+            # 文件名生成逻辑修改
+            if has_engine_col:
+                if engine_start_time is not None and engine_end_time is not None:
+                    date_str = engine_start_time.strftime('%Y%m%d')
+                    filename = f"{date_str}-{engine_start_time.strftime('%Hh%Mm')}-{engine_end_time.strftime('%Hh%Mm')}-开车.csv"
+                else:
+                    first_time = df['飞行时间'].iloc[0]
+                    last_time = df['飞行时间'].iloc[-1]
+                    filename = f"{first_time.strftime('%Y%m%d')}-{first_time.strftime('%Hh%Mm')}-{last_time.strftime('%Hh%Mm')}-未开车.csv"
             else:
-                # 获取飞行时间第一行和最后一行
                 first_time = df['飞行时间'].iloc[0]
                 last_time = df['飞行时间'].iloc[-1]
-                date_str = first_time.strftime('%Y%m%d')
-                start_time_str1 = first_time.strftime('%H')
-                start_time_str2 = first_time.strftime('%M')
-                start_time_str3 = first_time.strftime('%S')
-                end_time_str1 = last_time.strftime('%H')
-                end_time_str2 = last_time.strftime('%M')
-                end_time_str3 = last_time.strftime('%S')
-                filename = f"{date_str}-{start_time_str1}h{start_time_str2}m-{end_time_str1}h{end_time_str2}m-未开车.csv"
-            # 保持原有路径结构
+                filename = f"{first_time.strftime('%Y%m%d')}-{first_time.strftime('%Hh%Mm')}-{last_time.strftime('%Hh%Mm')}.csv"
+                
             out_path = os.path.join(os.path.dirname(f_path), filename)
             df.to_csv(out_path, index=False, encoding='utf-8-sig')
+            
         except FileNotFoundError:
             text_analyze = f"文件 {f_path} 未找到。"
         except UnicodeDecodeError:
@@ -97,34 +121,8 @@ def single_abstract(df_idx):
             text_analyze = f"文件 {f_path} 缺少列: {e}"
         except Exception as e:
             text_analyze = f"处理文件 {f_path} 时出现错误: {e}"
+            
     return df, text_analyze
-
-
-def multi_abstract(df_idx):
-    """多个飞参文件提取"""
-    folder_path = filedialog.askdirectory()  # 返回选定的文件夹路径
-    if not folder_path:
-        return  # 如果没有选择文件夹，则直接返回
-    # 定义匹配规则
-    pattern = '*_00_001_Phy.csv'
-    # 使用glob找到所有匹配的文件
-    matching_files = glob.glob(os.path.join(folder_path, pattern))
-    # 遍历所有匹配的文件并进行处理
-    for f_path in matching_files:
-        try:
-            df_original = pd.read_csv(f_path, encoding='gbk')
-            # 数据提取
-            df = extract_flight_parameter(df_original, df_idx)
-            out_path = f_path[:-15] + '(数据提取).csv'
-            df.to_csv(out_path, index=False, encoding='utf-8-sig')
-        except FileNotFoundError:
-            print(f"文件 {f_path} 未找到。")
-        except UnicodeDecodeError:
-            print(f"文件 {f_path} 编码格式错误。")
-        except KeyError as e:
-            print(f"文件 {f_path} 缺少列: {e}")
-        except Exception as e:
-            print(f"处理文件 {f_path} 时出现错误: {e}")
 
 
 def extract_flight_parameter(df_original, df_idx):
@@ -201,3 +199,7 @@ def single_analyze(df, f_path):
                     f"{text_cas}\n"
                     f"\n")
     return text_analyze, engine_start_time, engine_end_time
+
+
+
+
