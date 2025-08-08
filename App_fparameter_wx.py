@@ -25,21 +25,21 @@ def calculate_window_geometry():
     user32 = ctypes.windll.user32
     real_screen_width = user32.GetSystemMetrics(0)
     real_dpi = real_screen_width // screen_width
-    window_width = 1800
-    window_height = 1200
-    x = ((screen_width // 2) - (window_width // 2)) * real_dpi
-    y = ((screen_height // 2) - (window_height // 2)) * real_dpi * 0.75
-    return window_width, window_height, int(x), int(y)
+
+    # 使用相对比例而非绝对像素
+    window_width = int(screen_width * 0.7)
+    window_height = int(screen_height * 0.6)
+    x = (screen_width - window_width) // 2
+    y = (screen_height - window_height) // 2
+    return window_width, window_height, x, y
 
 
 class AppFrame(wx.Frame):
-    def __init__(self, parent=None, title="飞行数据快速处理"):
+    def __init__(self, parent=None, title="飞行数据"):
         width, height, x, y = calculate_window_geometry()
         super().__init__(parent, title=title, size=(width, height), pos=(x, y))
         self.df_idx = None
-        # 设置窗口最小和最大尺寸，使其固定不变
-        self.SetMinSize((width, height))
-        self.SetMaxSize((width, height))
+        # 删除固定窗口尺寸限制，允许窗口自由调整大小
 
         # 获取打包后的资源路径
         if getattr(sys, 'frozen', False):
@@ -58,7 +58,7 @@ class AppFrame(wx.Frame):
         # 侧边栏布局
         sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
         logo_label = wx.StaticText(self.panel, label="选择导出模式", style=wx.ALIGN_CENTER)
-        font = wx.Font(16, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)  # 使用相对字体大小
         logo_label.SetFont(font)
         sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 20)
 
@@ -103,16 +103,18 @@ class AppFrame(wx.Frame):
             if option == "自定义":
                 font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
                 var.SetFont(font)
-            checkbox_sizer.Add(var, 0, wx.ALL | wx.ALIGN_LEFT, 5)
+            checkbox_sizer.Add(var, 1, wx.ALL | wx.EXPAND, 5)
             self.checkbox_vars.append(var)
             self.checkboxes.append(var)
+        checkbox_sizer.AddGrowableCol(0)
+        checkbox_sizer.AddGrowableCol(1)
         sidebar_sizer.Add(checkbox_sizer, 1, wx.ALL | wx.EXPAND, 10)
 
         # 结果显示区域
         result_sizer = wx.BoxSizer(wx.VERTICAL)
         logo_msg_box = wx.StaticText(self.panel, label="数据导出结果", style=wx.ALIGN_CENTER)
         # 设置字体为等宽字体
-        font = wx.Font(16, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        font = wx.Font(12, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
         logo_msg_box.SetFont(font)
         result_sizer.Add(logo_msg_box, 0, wx.ALL | wx.EXPAND, 20)
 
