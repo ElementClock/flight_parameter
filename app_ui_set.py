@@ -26,8 +26,11 @@ class AppFrame(wx.Frame):
         self.panel = wx.Panel(self)
 
         # 创建布局管理器
+        main_sizer = wx.BoxSizer(wx.HORIZONTAL)  # 水平布局
         sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
         button_sizer = wx.BoxSizer(wx.VERTICAL)  # 改为垂直布局
+
+
 
         # 创建一个静态文本控件，并设置字体
         logo_label = wx.StaticText(self.panel, label="选择导出模式", style=wx.ALIGN_CENTER)
@@ -38,12 +41,27 @@ class AppFrame(wx.Frame):
         self.sidebar_button_1.Bind(wx.EVT_BUTTON, self.single_button_event)
         button_sizer.Add(self.sidebar_button_1, 0, wx.ALL | wx.EXPAND, 20)
 
+        # 结果显示区域
+        result_sizer = wx.BoxSizer(wx.VERTICAL)
+        logo_msg_box = wx.StaticText(self.panel, label="数据导出结果", style=wx.ALIGN_CENTER)
+        # 设置字体为等宽字体
+        font = wx.Font(12, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        logo_msg_box.SetFont(font)
+        result_sizer.Add(logo_msg_box, 0, wx.ALL | wx.EXPAND, 20)
+
+        self.textbox = wx.TextCtrl(self.panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
+        result_sizer.Add(self.textbox, 1, wx.ALL | wx.EXPAND, 10)
+
+
         # 给sidebar_sizer添加部件
         sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 10)
         sidebar_sizer.Add(button_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        # 主布局添加sidebar_sizer
+        main_sizer.Add(sidebar_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        main_sizer.Add(result_sizer, 1, wx.ALL | wx.EXPAND, 0)
 
-        # 将sidebar_sizer布局管理器设置给self.panel面板，使面板内的控件按照该布局管理器的规则进行排列
-        self.panel.SetSizer(sidebar_sizer)
+        # 使面板内的控件按照该布局管理器的规则进行排列
+        self.panel.SetSizer(main_sizer)
         # 强制面板重新计算并应用布局，确保控件按照新设置的布局管理器正确显示位置和大小
         self.panel.Layout()
 
