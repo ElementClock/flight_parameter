@@ -5,98 +5,145 @@ import wx
 
 
 class AppFrame(wx.Frame):
+    """应用程序主窗口类"""
+    
     def __init__(self, parent=None, title="i森超级定制款"):
+        """初始化应用程序窗口"""
+        # 启用高DPI支持，确保在高分辨率屏幕上正确显示
+        if hasattr(wx, 'EnableHighDPIAware'):
+            wx.EnableHighDPIAware()
+        try:
+            # 2表示PerMonitorV2，支持每个监视器的DPI设置
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except AttributeError:
+            pass
+            
         # 自动按比例获取窗口大小
         width, height, app_init_x, app_init_y = calculate_window_geometry()
         # 初始化窗口
         super().__init__(parent, title=title, size=(width, height), pos=(app_init_x, app_init_y))
+        
         # 获取打包后的资源路径
         if getattr(sys, 'frozen', False):
+            # 如果是打包后的可执行文件
             base_path = sys._MEIPASS
         else:
+            # 如果是源代码运行
             base_path = os.path.dirname(os.path.abspath(__file__))
         icon_path = os.path.join(base_path, 'app_icon.ico')
 
-        # 设置图标
+        # 设置应用程序图标
         if os.path.exists(icon_path):
             self.SetIcon(wx.Icon(icon_path, wx.BITMAP_TYPE_ICO))
             
         # 创建主面板
         self.panel = wx.Panel(self)
+        
+        # 创建UI界面
+        self.create_ui()
+        
+        # 设置窗口最小尺寸，防止用户将窗口缩得太小
+        min_size = self.main_sizer.GetMinSize()
+        self.SetMinSize(min_size)
 
-        # 创建布局管理器
-        main_sizer = wx.BoxSizer(wx.HORIZONTAL)  # 主布局
-        sidebar_sizer = wx.BoxSizer(wx.VERTICAL) # 侧边布局
-        button_sizer = wx.BoxSizer(wx.VERTICAL) # 按钮布局
-        main_sizer.Add(sidebar_sizer, 0, wx.ALL | wx.EXPAND, 10)
+    def create_ui(self):
+        """创建用户界面"""
+        # 创建主布局管理器，采用水平布局
+        self.main_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        
+        # 创建侧边栏面板和内容面板
+        self.create_sidebar()
+        self.create_content_area()
+        
+        # 将侧边栏和内容区域添加到主布局
+        # 侧边栏不伸缩（proportion=0），内容区域占据剩余空间（proportion=1）
+        self.main_sizer.Add(self.sidebar_panel, 0, wx.EXPAND)
+        self.main_sizer.Add(self.content_panel, 1, wx.EXPAND)
+        
+        # 设置主面板的布局管理器
+        self.panel.SetSizer(self.main_sizer)
+        # 调整窗口大小以适应内容
+        self.main_sizer.Fit(self.panel)
 
-        # 定义基础尺寸单位
+    def create_sidebar(self):
+        """创建侧边栏区域"""
+        # 为侧边栏创建独立面板，便于管理和布局
+        self.sidebar_panel = wx.Panel(self.panel)
+        sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # 定义基础尺寸单位，根据屏幕尺寸动态计算
         screen_width, screen_height = wx.GetDisplaySize()
-        basic_width=int(screen_width * 0.10)  # 使用屏幕宽度的15%作为最小宽度
-        basic_height=int(screen_height * 0.015)
+        basic_width = int(screen_width * 0.10)   # 使用屏幕宽度的10%作为基础宽度
+        basic_height = int(screen_height * 0.015)  # 使用屏幕高度的1.5%作为基础高度
 
-        # 创建静态文本控件
-        logo_label = wx.StaticText(self.panel, label="选择导出模式", style=wx.ALIGN_CENTER)
+        # 创建标题标签
+        logo_label = wx.StaticText(self.sidebar_panel, label="选择导出模式", style=wx.ALIGN_CENTER)
         font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
         logo_label.SetFont(font)
-        logo_label.SetMinSize((basic_width, basic_height))  # 设置自适应最小尺寸
-        sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 10)
+        # 设置标签最小尺寸，确保在窗口缩小时仍可见
+        logo_label.SetMinSize((basic_width, basic_height))
+        sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 5)
 
-
-        # 创建按钮
-        self.sidebar_button_1 = wx.Button(self.panel, label="单个文件导出")
+        # 创建按钮布局管理器
+        button_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # 创建导出按钮
+        self.sidebar_button_1 = wx.Button(self.sidebar_panel, label="单个文件导出")
+        # 绑定按钮点击事件
         self.sidebar_button_1.Bind(wx.EVT_BUTTON, self.single_button_event)
-        button_sizer.Add(self.sidebar_button_1, 0, wx.ALL | wx.EXPAND, 20)
+        # 设置按钮最小尺寸，确保按钮内容可见
+        self.sidebar_button_1.SetMinSize((basic_width, basic_height*1.5))
+        # 设置按钮最大尺寸，防止按钮变得过大
+        self.sidebar_button_1.SetMaxSize((basic_width*2, basic_height*3))
+        # 添加按钮到布局，不伸缩，居中显示
+        button_sizer.Add(self.sidebar_button_1, 0, wx.ALL | wx.CENTER, 5)
 
-        # 按钮的尺寸设置
-        button_sizer.SetMinSize((basic_width, basic_height * 6))
-        sidebar_sizer.Add(button_sizer, 0, wx.ALL | wx.EXPAND, 20)
+        # 添加按钮布局到侧边栏布局
+        sidebar_sizer.Add(button_sizer, 1, wx.ALL | wx.EXPAND, 5)
+        
+        # 设置侧边栏面板的布局管理器
+        self.sidebar_panel.SetSizer(sidebar_sizer)
 
+    def create_content_area(self):
+        """创建主内容区域"""
+        # 为主要内容区域创建独立面板
+        self.content_panel = wx.Panel(self.panel)
+        content_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # 定义基础尺寸单位
+        screen_width, screen_height = wx.GetDisplaySize()
+        basic_width = int(screen_width * 0.10)
+        basic_height = int(screen_height * 0.015)
 
-
-
-        # 结果显示区域
-        result_sizer = wx.BoxSizer(wx.VERTICAL)
-        main_sizer.Add(result_sizer, 1, wx.ALL | wx.EXPAND, 0)
-        logo_msg_box = wx.StaticText(self.panel, label="数据导出结果", style=wx.ALIGN_CENTER)
-        # 设置字体为等宽字体
+        # 创建结果区域标题
+        logo_msg_box = wx.StaticText(self.content_panel, label="数据导出结果", style=wx.ALIGN_CENTER)
+        # 设置字体为等宽字体，便于显示格式化数据
         font = wx.Font(12, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
         logo_msg_box.SetFont(font)
-        result_sizer.Add(logo_msg_box, 0, wx.ALL | wx.EXPAND, 20)
+        # 设置最小尺寸确保可见性
+        logo_msg_box.SetMinSize((basic_width, basic_height))
+        content_sizer.Add(logo_msg_box, 0, wx.ALL | wx.EXPAND, 5)
 
-        self.textbox = wx.TextCtrl(self.panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
-        result_sizer.Add(self.textbox, 1, wx.ALL | wx.EXPAND, 10)
-        # 设置最小尺寸
-        result_sizer.SetMinSize((3*basic_width,2*basic_height))
+        # 创建文本显示框，用于显示导出结果
+        self.textbox = wx.TextCtrl(self.content_panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
+        # 文本框占据剩余空间
+        content_sizer.Add(self.textbox, 1, wx.ALL | wx.EXPAND, 5)
+        # 设置内容区域最小尺寸
+        content_sizer.SetMinSize((3*basic_width, 10*basic_height))
 
-
-
-        # 使面板内的控件按照该布局管理器的规则进行排列
-        self.panel.SetSizer(main_sizer)
-        # 强制面板重新计算并应用布局
-        self.panel.Layout()
-
-        # 设置最小尺寸，基于上述最小尺寸
-        min_size = self.panel.GetSizer().GetMinSize()
-        self.SetMinSize(min_size)  # 自动根据布局计算最小显示尺寸
+        # 设置内容面板的布局管理器
+        self.content_panel.SetSizer(content_sizer)
 
     def single_button_event(self, event):
+        """处理单个文件导出按钮点击事件"""
         # 提交任务到线程池
         pass
 
 def calculate_window_geometry():
-    # 启用高DPI支持
-    if hasattr(wx, 'EnableHighDPIAware'):
-        wx.EnableHighDPIAware()
-    # 设置进程DPI感知级别（适用于Windows）
-    try:
-        # 2表示PerMonitorV2，支持每个监视器的DPI设置
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except AttributeError:
-        pass
+    """计算窗口初始位置和大小"""
     screen_width, screen_height = wx.GetDisplaySize()
 
-    # 使用相对比例而非绝对像素
+    # 使用相对比例而非绝对像素，确保在不同分辨率屏幕上都有合适的大小
     window_width = int(screen_width * 0.6)
     window_height = int(screen_height * 0.6)
     # 使得初始窗口居中
@@ -105,7 +152,10 @@ def calculate_window_geometry():
     return window_width, window_height, app_init_x, app_init_y
 
 if __name__ == "__main__":
+    # 创建应用程序实例
     app = wx.App()
+    # 创建并显示主窗口
     frame = AppFrame()
     frame.Show()
+    # 启动事件循环
     app.MainLoop()
