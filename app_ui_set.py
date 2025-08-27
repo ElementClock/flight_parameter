@@ -65,6 +65,29 @@ class AppFrame(wx.Frame):
         # 调整窗口大小以适应内容
         self.main_sizer.Fit(self.panel)
 
+    def create_buttons_batch(self, parent, button_configs, basic_width, basic_height):
+        """
+        批量创建按钮的辅助方法
+        
+        :param parent: 按钮的父容器
+        :param button_configs: 按钮配置列表，每个元素为 (label, event_handler) 元组
+        :param basic_width: 按钮基础宽度
+        :param basic_height: 按钮基础高度
+        :return: 按钮列表
+        """
+        buttons = []
+        for label, event_handler in button_configs:
+            button = wx.Button(parent, label=label)
+            button.SetMinSize((basic_width, basic_height * 1.5))
+            button.SetMaxSize((basic_width, basic_height * 1.5))
+            
+            # 如果提供了事件处理函数，则绑定事件
+            if event_handler:
+                button.Bind(wx.EVT_BUTTON, event_handler)
+                
+            buttons.append(button)
+        return buttons
+
     def create_sidebar(self):
         """创建侧边栏区域"""
         # 为侧边栏创建独立面板，便于管理和布局
@@ -73,9 +96,10 @@ class AppFrame(wx.Frame):
         
         # 定义基础尺寸单位，根据屏幕尺寸动态计算
         screen_width, screen_height = wx.GetDisplaySize()
-        basic_width = int(screen_width * 0.10)   # 使用屏幕宽度的10%作为基础宽度
-        basic_height = int(screen_height * 0.015)  # 使用屏幕高度的1.5%作为基础高度
-
+        # 修改基础尺寸参数
+        basic_width = int(screen_width * 0.1)
+        basic_height = int(screen_height * 0.02)
+        
         # 创建标题标签
         logo_label = wx.StaticText(self.sidebar_panel, label="选择导出模式", style=wx.ALIGN_CENTER)
         font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
@@ -87,22 +111,45 @@ class AppFrame(wx.Frame):
         # 创建按钮布局管理器
         button_sizer = wx.BoxSizer(wx.VERTICAL)
         
-        # 创建导出按钮
-        self.sidebar_button_1 = wx.Button(self.sidebar_panel, label="单个文件导出")
-        # 绑定按钮点击事件
-        self.sidebar_button_1.Bind(wx.EVT_BUTTON, self.single_button_event)
-        # 设置按钮最小尺寸，确保按钮内容可见
-        self.sidebar_button_1.SetMinSize((basic_width, basic_height*1.5))
-        # 设置按钮最大尺寸，防止按钮变得过大
-        self.sidebar_button_1.SetMaxSize((basic_width*2, basic_height*3))
+        # 使用批量创建方法创建按钮
+        button_configs = [
+            ("加载数据", self.single_button_event_1),
+            ("保存数据", self.single_button_event_1),
+            ("保存数据", self.single_button_event_1),
+            ("保存数据", self.single_button_event_1),
+            ("保存数据", self.single_button_event_1),
+            ("保存数据", self.single_button_event_1),
+            ("保存数据", self.single_button_event_1),
+            ("保存数据", self.single_button_event_1),
+        ]
+        
+        buttons = self.create_buttons_batch(self.sidebar_panel, button_configs, basic_width, basic_height)
+        
         # 添加按钮到布局，不伸缩，居中显示
-        button_sizer.Add(self.sidebar_button_1, 0, wx.ALL | wx.CENTER, 5)
+        for button in buttons:
+            button_sizer.Add(button, 0, wx.ALL | wx.CENTER, 5)
 
-        # 添加按钮布局到侧边栏布局
+        # 添加按钮布局到侧边栏布局，设置合适的比例和最小尺寸
+        # 确保按钮区域在窗口缩小时不会被过度压缩
         sidebar_sizer.Add(button_sizer, 1, wx.ALL | wx.EXPAND, 5)
         
         # 设置侧边栏面板的布局管理器
         self.sidebar_panel.SetSizer(sidebar_sizer)
+        
+        # 手动计算并设置最小尺寸，确保所有按钮可见
+        # 先调用Layout让Sizer计算布局
+        sidebar_sizer.Layout()
+        # 获取内容所需最小尺寸
+        min_size = sidebar_sizer.GetMinSize()
+        # 设置侧边栏面板的最小尺寸
+        self.sidebar_panel.SetMinSize(min_size)
+
+        # 可选：手动调整最终最小尺寸
+        min_size = sidebar_sizer.GetMinSize()
+        # 增加额外的宽高（单位：像素）
+        min_size.width += 20  
+        min_size.height += basic_height*2
+        self.sidebar_panel.SetMinSize(min_size)
 
     def create_content_area(self):
         """创建主内容区域"""
@@ -134,7 +181,7 @@ class AppFrame(wx.Frame):
         # 设置内容面板的布局管理器
         self.content_panel.SetSizer(content_sizer)
 
-    def single_button_event(self, event):
+    def single_button_event_1(self, event):
         """处理单个文件导出按钮点击事件"""
         # 提交任务到线程池
         pass
