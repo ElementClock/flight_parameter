@@ -1,6 +1,7 @@
 import ctypes
 import os
 import sys
+import threading
 
 import wx
 import pandas as pd
@@ -74,7 +75,7 @@ class AppFrame(wx.Frame):
     def create_buttons_batch(self, parent, button_configs, basic_width, basic_height):
         """
         批量创建按钮的辅助方法
-        
+
         :param parent: 按钮的父容器
         :param button_configs: 按钮配置列表，每个元素为 (label, event_handler) 元组
         :param basic_width: 按钮基础宽度
@@ -204,34 +205,55 @@ class AppFrame(wx.Frame):
                 return
 
             pathname = fileDialog.GetPath()
-            try:
-                # 尝试多种编码方式
-                encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
-                self.df = None
-                last_error = None
+            # 显示正在加载的消息
+            self.textbox.SetValue("正在加载和分析数据，请稍候...\n")
 
-                for encoding in encodings:
-                    try:
-                        self.df = pd.read_csv(pathname, encoding=encoding)
-                        self.analysis_result, self.df = analysis_data(self.df)
-                        # 新信息追加到原有信息之后
-                        current_value = self.textbox.GetValue()
-                        self.textbox.SetValue(
-                            current_value + f"成功加载文件({encoding}编码): {pathname}\n"
-                                            f"本次文件解析结果如下：\n {self.analysis_result}\n")
-                        break
-                    except UnicodeDecodeError as e:
-                        last_error = e
-                        continue
-                    except Exception as e:
-                        raise e
+            # 在新线程中处理数据加载和分析，避免阻塞UI
+            thread = threading.Thread(target=self.process_data, args=(pathname,))
+            thread.daemon = True
+            thread.start()
 
-                if self.df is None:
-                    raise last_error
+    def process_data(self, pathname):
+        """在后台线程中处理数据"""
+        try:
+            # 尝试多种编码方式
+            encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
+            df = None
+            last_error = None
 
-            except Exception as e:
-                wx.MessageBox(f"无法读取文件 '{pathname}': {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
-                self.textbox.SetValue(f"加载文件失败: {str(e)}")
+            for encoding in encodings:
+                try:
+                    df = pd.read_csv(pathname, encoding=encoding)
+                    analysis_result, df_processed = analysis_data(df)
+                    # 在UI线程中更新界面
+                    wx.CallAfter(self.on_data_loaded, pathname, encoding, analysis_result, df_processed)
+                    break
+                except UnicodeDecodeError as e:
+                    last_error = e
+                    continue
+                except Exception as e:
+                    raise e
+
+            if df is None:
+                raise last_error
+
+        except Exception as e:
+            # 在UI线程中显示错误消息
+            wx.CallAfter(self.on_data_load_error, pathname, str(e))
+
+    def on_data_loaded(self, pathname, encoding, analysis_result, df):
+        """在UI线程中更新界面 - 数据加载成功"""
+        self.df = df
+        # 新信息追加到原有信息之后
+        current_value = self.textbox.GetValue()
+        self.textbox.SetValue(
+            current_value + f"成功加载文件({encoding}编码): {pathname}\n"
+                            f"本次文件解析结果如下：\n {analysis_result}\n")
+
+    def on_data_load_error(self, pathname, error_message):
+        """在UI线程中更新界面 - 数据加载失败"""
+        wx.MessageBox(f"无法读取文件 '{pathname}': {error_message}", "错误", wx.OK | wx.ICON_ERROR)
+        self.textbox.SetValue(f"加载文件失败: {error_message}")
 
     def on_close(self, event):
         """处理窗口关闭事件"""
@@ -243,7 +265,7 @@ class AppFrame(wx.Frame):
                 self.textbox.SetValue("数据已自动保存至 auto_saved_data.csv (UTF-8 SIG格式)")
             except Exception as e:
                 self.textbox.SetValue(f"保存数据时出错: {str(e)}")
-        
+
         # 销毁窗口
         self.Destroy()
 
