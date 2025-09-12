@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['App_fparameter_wx.py'],
+    ['app_ui_set.py'],
     pathex=[],
     binaries=[],
     datas=[('app_icon.ico', '.')],

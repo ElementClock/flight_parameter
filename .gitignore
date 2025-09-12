@@ -11,3 +11,8 @@ analysis/__pycache__/engine_analysis.cpython-312.pyc
 analysis/__pycache__/engine_analysis.cpython-312.pyc
 checkbox_states.json
 *.json
+*.pyc
+*.pyc
+*.pyc
+*.csv
+oldfile/init_flight_parameter.csv
