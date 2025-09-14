@@ -7,20 +7,19 @@ from analysis.engine_analysis import analyze_engine
 
 
 def analysis_data(df):
-    result = None
     df = convert_flight_time(df)
 
     # 动力专业汇报
-    [text_engine, engine_start_time, engine_end_time] = analyze_engine(df)
+    text_engine, engine_start_time, engine_end_time = analyze_engine(df)
+    
     # CAS汇报
     text_cas = analyze_cas(df, engine_start_time, engine_end_time)
 
     # 总汇报
     text_analyze = (f"{text_engine}\n"
-                    f"{text_cas}\n"
-                    f"\n")
-    result = text_analyze
-    return result, df
+                    f"{text_cas}\n\n")
+    
+    return text_analyze, df
 
 def convert_flight_time(df):
     """

@@ -8,6 +8,15 @@ import pandas as pd
 from analysis.analysis_data import analysis_data
 
 
+class DataContainer:
+    """数据容器类，用于封装原始数据和分析结果"""
+    
+    def __init__(self, df, analysis_result, filename):
+        self.df = df
+        self.analysis_result = analysis_result
+        self.filename = filename
+
+
 class AppFrame(wx.Frame):
     """应用程序主窗口类"""
 
@@ -42,6 +51,10 @@ class AppFrame(wx.Frame):
 
         # 创建主面板
         self.panel = wx.Panel(self)
+
+        # 修改: 创建数据容器字典存储多个数据
+        self.data_containers = {}
+        self.current_data_key = None
 
         # 创建UI界面
         self.create_ui()
@@ -115,17 +128,22 @@ class AppFrame(wx.Frame):
         logo_label.SetMinSize((basic_width, basic_height))
         sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 10)
 
+        # 修改: 创建数据选择下拉菜单
+        self.data_choice = wx.Choice(self.sidebar_panel, choices=[])
+        self.data_choice.SetMinSize((basic_width, basic_height))
+        self.data_choice.Bind(wx.EVT_CHOICE, self.on_data_choice)
+        sidebar_sizer.Add(self.data_choice, 0, wx.ALL | wx.EXPAND, 5)
+
         # 创建按钮布局管理器
         button_sizer = wx.BoxSizer(wx.VERTICAL)
 
         # 使用批量创建方法创建按钮
         button_configs = [
             ("加载数据", self.load_data),
-            ("选择数据", self.single_button_event_1),
-            ("保存数据", self.single_button_event_1),
-            ("保存分析", self.single_button_event_1),
-            ("清除分析", self.single_button_event_1),
-            ("/", self.single_button_event_1),
+            ("保存数据", self.save_current_data),
+            ("保存分析", self.save_analysis),
+            ("清除分析", self.remove_analysis),
+            ("清除数据", self.remove_current_data),
             ("/", self.single_button_event_1),
             ("/", self.single_button_event_1),
         ]
@@ -193,62 +211,174 @@ class AppFrame(wx.Frame):
         # 提交任务到线程池
         pass
 
+    def save_analysis(self, event):
+        """保存数据框信息"""
+        # 修改: 检查是否存在当前选中的数据容器对象
+        if self.current_data_key and self.current_data_key in self.data_containers:
+            current_container = self.data_containers[self.current_data_key]
+            with wx.FileDialog(
+                self,
+                message="保存分析结果",
+                wildcard="文本文件 (*.txt)|*.txt",
+                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
+            ) as fileDialog:
+                if fileDialog.ShowModal() == wx.ID_CANCEL:
+                    return
+
+                pathname = fileDialog.GetPath()
+                if not pathname.endswith('.txt'):
+                    pathname += '.txt'
+                
+                try:
+                    # 从当前数据容器中获取分析结果
+                    with open(pathname, 'w', encoding='utf-8') as f:
+                        f.write(current_container.analysis_result)
+                    self.textbox.SetValue(f"分析结果已保存至: {pathname}")
+                except Exception as e:
+                    wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+        else:
+            wx.MessageBox("暂无分析数据可保存", "提示", wx.OK | wx.ICON_INFORMATION)
+
+    def save_current_data(self, event):
+        """保存当前选中的数据"""
+        if self.current_data_key and self.current_data_key in self.data_containers:
+            current_container = self.data_containers[self.current_data_key]
+            with wx.FileDialog(
+                self,
+                message="保存CSV数据",
+                wildcard="CSV文件 (*.csv)|*.csv",
+                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
+            ) as fileDialog:
+                if fileDialog.ShowModal() == wx.ID_CANCEL:
+                    return
+
+                pathname = fileDialog.GetPath()
+                if not pathname.endswith('.csv'):
+                    pathname += '.csv'
+                
+                try:
+                    current_container.df.to_csv(pathname, encoding='utf-8-sig', index=False)
+                    self.textbox.SetValue(f"数据已保存至: {pathname}")
+                except Exception as e:
+                    wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+        else:
+            wx.MessageBox("暂无数据可保存", "提示", wx.OK | wx.ICON_INFORMATION)
+
+    def remove_analysis(self, event):
+        """清除分析数据框信息"""
+        self.textbox.SetValue("")
+
+    def remove_current_data(self, event):
+        """清除当前选中的数据"""
+        if self.current_data_key and self.current_data_key in self.data_containers:
+            # 从字典中移除数据
+            del self.data_containers[self.current_data_key]
+            
+            # 更新下拉菜单选项
+            choices = list(self.data_containers.keys())
+            self.data_choice.Set(choices)
+            
+            # 如果还有其他数据，选择第一个；否则清空当前选择
+            if choices:
+                self.current_data_key = choices[0]
+                self.data_choice.SetSelection(0)
+                # 显示选中的数据
+                self.display_current_data()
+            else:
+                self.current_data_key = None
+                self.textbox.SetValue("所有数据已清除")
+        else:
+            wx.MessageBox("没有选中的数据可清除", "提示", wx.OK | wx.ICON_INFORMATION)
+
+    def on_data_choice(self, event):
+        """处理数据选择变化事件"""
+        selection = self.data_choice.GetSelection()
+        if selection != wx.NOT_FOUND:
+            choices = self.data_choice.GetItems()
+            self.current_data_key = choices[selection]
+            self.display_current_data()
+
+    def display_current_data(self):
+        """显示当前选中数据的分析结果"""
+        if self.current_data_key and self.current_data_key in self.data_containers:
+            current_container = self.data_containers[self.current_data_key]
+            self.textbox.SetValue(
+                f"文件名: {current_container.filename}\n"
+                f"本次文件解析结果如下：\n {current_container.analysis_result}\n")
+
     def load_data(self, event):
         """加载CSV数据文件"""
         with wx.FileDialog(
                 self,
                 message="选择CSV文件",
                 wildcard="CSV文件 (*.csv)|*.csv",
-                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
+                style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST | wx.FD_MULTIPLE
         ) as fileDialog:
             if fileDialog.ShowModal() == wx.ID_CANCEL:
                 return
 
-            pathname = fileDialog.GetPath()
+            pathnames = fileDialog.GetPaths()
             # 显示正在加载的消息
             self.textbox.SetValue("正在加载和分析数据，请稍候...\n")
 
             # 在新线程中处理数据加载和分析，避免阻塞UI
-            thread = threading.Thread(target=self.process_data, args=(pathname,))
+            thread = threading.Thread(target=self.process_multiple_data, args=(pathnames,))
             thread.daemon = True
             thread.start()
 
-    def process_data(self, pathname):
-        """在后台线程中处理数据"""
-        try:
-            # 尝试多种编码方式
-            encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
-            df = None
-            last_error = None
+    def process_multiple_data(self, pathnames):
+        """在后台线程中处理多个数据文件"""
+        all_results = []
+        for pathname in pathnames:
+            try:
+                # 尝试多种编码方式
+                encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
+                df = None
+                last_error = None
 
-            for encoding in encodings:
-                try:
-                    df = pd.read_csv(pathname, encoding=encoding)
-                    analysis_result, df_processed = analysis_data(df)
-                    # 在UI线程中更新界面
-                    wx.CallAfter(self.on_data_loaded, pathname, encoding, analysis_result, df_processed)
-                    break
-                except UnicodeDecodeError as e:
-                    last_error = e
-                    continue
-                except Exception as e:
-                    raise e
+                for encoding in encodings:
+                    try:
+                        df = pd.read_csv(pathname, encoding=encoding)
+                        analysis_result, df_processed = analysis_data(df)
+                        # 获取文件名作为键
+                        filename = os.path.basename(pathname)
+                        # 创建数据容器对象
+                        data_container = DataContainer(df_processed, analysis_result, filename)
+                        # 在UI线程中更新界面
+                        wx.CallAfter(self.on_single_data_loaded, pathname, encoding, data_container)
+                        break
+                    except UnicodeDecodeError as e:
+                        last_error = e
+                        continue
+                    except Exception as e:
+                        raise e
 
-            if df is None:
-                raise last_error
+                if df is None:
+                    raise last_error
 
-        except Exception as e:
-            # 在UI线程中显示错误消息
-            wx.CallAfter(self.on_data_load_error, pathname, str(e))
+            except Exception as e:
+                # 在UI线程中显示错误消息
+                wx.CallAfter(self.on_data_load_error, pathname, str(e))
 
-    def on_data_loaded(self, pathname, encoding, analysis_result, df):
-        """在UI线程中更新界面 - 数据加载成功"""
-        self.df = df
-        # 新信息追加到原有信息之后
-        current_value = self.textbox.GetValue()
+    def on_single_data_loaded(self, pathname, encoding, data_container):
+        """在UI线程中更新界面 - 单个数据加载成功"""
+        # 使用文件名作为键存储数据容器
+        key = data_container.filename
+        self.data_containers[key] = data_container
+        
+        # 更新下拉菜单
+        choices = list(self.data_containers.keys())
+        self.data_choice.Set(choices)
+        
+        # 设置当前加载的数据为选中状态
+        self.current_data_key = key
+        self.data_choice.SetSelection(len(choices) - 1)  # 选择最新添加的项
+        
+        # 显示数据
         self.textbox.SetValue(
-            current_value + f"成功加载文件({encoding}编码): {pathname}\n"
-                            f"本次文件解析结果如下：\n {analysis_result}\n")
+            f"成功加载文件({encoding}编码): {pathname}\n"
+            f"文件名: {data_container.filename}\n"
+            f"本次文件解析结果如下：\n {data_container.analysis_result}\n")
 
     def on_data_load_error(self, pathname, error_message):
         """在UI线程中更新界面 - 数据加载失败"""
@@ -257,12 +387,14 @@ class AppFrame(wx.Frame):
 
     def on_close(self, event):
         """处理窗口关闭事件"""
-        # 如果存在数据框，则在关闭时自动保存
-        if hasattr(self, 'df') and self.df is not None:
+        # 修改: 检查是否存在数据容器对象
+        if self.data_containers:
             try:
-                # 保存为UTF-8 with BOM格式
-                self.df.to_csv('auto_saved_data.csv', encoding='utf-8-sig', index=False)
-                self.textbox.SetValue("数据已自动保存至 auto_saved_data.csv (UTF-8 SIG格式)")
+                # 保存所有数据为单独的文件
+                for i, (key, container) in enumerate(self.data_containers.items()):
+                    filename = f'auto_saved_data_{i+1}.csv'
+                    container.df.to_csv(filename, encoding='utf-8-sig', index=False)
+                self.textbox.SetValue(f"所有数据已自动保存 ({len(self.data_containers)} 个文件)")
             except Exception as e:
                 self.textbox.SetValue(f"保存数据时出错: {str(e)}")
 
