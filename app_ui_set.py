@@ -128,11 +128,16 @@ class AppFrame(wx.Frame):
         logo_label.SetMinSize((basic_width, basic_height))
         sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 10)
 
-        # 修改: 创建数据选择下拉菜单
+        # 创建数据选择下拉菜单
         self.data_choice = wx.Choice(self.sidebar_panel, choices=[])
-        self.data_choice.SetMinSize((basic_width, basic_height))
+        self.data_choice.SetMinSize((basic_width, basic_height * 1.5))
+        self.data_choice.SetMaxSize((basic_width, basic_height * 1.5))
         self.data_choice.Bind(wx.EVT_CHOICE, self.on_data_choice)
-        sidebar_sizer.Add(self.data_choice, 0, wx.ALL | wx.EXPAND, 5)
+        data_choice_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        data_choice_sizer.AddSpacer(20)  # 左边距
+        data_choice_sizer.Add(self.data_choice, 1, wx.TOP | wx.BOTTOM, 5)  # 上下边距
+        data_choice_sizer.AddSpacer(0)  # 右边距
+        sidebar_sizer.Add(data_choice_sizer, 0, wx.EXPAND)
 
         # 创建按钮布局管理器
         button_sizer = wx.BoxSizer(wx.VERTICAL)
