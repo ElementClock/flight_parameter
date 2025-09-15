@@ -16,3 +16,4 @@ checkbox_states.json
 *.pyc
 *.csv
 oldfile/init_flight_parameter.csv
+*.xlsx
