@@ -114,6 +114,11 @@ def analyze_engine(df):
             gap_time = takeoff_end_time - takeoff_start_time
             result.append(f" 开关车时间为：{takeoff_start_time}-{takeoff_end_time}，耗时：{gap_time} ")
         result.extend(takeoff_info)
+    # 新增逻辑：当所有发动机都未启动时，说明分析时间范围并提示无开车记录
+    else:
+        start_time = df['飞行时间'].iloc[0]
+        end_time = df['飞行时间'].iloc[-1]
+        result.append(f"本文件时间为： {start_time} 到 {end_time}\n 本次数据分析：飞机未启动发动机，请检查数据" )
 
     # 修改返回值包含起飞时间字段
     return "\n".join(result), takeoff_start_time, takeoff_end_time
