@@ -106,8 +106,8 @@ def analyze_engine(df):
 
     # 新增逻辑：输出符合条件的发动机信息
     if takeoff_info:
-        # 使用 '--' 作为间隔符号，使输出文字长度固定为100字符，中间文字居中显示
-        title = "动力分析结果"
+        # 使用 '**' 标记标题行，便于后续格式化处理
+        title = "**动力分析结果**"
         formatted_title = title.center(100, '-')
         result.append(formatted_title)
         if takeoff_start_time and takeoff_end_time:

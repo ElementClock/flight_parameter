@@ -73,16 +73,18 @@ class EventHandlers:
         # 设置当前加载的数据为选中状态
         self.app_frame.sidebar_panel.data_choice.SetSelection(len(choices) - 1)  # 选择最新添加的项
         
-        # 显示数据
-        self.app_frame.content_panel.textbox.SetValue(
+        # 使用富文本格式显示数据
+        text_content = (
             f"成功加载文件({encoding}编码): {pathname}\n"
             f"文件名: {data_container.filename}\n"
-            f"本次文件解析结果如下：\n {data_container.analysis_result}\n")
+            f"本次文件解析结果如下：\n{data_container.analysis_result}\n")
+        
+        self.app_frame.content_panel.set_formatted_text(text_content)
     
     def on_data_load_error(self, pathname, error_message):
         """在UI线程中更新界面 - 数据加载失败"""
         wx.MessageBox(f"无法读取文件 '{pathname}': {error_message}", "错误", wx.OK | wx.ICON_ERROR)
-        self.app_frame.content_panel.textbox.SetValue(f"加载文件失败: {error_message}")
+        self.app_frame.content_panel.set_formatted_text(f"加载文件失败: {error_message}")
     
     def save_analysis(self, event):
         """保存分析结果"""
@@ -107,7 +109,7 @@ class EventHandlers:
                     # 从当前数据容器中获取分析结果
                     with open(pathname, 'w', encoding='utf-8') as f:
                         f.write(current_container.analysis_result)
-                    self.app_frame.content_panel.textbox.SetValue(f"分析结果已保存至: {pathname}")
+                    self.app_frame.content_panel.set_formatted_text(f"分析结果已保存至: {pathname}")
                 except Exception as e:
                     wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
         else:
@@ -134,7 +136,7 @@ class EventHandlers:
                 
                 try:
                     current_container.df.to_csv(pathname, encoding='utf-8-sig', index=False)
-                    self.app_frame.content_panel.textbox.SetValue(f"数据已保存至: {pathname}")
+                    self.app_frame.content_panel.set_formatted_text(f"数据已保存至: {pathname}")
                 except Exception as e:
                     wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
         else:
@@ -142,7 +144,7 @@ class EventHandlers:
     
     def remove_analysis(self, event):
         """清除分析数据框信息"""
-        self.app_frame.content_panel.textbox.SetValue("")
+        self.app_frame.content_panel.set_formatted_text("")
     
     def remove_current_data(self, event):
         """清除当前选中的数据"""
@@ -163,7 +165,7 @@ class EventHandlers:
                     # 显示选中的数据
                     self.display_current_data()
                 else:
-                    self.app_frame.content_panel.textbox.SetValue("所有数据已清除")
+                    self.app_frame.content_panel.set_formatted_text("所有数据已清除")
             else:
                 wx.MessageBox("没有选中的数据可清除", "提示", wx.OK | wx.ICON_INFORMATION)
         else:
@@ -173,9 +175,10 @@ class EventHandlers:
         """显示当前选中数据的分析结果"""
         current_container = self.app_frame.data_manager.get_current_data()
         if current_container:
-            self.app_frame.content_panel.textbox.SetValue(
+            text_content = (
                 f"文件名: {current_container.filename}\n"
-                f"本次文件解析结果如下：\n {current_container.analysis_result}\n")
+                f"本次文件解析结果如下：\n{current_container.analysis_result}\n")
+            self.app_frame.content_panel.set_formatted_text(text_content)
     
     def on_data_choice(self, event):
         """处理数据选择变化事件"""
@@ -192,17 +195,19 @@ class EventHandlers:
         pass
     
     def on_close(self, event):
-        """处理窗口关闭事件"""
+        """处理窗口关闭事件
+        暂时注释掉
+        """
         # 检查是否存在数据容器对象
-        if self.app_frame.data_manager.data_containers:
-            try:
-                # 保存所有数据为单独的文件
-                for i, (key, container) in enumerate(self.app_frame.data_manager.data_containers.items()):
-                    filename = f'auto_saved_data_{i+1}.csv'
-                    container.df.to_csv(filename, encoding='utf-8-sig', index=False)
-                self.app_frame.content_panel.textbox.SetValue(f"所有数据已自动保存 ({len(self.app_frame.data_manager.data_containers)} 个文件)")
-            except Exception as e:
-                self.app_frame.content_panel.textbox.SetValue(f"保存数据时出错: {str(e)}")
+        # if self.app_frame.data_manager.data_containers:
+        #     try:
+        #         # 保存所有数据为单独的文件
+        #         for i, (key, container) in enumerate(self.app_frame.data_manager.data_containers.items()):
+        #             filename = f'auto_saved_data_{i+1}.csv'
+        #             container.df.to_csv(filename, encoding='utf-8-sig', index=False)
+        #         self.app_frame.content_panel.textbox.SetValue(f"所有数据已自动保存 ({len(self.app_frame.data_manager.data_containers)} 个文件)")
+        #     except Exception as e:
+        #         self.app_frame.content_panel.textbox.SetValue(f"保存数据时出错: {str(e)}")
 
         # 销毁窗口
         self.app_frame.Destroy()

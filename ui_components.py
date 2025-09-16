@@ -1,4 +1,5 @@
 import wx
+import wx.richtext as rt
 
 
 class SidebarPanel(wx.Panel):
@@ -120,8 +121,8 @@ class ContentPanel(wx.Panel):
         logo_msg_box.SetMinSize((basic_width, basic_height))
         content_sizer.Add(logo_msg_box, 0, wx.ALL | wx.EXPAND, 10)
 
-        # 创建文本显示框，用于显示导出结果
-        self.textbox = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
+        # 创建富文本显示框，用于显示导出结果
+        self.textbox = rt.RichTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
         # 文本框占据剩余空间
         content_sizer.Add(self.textbox, 1, wx.ALL | wx.EXPAND, 5)
         # 设置内容区域最小尺寸
@@ -129,3 +130,23 @@ class ContentPanel(wx.Panel):
 
         # 设置内容面板的布局管理器
         self.SetSizer(content_sizer)
+    
+    def set_formatted_text(self, text):
+        """设置格式化的文本内容"""
+        # 清空现有内容
+        self.textbox.Clear()
+        
+        # 按行处理文本
+        lines = text.split('\n')
+        for line in lines:
+            # 检查是否为需要加粗的标题行
+            if '**' in line and '---' in line and len(line) > 50:
+                # 提取纯文本标题（去除**标记）
+                clean_line = line.replace('**', '')
+                # 应用加粗格式
+                self.textbox.BeginBold()
+                self.textbox.WriteText(clean_line + '\n')
+                self.textbox.EndBold()
+            else:
+                # 普通文本
+                self.textbox.WriteText(line + '\n')

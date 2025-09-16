@@ -94,8 +94,8 @@ def analyze_cas(df, engine_start_time, engine_end_time):
 
     df_summary = pd.DataFrame(summary_data)
 
-    # 使用 '--' 作为间隔符号，使输出文字长度固定为100字符，中间文字居中显示
-    title = "CAS告警分析结果"
+    # 使用 '**' 标记标题行，便于后续格式化处理
+    title = "**CAS告警分析结果**"
     formatted_title = title.center(100, '-')
     result.append(formatted_title)
 
