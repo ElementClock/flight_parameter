@@ -139,8 +139,45 @@ class ContentPanel(wx.Panel):
         # 按行处理文本
         lines = text.split('\n')
         for line in lines:
+            # 检查是否为需要红色渲染的文本
+            if '[[RED]]' in line and '[[/RED]]' in line:
+                # 提取纯文本（去除标记）
+                clean_line = line.replace('[[RED]]', '').replace('[[/RED]]', '')
+                # 应用红色格式
+                self.textbox.BeginTextColour(wx.RED)
+                self.textbox.WriteText(clean_line + '\n')
+                self.textbox.EndTextColour()
+            # 检查是否为需要黄色渲染的文本
+            elif '[[YELLOW]]' in line and '[[/YELLOW]]' in line:
+                # 提取纯文本（去除标记）
+                clean_line = line.replace('[[YELLOW]]', '').replace('[[/YELLOW]]', '')
+                # 应用黄色格式
+                self.textbox.BeginTextColour(wx.YELLOW)
+                self.textbox.WriteText(clean_line + '\n')
+                self.textbox.EndTextColour()
+            # 检查是否为需要琥珀色渲染的文本
+            elif '[[AMBER]]' in line and '[[/AMBER]]' in line:
+                # 提取纯文本（去除标记）
+                clean_line = line.replace('[[AMBER]]', '').replace('[[/AMBER]]', '')
+                # 应用深橙色格式 (RGB: 255, 140, 0)
+                amber_color = wx.Colour(255, 140, 0)
+                self.textbox.BeginTextColour(amber_color)
+                self.textbox.BeginBold()
+                self.textbox.WriteText(clean_line + '\n')
+                self.textbox.EndBold()
+                self.textbox.EndTextColour()
+            # 检查是否为需要蓝色渲染的文本
+            elif '[[BLUE]]' in line and '[[/BLUE]]' in line:
+                # 提取纯文本（去除标记）
+                clean_line = line.replace('[[BLUE]]', '').replace('[[/BLUE]]', '')
+                # 应用蓝色格式
+                self.textbox.BeginTextColour(wx.BLUE)
+                self.textbox.BeginBold()
+                self.textbox.WriteText(clean_line + '\n')
+                self.textbox.EndBold()
+                self.textbox.EndTextColour()
             # 检查是否为需要加粗的标题行
-            if '[[BOLD]]' in line and '[[/BOLD]]' in line:
+            elif '[[BOLD]]' in line and '[[/BOLD]]' in line:
                 # 提取纯文本标题（去除标记）
                 clean_line = line.replace('[[BOLD]]', '').replace('[[/BOLD]]', '')
                 # 应用加粗格式

@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pandas as pd
+import os
 
 from analysis.cas_analysis import analyze_cas
 from analysis.engine_analysis import analyze_engine
@@ -102,34 +103,118 @@ def generate_cas_text_with_markers(cas_data):
     formatted_title = title.center(100, '-')
     result.append(formatted_title)
 
-    # 自定义格式化输出
+    # 读取告警等级信息
+    alarm_levels = load_alarm_levels()
+    
+    # 按告警级别分组
+    grouped_alarms = group_alarms_by_level(cas_data['alarms'], alarm_levels)
+    
+    # 按指定顺序排列告警级别
+    level_order = ['警告级', '戒备级', '提示级', '状态级']
+    
     # 初始化当前告警变量为None，用于后续判断是否为同一个告警
     current_alarm = None
 
-    # 遍历告警数据
-    for alarm in cas_data['alarms']:
-        # 提取当前行的告警信息
-        alarm_name = alarm['name']
-        start_time = alarm['start_time']
-        end_time = alarm['end_time']
-        duration = alarm['duration']
+    # 按级别顺序输出告警
+    for level in level_order:
+        if level in grouped_alarms and grouped_alarms[level]:
+            # 根据不同级别添加不同颜色标识符
+            level_line = f"{level}".center(89, '-')
+            if level == '警告级':
+                result.append("[[RED]]" + level_line + "[[/RED]]")
+            elif level == '戒备级':
+                result.append("[[AMBER]]" + level_line + "[[/AMBER]]")
+            elif level == '提示级':
+                result.append("[[BLUE]]" + level_line + "[[/BLUE]]")
+            elif level == '状态级':
+                result.append("[[BOLD]]" + level_line + "[[/BOLD]]")
+            else:
+                result.append(level_line)
+                
+            # 遍历该级别的告警数据
+            for alarm in grouped_alarms[level]:
+                # 提取当前行的告警信息
+                alarm_name = alarm['name']
+                start_time = alarm['start_time']
+                end_time = alarm['end_time']
+                duration = alarm['duration']
 
-        time_info = (
-            f"{' '.ljust(30, ' ')}"
-            f" 时间：{start_time}-{end_time.ljust(15)}"
-            f" 持续时间：{duration}"
-        )
-        # 判断当前告警与上一条告警是否相同
-        if alarm_name != current_alarm:
-            # 如果不相同，先输出告警名称
-            result.append(f"{alarm_name}")
-            result.append(time_info)
-            # 更新当前告警变量
-            current_alarm = alarm_name
-        else:
-            result.append(time_info)
+                time_info = (
+                    f"{' '.ljust(30, ' ')}"
+                    f" 时间：{start_time}-{end_time.ljust(15)}"
+                    f" 持续时间：{duration}"
+                )
+                # 判断当前告警与上一条告警是否相同
+                if alarm_name != current_alarm:
+                    # 如果不相同，先输出告警名称
+                    result.append(f"{alarm_name}")
+                    result.append(time_info)
+                    # 更新当前告警变量
+                    current_alarm = alarm_name
+                else:
+                    result.append(time_info)
 
     return "\n".join(result)
+
+
+def load_alarm_levels():
+    """加载告警级别信息"""
+    try:
+        # 获取项目根目录
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cas_level_path = os.path.join(project_root, 'cas_level.csv')
+        
+        # 读取CSV文件
+        df = pd.read_csv(cas_level_path, header=0)
+        
+        # 提取C列(编号)和G列(告警等级)
+        # 注意：pandas默认0索引，C列是第2列(索引为2)，G列是第6列(索引为6)
+        alarm_levels = {}
+        for _, row in df.iterrows():
+            # 忽略大小写进行匹配
+            alarm_id = str(row.iloc[2]).strip().lower() if pd.notna(row.iloc[2]) else None
+            alarm_level = row.iloc[6] if pd.notna(row.iloc[6]) else None
+            
+            if alarm_id and alarm_level:
+                alarm_levels[alarm_id] = alarm_level
+                
+        return alarm_levels
+    except Exception as e:
+        print(f"加载告警级别信息时出错: {e}")
+        return {}
+
+
+def group_alarms_by_level(alarms, alarm_levels):
+    """根据告警级别对告警进行分组"""
+    grouped = {
+        '警告级': [],
+        '戒备级': [],
+        '提示级': [],
+        '状态级': [],
+        '未知级别': []
+    }
+    
+    # 遍历所有告警级别定义
+    for alarm_id, level in alarm_levels.items():
+        # 对于每个告警级别，检查所有告警项
+        for alarm in alarms:
+            alarm_name = alarm['name']
+            # 如果alarm_levels中的ID在告警名称中，则将该告警归类到对应级别
+            if alarm_id.lower() in alarm_name.lower():
+                grouped[level].append(alarm)
+    
+    # 将未匹配到级别的告警归类到'未知级别'
+    # 先找出已匹配的告警
+    matched_alarms = []
+    for level_alarms in grouped.values():
+        matched_alarms.extend(level_alarms)
+    
+    # 将未匹配的告警添加到'未知级别'
+    for alarm in alarms:
+        if alarm not in matched_alarms:
+            grouped['未知级别'].append(alarm)
+    
+    return grouped
 
 
 def convert_flight_time(df):
