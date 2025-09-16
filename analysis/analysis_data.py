@@ -13,6 +13,10 @@ class AnalysisResult:
         # 动态设置所有传入的属性
         for key, value in kwargs.items():
             setattr(self, key, value)
+    
+    def __getattr__(self, name):
+        # 为不存在的属性提供默认值
+        return None
 
 
 def analysis_data(df):

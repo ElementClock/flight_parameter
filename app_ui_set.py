@@ -12,15 +12,25 @@ class DataContainer:
     """数据容器类，用于封装原始数据和分析结果"""
     
     def __init__(self, analysis_result, filename):
-        # 使用getattr安全地获取属性，提供默认值以防属性不存在
-        self.df = getattr(analysis_result, 'df', None)
-        self.text_engine = getattr(analysis_result, 'text_engine', '')
-        self.text_cas = getattr(analysis_result, 'text_cas', '')
-        self.engine_start_time = getattr(analysis_result, 'engine_start_time', None)
-        self.engine_end_time = getattr(analysis_result, 'engine_end_time', None)
+        # 使用更灵活的方式处理对象属性，避免手动维护属性对应关系
         self.filename = filename
-        # 保持原有的analysis_result属性，将所有文本分析结果合并
-        self.text_analysis = f"{self.text_engine}\n{self.text_cas}"
+        self.analysis_result_obj = analysis_result
+        
+        # 动态获取analysis_result的所有属性
+        for attr in dir(analysis_result):
+            if not attr.startswith('_'):  # 忽略私有属性
+                setattr(self, attr, getattr(analysis_result, attr))
+        
+        # 合并文本分析结果
+        text_parts = []
+        if hasattr(analysis_result, 'text_analyze') and analysis_result.text_analyze:
+            text_parts.append(analysis_result.text_analyze)
+        if hasattr(analysis_result, 'text_engine') and analysis_result.text_engine:
+            text_parts.append(analysis_result.text_engine)
+        if hasattr(analysis_result, 'text_cas') and analysis_result.text_cas:
+            text_parts.append(analysis_result.text_cas)
+        
+        self.analysis_result = "\n".join(text_parts) if text_parts else ""
 
 
 class AppFrame(wx.Frame):
@@ -243,7 +253,7 @@ class AppFrame(wx.Frame):
                 try:
                     # 从当前数据容器中获取分析结果
                     with open(pathname, 'w', encoding='utf-8') as f:
-                        f.write(current_container.text_analysis)
+                        f.write(current_container.analysis_result)
                     self.textbox.SetValue(f"分析结果已保存至: {pathname}")
                 except Exception as e:
                     wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
@@ -313,9 +323,13 @@ class AppFrame(wx.Frame):
         """显示当前选中数据的分析结果"""
         if self.current_data_key and self.current_data_key in self.data_containers:
             current_container = self.data_containers[self.current_data_key]
-            self.textbox.SetValue(
-                f"文件名: {current_container.filename}\n"
-                f"本次文件解析结果如下：\n {current_container.text_analysis}\n")
+            # 使用统一的数据访问接口
+            self.textbox.SetValue(self.format_display_text(current_container))
+
+    def format_display_text(self, container):
+        """统一格式化显示文本的方法"""
+        return (f"文件名: {container.filename}\n"
+                f"本次文件解析结果如下：\n {container.analysis_result}\n")
 
     def load_data(self, event):
         """加载CSV数据文件"""
@@ -386,11 +400,10 @@ class AppFrame(wx.Frame):
         self.current_data_key = key
         self.data_choice.SetSelection(len(choices) - 1)  # 选择最新添加的项
         
-        # 显示数据
+        # 显示数据，使用统一的数据访问接口
         self.textbox.SetValue(
             f"成功加载文件({encoding}编码): {pathname}\n"
-            f"文件名: {data_container.filename}\n"
-            f"本次文件解析结果如下：\n {data_container.text_analysis}\n")
+            f"{self.format_display_text(data_container)}")
 
     def on_data_load_error(self, pathname, error_message):
         """在UI线程中更新界面 - 数据加载失败"""
@@ -405,7 +418,9 @@ class AppFrame(wx.Frame):
                 # 保存所有数据为单独的文件
                 for i, (key, container) in enumerate(self.data_containers.items()):
                     filename = f'auto_saved_data_{i+1}.csv'
-                    container.df.to_csv(filename, encoding='utf-8-sig', index=False)
+                    # 增强对缺失属性的处理
+                    if hasattr(container, 'df') and container.df is not None:
+                        container.df.to_csv(filename, encoding='utf-8-sig', index=False)
                 self.textbox.SetValue(f"所有数据已自动保存 ({len(self.data_containers)} 个文件)")
             except Exception as e:
                 self.textbox.SetValue(f"保存数据时出错: {str(e)}")
