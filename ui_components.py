@@ -52,7 +52,7 @@ class SidebarPanel(wx.Panel):
             ("清除分析", on_clear_analysis),
             ("清除数据", on_clear_data),
             ("快捷保存", on_quick_save),
-            ("/", on_separator),
+            ("///", on_separator),
         ]
         
         buttons = []
