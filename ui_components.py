@@ -140,9 +140,9 @@ class ContentPanel(wx.Panel):
         lines = text.split('\n')
         for line in lines:
             # 检查是否为需要加粗的标题行
-            if '**' in line and '---' in line and len(line) > 50:
-                # 提取纯文本标题（去除**标记）
-                clean_line = line.replace('**', '')
+            if '[[BOLD]]' in line and '[[/BOLD]]' in line:
+                # 提取纯文本标题（去除标记）
+                clean_line = line.replace('[[BOLD]]', '').replace('[[/BOLD]]', '')
                 # 应用加粗格式
                 self.textbox.BeginBold()
                 self.textbox.WriteText(clean_line + '\n')

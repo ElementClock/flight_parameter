@@ -53,20 +53,27 @@ def analyze_cas(df, engine_start_time, engine_end_time):
     """
     告警分析主函数
     """
-    result = []
+    # 初始化返回数据
+    cas_result = {
+        'type': 'cas',
+        'alarms': [],
+        'is_empty': False,
+        'missing_time_column': False,
+        'no_alarm_columns': False
+    }
 
     if df.empty:
-        result.append("输入的 DataFrame 为空，请检查数据源")
-        return "\n".join(result)
+        cas_result['is_empty'] = True
+        return cas_result
 
     if '飞行时间' not in df.columns:
-        result.append("DataFrame 中缺少 '飞行时间' 列")
-        return "\n".join(result)
+        cas_result['missing_time_column'] = True
+        return cas_result
 
     alarm_columns = df.filter(like='显示告警系统').columns
     if alarm_columns.empty:
-        result.append("未找到包含 '显示告警系统' 的列")
-        return "\n".join(result)
+        cas_result['no_alarm_columns'] = True
+        return cas_result
 
     df_cas = df[['飞行时间'] + alarm_columns.tolist()]
     alarm_periods_dict = {}
@@ -76,8 +83,8 @@ def analyze_cas(df, engine_start_time, engine_end_time):
         if periods:
             alarm_periods_dict[column] = periods
 
-    # 新建 df_summary 并填充数据
-    summary_data = []
+    # 新建 alarms 数据列表
+    alarms = []
     for column, periods in alarm_periods_dict.items():
         for start, end in periods:
             # 添加时间范围过滤条件
@@ -85,46 +92,12 @@ def analyze_cas(df, engine_start_time, engine_end_time):
                 duration = (end - start).total_seconds()+1
                 minutes, seconds = divmod(int(duration), 60)
                 duration_str = f"{minutes} 分钟 {seconds} 秒" if duration >= 60 else f"{duration:.0f} 秒"
-                summary_data.append({
-                    '告警名称': column,
-                    '开始时间': start.strftime('%H:%M:%S'),
-                    '结束时间': end.strftime('%H:%M:%S'),
-                    '持续时间': duration_str
+                alarms.append({
+                    'name': column,
+                    'start_time': start.strftime('%H:%M:%S'),
+                    'end_time': end.strftime('%H:%M:%S'),
+                    'duration': duration_str
                 })
 
-    df_summary = pd.DataFrame(summary_data)
-
-    # 使用 '**' 标记标题行，便于后续格式化处理
-    title = "**CAS告警分析结果**"
-    formatted_title = title.center(100, '-')
-    result.append(formatted_title)
-
-    # 自定义格式化输出
-    # 初始化当前告警变量为None，用于后续判断是否为同一个告警
-    current_alarm = None
-
-    # 定义各列名称及对应宽度，以便后续格式化输出
-    # 遍历摘要数据框的每一行，iterrows()返回索引和行数据
-    for _, row in df_summary.iterrows():
-        # 提取当前行的告警信息
-        alarm_name = row['告警名称']
-        start_time = row['开始时间']
-        end_time = row['结束时间']
-        duration = row['持续时间']
-
-        time_info = (
-            f"{' '.ljust(30, ' ')}"
-            f" 时间：{start_time}-{end_time.ljust(15)}"
-            f" 持续时间：{duration}"
-        )
-        # 判断当前告警与上一条告警是否相同
-        if alarm_name != current_alarm:
-            # 如果不相同，先输出告警名称
-            result.append(f"{alarm_name}")
-            result.append(time_info)
-            # 更新当前告警变量
-            current_alarm = alarm_name
-        else:
-            result.append(time_info)
-
-    return "\n".join(result)
+    cas_result['alarms'] = alarms
+    return cas_result

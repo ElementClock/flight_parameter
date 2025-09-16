@@ -23,20 +23,114 @@ def analysis_data(df):
     df = convert_flight_time(df)
     df = convert_flight_name(df)
     # 动力专业汇报
-    text_engine, engine_start_time, engine_end_time = analyze_engine(df)
+    engine_data = analyze_engine(df)
     
     # CAS汇报
-    text_cas = analyze_cas(df, engine_start_time, engine_end_time)
+    cas_data = analyze_cas(df, engine_data.get('takeoff_start_time'), engine_data.get('takeoff_end_time'))
+
+    # 生成带标识符的文本输出
+    text_engine = generate_engine_text_with_markers(engine_data)
+    text_cas = generate_cas_text_with_markers(cas_data)
 
     # 将所有结果封装到AnalysisResult对象中
     result = AnalysisResult(
         text_engine=text_engine,
         text_cas=text_cas,
-        engine_start_time=engine_start_time,
-        engine_end_time=engine_end_time,
-        df=df
+        engine_start_time=engine_data.get('takeoff_start_time'),
+        engine_end_time=engine_data.get('takeoff_end_time'),
+        df=df,
+        engine_data=engine_data,
+        cas_data=cas_data
     )
     return result
+
+
+def generate_engine_text_with_markers(engine_data):
+    """生成带标识符的发动机分析文本输出"""
+    result = []
+    
+    # 检查是否有错误信息
+    if 'errors' in engine_data:
+        result.extend(engine_data['errors'])
+        return "\n".join(result)
+    
+    # 检查是否有发动机启动信息
+    if engine_data['has_takeoff_info']:
+        # 使用标识符标记标题行
+        title = "[[BOLD]]动力分析结果[[/BOLD]]"
+        formatted_title = title.center(100, '-')
+        result.append(formatted_title)
+        
+        if engine_data['takeoff_start_time'] and engine_data['takeoff_end_time']:
+            gap_time = engine_data['takeoff_end_time'] - engine_data['takeoff_start_time']
+            result.append(f" 开关车时间为：{engine_data['takeoff_start_time']}-{engine_data['takeoff_end_time']}，耗时：{gap_time} ")
+        
+        # 添加发动机启动信息
+        for info in engine_data['takeoff_info']:
+            result.append(f"{info['engine_id']}号发动机首次开车时间为 {info['start_time']}")
+            # 如果有重启，添加重启信息
+            if 'restart_times' in info:
+                restart_times_str = ", ".join([str(t) for t in info['restart_times']])
+                result.append(f"{info['engine_id']}号发动机存在 {len(info['restart_times'])} 次重启，重启时间点为: {restart_times_str}")
+    # 新增逻辑：当所有发动机都未启动时，说明分析时间范围并提示无开车记录
+    else:
+        if engine_data['start_time'] and engine_data['end_time']:
+            result.append(f"本文件时间为： {engine_data['start_time']} 到 {engine_data['end_time']}\n 本次数据分析：飞机未启动发动机，请检查数据" )
+    
+    return "\n".join(result)
+
+
+def generate_cas_text_with_markers(cas_data):
+    """生成带标识符的CAS分析文本输出"""
+    result = []
+    
+    # 检查错误情况
+    if cas_data['is_empty']:
+        result.append("输入的 DataFrame 为空，请检查数据源")
+        return "\n".join(result)
+    
+    if cas_data['missing_time_column']:
+        result.append("DataFrame 中缺少 '飞行时间' 列")
+        return "\n".join(result)
+        
+    if cas_data['no_alarm_columns']:
+        result.append("未找到包含 '显示告警系统' 的列")
+        return "\n".join(result)
+
+    # 使用标识符标记标题行
+    title = "[[BOLD]]CAS告警分析结果[[/BOLD]]"
+    formatted_title = title.center(100, '-')
+    result.append(formatted_title)
+
+    # 自定义格式化输出
+    # 初始化当前告警变量为None，用于后续判断是否为同一个告警
+    current_alarm = None
+
+    # 遍历告警数据
+    for alarm in cas_data['alarms']:
+        # 提取当前行的告警信息
+        alarm_name = alarm['name']
+        start_time = alarm['start_time']
+        end_time = alarm['end_time']
+        duration = alarm['duration']
+
+        time_info = (
+            f"{' '.ljust(30, ' ')}"
+            f" 时间：{start_time}-{end_time.ljust(15)}"
+            f" 持续时间：{duration}"
+        )
+        # 判断当前告警与上一条告警是否相同
+        if alarm_name != current_alarm:
+            # 如果不相同，先输出告警名称
+            result.append(f"{alarm_name}")
+            result.append(time_info)
+            # 更新当前告警变量
+            current_alarm = alarm_name
+        else:
+            result.append(time_info)
+
+    return "\n".join(result)
+
 
 def convert_flight_time(df):
     """
