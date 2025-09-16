@@ -6,6 +6,15 @@ from analysis.cas_analysis import analyze_cas
 from analysis.engine_analysis import analyze_engine
 
 
+class AnalysisResult:
+    """封装分析结果的数据类"""
+    
+    def __init__(self, **kwargs):
+        # 动态设置所有传入的属性
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
 def analysis_data(df):
     df = convert_flight_time(df)
     df = convert_flight_name(df)
@@ -15,11 +24,15 @@ def analysis_data(df):
     # CAS汇报
     text_cas = analyze_cas(df, engine_start_time, engine_end_time)
 
-    # 总汇报
-    text_analyze = (f"{text_engine}\n"
-                    f"{text_cas}\n\n")
-    
-    return text_analyze, df
+    # 将所有结果封装到AnalysisResult对象中
+    result = AnalysisResult(
+        text_engine=text_engine,
+        text_cas=text_cas,
+        engine_start_time=engine_start_time,
+        engine_end_time=engine_end_time,
+        df=df
+    )
+    return result
 
 def convert_flight_time(df):
     """

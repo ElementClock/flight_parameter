@@ -11,10 +11,16 @@ from analysis.analysis_data import analysis_data
 class DataContainer:
     """数据容器类，用于封装原始数据和分析结果"""
     
-    def __init__(self, df, analysis_result, filename):
-        self.df = df
-        self.analysis_result = analysis_result
+    def __init__(self, analysis_result, filename):
+        # 使用getattr安全地获取属性，提供默认值以防属性不存在
+        self.df = getattr(analysis_result, 'df', None)
+        self.text_engine = getattr(analysis_result, 'text_engine', '')
+        self.text_cas = getattr(analysis_result, 'text_cas', '')
+        self.engine_start_time = getattr(analysis_result, 'engine_start_time', None)
+        self.engine_end_time = getattr(analysis_result, 'engine_end_time', None)
         self.filename = filename
+        # 保持原有的analysis_result属性，将所有文本分析结果合并
+        self.text_analysis = f"{self.text_engine}\n{self.text_cas}"
 
 
 class AppFrame(wx.Frame):
@@ -149,7 +155,7 @@ class AppFrame(wx.Frame):
             ("保存分析", self.save_analysis),
             ("清除分析", self.remove_analysis),
             ("清除数据", self.remove_current_data),
-            ("/", self.single_button_event_1),
+            ("快捷保存", self.single_button_event_1),
             ("/", self.single_button_event_1),
         ]
 
@@ -237,7 +243,7 @@ class AppFrame(wx.Frame):
                 try:
                     # 从当前数据容器中获取分析结果
                     with open(pathname, 'w', encoding='utf-8') as f:
-                        f.write(current_container.analysis_result)
+                        f.write(current_container.text_analysis)
                     self.textbox.SetValue(f"分析结果已保存至: {pathname}")
                 except Exception as e:
                     wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
@@ -309,7 +315,7 @@ class AppFrame(wx.Frame):
             current_container = self.data_containers[self.current_data_key]
             self.textbox.SetValue(
                 f"文件名: {current_container.filename}\n"
-                f"本次文件解析结果如下：\n {current_container.analysis_result}\n")
+                f"本次文件解析结果如下：\n {current_container.text_analysis}\n")
 
     def load_data(self, event):
         """加载CSV数据文件"""
@@ -344,11 +350,12 @@ class AppFrame(wx.Frame):
                 for encoding in encodings:
                     try:
                         df = pd.read_csv(pathname, encoding=encoding)
-                        analysis_result, df_processed = analysis_data(df)
+                        # 修改: 使用AnalysisResult对象来接收分析结果
+                        analysis_result = analysis_data(df)
                         # 获取文件名作为键
                         filename = os.path.basename(pathname)
-                        # 创建数据容器对象
-                        data_container = DataContainer(df_processed, analysis_result, filename)
+                        # 创建数据容器对象，直接传入AnalysisResult对象
+                        data_container = DataContainer(analysis_result, filename)
                         # 在UI线程中更新界面
                         wx.CallAfter(self.on_single_data_loaded, pathname, encoding, data_container)
                         break
@@ -383,7 +390,7 @@ class AppFrame(wx.Frame):
         self.textbox.SetValue(
             f"成功加载文件({encoding}编码): {pathname}\n"
             f"文件名: {data_container.filename}\n"
-            f"本次文件解析结果如下：\n {data_container.analysis_result}\n")
+            f"本次文件解析结果如下：\n {data_container.text_analysis}\n")
 
     def on_data_load_error(self, pathname, error_message):
         """在UI线程中更新界面 - 数据加载失败"""
