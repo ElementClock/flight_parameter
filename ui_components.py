@@ -7,6 +7,18 @@ class SidebarPanel(wx.Panel):
     
     def __init__(self, parent, on_load_data, on_save_data, on_save_analysis, 
                  on_clear_analysis, on_clear_data, on_quick_save, on_separator):
+        """初始化侧边栏面板
+        
+        Args:
+            parent: 父窗口
+            on_load_data: 加载数据事件处理函数
+            on_save_data: 保存数据事件处理函数
+            on_save_analysis: 保存分析事件处理函数
+            on_clear_analysis: 清除分析事件处理函数
+            on_clear_data: 清除数据事件处理函数
+            on_quick_save: 快捷保存事件处理函数
+            on_separator: 分隔符事件处理函数
+        """
         super().__init__(parent)
         self.data_choice = None
         self.create_sidebar(on_load_data, on_save_data, on_save_analysis, 
@@ -14,7 +26,17 @@ class SidebarPanel(wx.Panel):
     
     def create_sidebar(self, on_load_data, on_save_data, on_save_analysis, 
                        on_clear_analysis, on_clear_data, on_quick_save, on_separator):
-        """创建侧边栏区域"""
+        """创建侧边栏区域
+        
+        Args:
+            on_load_data: 加载数据事件处理函数
+            on_save_data: 保存数据事件处理函数
+            on_save_analysis: 保存分析事件处理函数
+            on_clear_analysis: 清除分析事件处理函数
+            on_clear_data: 清除数据事件处理函数
+            on_quick_save: 快捷保存事件处理函数
+            on_separator: 分隔符事件处理函数
+        """
         sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
 
         # 定义基础尺寸单位，根据屏幕尺寸动态计算
@@ -99,6 +121,11 @@ class ContentPanel(wx.Panel):
     """内容区域面板类"""
     
     def __init__(self, parent):
+        """初始化内容区域面板
+        
+        Args:
+            parent: 父窗口
+        """
         super().__init__(parent)
         self.textbox = None
         self.create_content_area()
@@ -132,58 +159,67 @@ class ContentPanel(wx.Panel):
         self.SetSizer(content_sizer)
     
     def set_formatted_text(self, text):
-        """设置格式化的文本内容"""
-        # 清空现有内容
-        self.textbox.Clear()
+        """设置格式化的文本内容
         
-        # 按行处理文本
-        lines = text.split('\n')
-        for line in lines:
-            # 检查是否为需要红色渲染的文本
-            if '[[RED]]' in line and '[[/RED]]' in line:
-                # 提取纯文本（去除标记）
-                clean_line = line.replace('[[RED]]', '').replace('[[/RED]]', '')
-                # 应用红色格式
-                self.textbox.BeginTextColour(wx.RED)
-                self.textbox.WriteText(clean_line + '\n')
-                self.textbox.EndTextColour()
-            # 检查是否为需要黄色渲染的文本
-            elif '[[YELLOW]]' in line and '[[/YELLOW]]' in line:
-                # 提取纯文本（去除标记）
-                clean_line = line.replace('[[YELLOW]]', '').replace('[[/YELLOW]]', '')
-                # 应用黄色格式
-                self.textbox.BeginTextColour(wx.YELLOW)
-                self.textbox.WriteText(clean_line + '\n')
-                self.textbox.EndTextColour()
-            # 检查是否为需要琥珀色渲染的文本
-            elif '[[AMBER]]' in line and '[[/AMBER]]' in line:
-                # 提取纯文本（去除标记）
-                clean_line = line.replace('[[AMBER]]', '').replace('[[/AMBER]]', '')
-                # 应用深橙色格式 (RGB: 255, 140, 0)
-                amber_color = wx.Colour(255, 140, 0)
-                self.textbox.BeginTextColour(amber_color)
-                self.textbox.BeginBold()
-                self.textbox.WriteText(clean_line + '\n')
-                self.textbox.EndBold()
-                self.textbox.EndTextColour()
-            # 检查是否为需要蓝色渲染的文本
-            elif '[[BLUE]]' in line and '[[/BLUE]]' in line:
-                # 提取纯文本（去除标记）
-                clean_line = line.replace('[[BLUE]]', '').replace('[[/BLUE]]', '')
-                # 应用蓝色格式
-                self.textbox.BeginTextColour(wx.BLUE)
-                self.textbox.BeginBold()
-                self.textbox.WriteText(clean_line + '\n')
-                self.textbox.EndBold()
-                self.textbox.EndTextColour()
-            # 检查是否为需要加粗的标题行
-            elif '[[BOLD]]' in line and '[[/BOLD]]' in line:
-                # 提取纯文本标题（去除标记）
-                clean_line = line.replace('[[BOLD]]', '').replace('[[/BOLD]]', '')
-                # 应用加粗格式
-                self.textbox.BeginBold()
-                self.textbox.WriteText(clean_line + '\n')
-                self.textbox.EndBold()
-            else:
-                # 普通文本
-                self.textbox.WriteText(line + '\n')
+        Args:
+            text (str): 要显示的文本内容
+        """
+        try:
+            # 清空现有内容
+            self.textbox.Clear()
+            
+            # 按行处理文本
+            lines = text.split('\n')
+            for line in lines:
+                # 检查是否为需要红色渲染的文本
+                if '[[RED]]' in line and '[[/RED]]' in line:
+                    # 提取纯文本（去除标记）
+                    clean_line = line.replace('[[RED]]', '').replace('[[/RED]]', '')
+                    # 应用红色格式
+                    self.textbox.BeginTextColour(wx.RED)
+                    self.textbox.WriteText(clean_line + '\n')
+                    self.textbox.EndTextColour()
+                # 检查是否为需要黄色渲染的文本
+                elif '[[YELLOW]]' in line and '[[/YELLOW]]' in line:
+                    # 提取纯文本（去除标记）
+                    clean_line = line.replace('[[YELLOW]]', '').replace('[[/YELLOW]]', '')
+                    # 应用黄色格式
+                    self.textbox.BeginTextColour(wx.YELLOW)
+                    self.textbox.WriteText(clean_line + '\n')
+                    self.textbox.EndTextColour()
+                # 检查是否为需要琥珀色渲染的文本
+                elif '[[AMBER]]' in line and '[[/AMBER]]' in line:
+                    # 提取纯文本（去除标记）
+                    clean_line = line.replace('[[AMBER]]', '').replace('[[/AMBER]]', '')
+                    # 应用深橙色格式 (RGB: 255, 140, 0)
+                    amber_color = wx.Colour(255, 140, 0)
+                    self.textbox.BeginTextColour(amber_color)
+                    self.textbox.BeginBold()
+                    self.textbox.WriteText(clean_line + '\n')
+                    self.textbox.EndBold()
+                    self.textbox.EndTextColour()
+                # 检查是否为需要蓝色渲染的文本
+                elif '[[BLUE]]' in line and '[[/BLUE]]' in line:
+                    # 提取纯文本（去除标记）
+                    clean_line = line.replace('[[BLUE]]', '').replace('[[/BLUE]]', '')
+                    # 应用蓝色格式
+                    self.textbox.BeginTextColour(wx.BLUE)
+                    self.textbox.BeginBold()
+                    self.textbox.WriteText(clean_line + '\n')
+                    self.textbox.EndBold()
+                    self.textbox.EndTextColour()
+                # 检查是否为需要加粗的标题行
+                elif '[[BOLD]]' in line and '[[/BOLD]]' in line:
+                    # 提取纯文本标题（去除标记）
+                    clean_line = line.replace('[[BOLD]]', '').replace('[[/BOLD]]', '')
+                    # 应用加粗格式
+                    self.textbox.BeginBold()
+                    self.textbox.WriteText(clean_line + '\n')
+                    self.textbox.EndBold()
+                else:
+                    # 普通文本
+                    self.textbox.WriteText(line + '\n')
+        except Exception as e:
+            # 出现异常时显示原始文本
+            self.textbox.Clear()
+            self.textbox.WriteText(f"显示文本时出错: {str(e)}\n原始文本:\n{text}")

@@ -15,15 +15,21 @@ class AppFrame(wx.Frame):
     """应用程序主窗口类"""
 
     def __init__(self, parent=None, title="i森超级定制款"):
-        """初始化应用程序窗口"""
+        """初始化应用程序窗口
+        
+        Args:
+            parent: 父窗口，默认为None
+            title: 窗口标题，默认为"i森超级定制款"
+        """
         # 启用高DPI支持，确保在高分辨率屏幕上正确显示
         if hasattr(wx, 'EnableHighDPIAware'):
             wx.EnableHighDPIAware()
         try:
             # 2表示PerMonitorV2，支持每个监视器的DPI设置
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
-        except AttributeError:
-            pass
+        except (AttributeError, OSError) as e:
+            # 在不支持PerMonitorV2的系统上降级处理
+            print(f"设置高DPI感知失败: {e}")
 
         # 自动按比例获取窗口大小
         width, height, app_init_x, app_init_y = calculate_window_geometry()
@@ -41,7 +47,12 @@ class AppFrame(wx.Frame):
 
         # 设置应用程序图标
         if os.path.exists(icon_path):
-            self.SetIcon(wx.Icon(icon_path, wx.BITMAP_TYPE_ICO))
+            try:
+                self.SetIcon(wx.Icon(icon_path, wx.BITMAP_TYPE_ICO))
+            except Exception as e:
+                print(f"设置图标失败: {e}")
+        else:
+            print(f"图标文件未找到: {icon_path}")
 
         # 创建主面板
         self.panel = wx.Panel(self)
@@ -114,6 +125,7 @@ class AppFrame(wx.Frame):
         
         # 防止除零错误并计算滚动行数
         if wheel_delta == 0:
+            event.Skip()
             return
             
         # 计算要滚动的行数，将默认的3行滚动速度加倍到6行
@@ -129,8 +141,9 @@ class AppFrame(wx.Frame):
 
 
 def main():
+    """主函数，创建并运行应用程序"""
     # 创建应用程序实例
-    app = wx.App()
+    app = wx.App(clearSigInt=True)  # clearSigInt=True可以更好地处理信号
     # 创建并显示主窗口
     frame = AppFrame()
     frame.Show()

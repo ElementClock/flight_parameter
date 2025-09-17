@@ -9,6 +9,11 @@ class EventHandlers:
     """事件处理类"""
     
     def __init__(self, app_frame):
+        """初始化事件处理器
+        
+        Args:
+            app_frame: 应用程序主窗口实例
+        """
         self.app_frame = app_frame
     
     def load_data(self, event):
@@ -32,7 +37,11 @@ class EventHandlers:
             thread.start()
     
     def process_multiple_data(self, pathnames):
-        """在后台线程中处理多个数据文件"""
+        """在后台线程中处理多个数据文件
+        
+        Args:
+            pathnames: 文件路径列表
+        """
         for pathname in pathnames:
             try:
                 # 尝试多种编码方式
@@ -58,31 +67,46 @@ class EventHandlers:
                         raise e
 
                 if df is None:
-                    raise last_error
+                    raise last_error if last_error else Exception("无法读取文件")
 
             except Exception as e:
                 # 在UI线程中显示错误消息
                 wx.CallAfter(self.on_data_load_error, pathname, str(e))
     
     def on_single_data_loaded(self, pathname, encoding, data_container):
-        """在UI线程中更新界面 - 单个数据加载成功"""
-        # 更新下拉菜单
-        choices = self.app_frame.data_manager.get_data_keys()
-        self.app_frame.sidebar_panel.data_choice.Set(choices)
+        """在UI线程中更新界面 - 单个数据加载成功
         
-        # 设置当前加载的数据为选中状态
-        self.app_frame.sidebar_panel.data_choice.SetSelection(len(choices) - 1)  # 选择最新添加的项
-        
-        # 使用富文本格式显示数据
-        text_content = (
-            f"成功加载文件({encoding}编码): {pathname}\n"
-            f"文件名: {data_container.filename}\n"
-            f"本次文件解析结果如下：\n{data_container.analysis_result}\n")
-        
-        self.app_frame.content_panel.set_formatted_text(text_content)
+        Args:
+            pathname: 文件路径
+            encoding: 文件编码
+            data_container: 数据容器对象
+        """
+        try:
+            # 更新下拉菜单
+            choices = self.app_frame.data_manager.get_data_keys()
+            self.app_frame.sidebar_panel.data_choice.Set(choices)
+            
+            # 设置当前加载的数据为选中状态
+            if choices:
+                self.app_frame.sidebar_panel.data_choice.SetSelection(len(choices) - 1)  # 选择最新添加的项
+            
+            # 使用富文本格式显示数据
+            text_content = (
+                f"成功加载文件({encoding}编码): {pathname}\n"
+                f"文件名: {data_container.filename}\n"
+                f"本次文件解析结果如下：\n{data_container.analysis_result}\n")
+            
+            self.app_frame.content_panel.set_formatted_text(text_content)
+        except Exception as e:
+            self.app_frame.content_panel.set_formatted_text(f"显示数据时出错: {str(e)}")
     
     def on_data_load_error(self, pathname, error_message):
-        """在UI线程中更新界面 - 数据加载失败"""
+        """在UI线程中更新界面 - 数据加载失败
+        
+        Args:
+            pathname: 文件路径
+            error_message: 错误信息
+        """
         wx.MessageBox(f"无法读取文件 '{pathname}': {error_message}", "错误", wx.OK | wx.ICON_ERROR)
         self.app_frame.content_panel.set_formatted_text(f"加载文件失败: {error_message}")
     
@@ -195,19 +219,6 @@ class EventHandlers:
         pass
     
     def on_close(self, event):
-        """处理窗口关闭事件
-        暂时注释掉
-        """
-        # 检查是否存在数据容器对象
-        # if self.app_frame.data_manager.data_containers:
-        #     try:
-        #         # 保存所有数据为单独的文件
-        #         for i, (key, container) in enumerate(self.app_frame.data_manager.data_containers.items()):
-        #             filename = f'auto_saved_data_{i+1}.csv'
-        #             container.df.to_csv(filename, encoding='utf-8-sig', index=False)
-        #         self.app_frame.content_panel.textbox.SetValue(f"所有数据已自动保存 ({len(self.app_frame.data_manager.data_containers)} 个文件)")
-        #     except Exception as e:
-        #         self.app_frame.content_panel.textbox.SetValue(f"保存数据时出错: {str(e)}")
-
+        """处理窗口关闭事件"""
         # 销毁窗口
         self.app_frame.Destroy()

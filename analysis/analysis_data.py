@@ -1,5 +1,4 @@
 from datetime import timedelta
-
 import pandas as pd
 import os
 
@@ -11,16 +10,36 @@ class AnalysisResult:
     """封装分析结果的数据类"""
     
     def __init__(self, **kwargs):
+        """初始化分析结果对象
+        
+        Args:
+            **kwargs: 任意数量的属性键值对
+        """
         # 动态设置所有传入的属性
         for key, value in kwargs.items():
             setattr(self, key, value)
     
     def __getattr__(self, name):
-        # 为不存在的属性提供默认值
+        """为不存在的属性提供默认值
+        
+        Args:
+            name: 属性名称
+            
+        Returns:
+            None: 当属性不存在时返回None
+        """
         return None
 
 
 def analysis_data(df):
+    """分析飞行数据主函数
+    
+    Args:
+        df (pandas.DataFrame): 飞行数据
+        
+    Returns:
+        AnalysisResult: 包含分析结果的对象
+    """
     df = convert_flight_time(df)
     df = convert_flight_name(df)
     # 动力专业汇报
@@ -47,7 +66,14 @@ def analysis_data(df):
 
 
 def generate_engine_text_with_markers(engine_data):
-    """生成带标识符的发动机分析文本输出"""
+    """生成带标识符的发动机分析文本输出
+    
+    Args:
+        engine_data (dict): 发动机分析数据
+        
+    Returns:
+        str: 格式化的文本结果
+    """
     result = []
     
     # 检查是否有错误信息
@@ -82,7 +108,14 @@ def generate_engine_text_with_markers(engine_data):
 
 
 def generate_cas_text_with_markers(cas_data):
-    """生成带标识符的CAS分析文本输出"""
+    """生成带标识符的CAS分析文本输出
+    
+    Args:
+        cas_data (dict): CAS分析数据
+        
+    Returns:
+        str: 格式化的文本结果
+    """
     result = []
     
     # 检查错误情况
@@ -158,7 +191,11 @@ def generate_cas_text_with_markers(cas_data):
 
 
 def load_alarm_levels():
-    """加载告警级别信息"""
+    """加载告警级别信息
+    
+    Returns:
+        dict: 告警ID到告警级别的映射字典
+    """
     try:
         # 获取项目根目录
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -179,13 +216,24 @@ def load_alarm_levels():
                 alarm_levels[alarm_id] = alarm_level
                 
         return alarm_levels
+    except FileNotFoundError:
+        print(f"告警级别文件未找到: {cas_level_path}")
+        return {}
     except Exception as e:
         print(f"加载告警级别信息时出错: {e}")
         return {}
 
 
 def group_alarms_by_level(alarms, alarm_levels):
-    """根据告警级别对告警进行分组"""
+    """根据告警级别对告警进行分组
+    
+    Args:
+        alarms (list): 告警列表
+        alarm_levels (dict): 告警ID到告警级别的映射字典
+        
+    Returns:
+        dict: 按告警级别分组的告警字典
+    """
     grouped = {
         '警告级': [],
         '戒备级': [],
@@ -227,31 +275,41 @@ def convert_flight_time(df):
     返回:
         pandas.DataFrame: 时间列已转换的DataFrame
     """
-    # 获取第一列和第四列的列名
-    first_col = df.columns[0]   # 飞参内部时间列 (格式: hh:mm:ss.fff)
-    fourth_col = df.columns[3]  # 日期列 (格式: yy-mm-dd)
-    
-    # 将两列数据合并为完整的日期时间字符串
-    # 格式: hh:mm:ss.fff + 年份-月份-日
-    datetime_combined = df[first_col].astype(str) + ' ' + df[fourth_col].astype(str)
-    
-    # 转换为datetime对象，支持两位数年份格式（如25-07-11表示2025年7月11日）
-    df['_datetime'] = pd.to_datetime(datetime_combined, format='%H:%M:%S.%f %y-%m-%d', errors='coerce')
-    
-    # 将UTC时间转换为北京时间(UTC+8)
-    df['_datetime'] = df['_datetime'] + timedelta(hours=8)
-    
-    # 更新原数据列
-    df[first_col] = df['_datetime']
+    try:
+        # 获取第一列和第四列的列名
+        first_col = df.columns[0]   # 飞参内部时间列 (格式: hh:mm:ss.fff)
+        fourth_col = df.columns[3]  # 日期列 (格式: yy-mm-dd)
+        
+        # 将两列数据合并为完整的日期时间字符串
+        # 格式: hh:mm:ss.fff + 年份-月份-日
+        datetime_combined = df[first_col].astype(str) + ' ' + df[fourth_col].astype(str)
+        
+        # 转换为datetime对象，支持两位数年份格式（如25-07-11表示2025年7月11日）
+        df['_datetime'] = pd.to_datetime(datetime_combined, format='%H:%M:%S.%f %y-%m-%d', errors='coerce')
+        
+        # 将UTC时间转换为北京时间(UTC+8)
+        df['_datetime'] = df['_datetime'] + timedelta(hours=8)
+        
+        # 更新原数据列
+        df[first_col] = df['_datetime']
 
-    # 删除临时列
-    df.rename(columns={first_col: '飞行时间'}, inplace=True)
-    df.drop('_datetime', axis=1, inplace=True)
-
+        # 删除临时列
+        df.rename(columns={first_col: '飞行时间'}, inplace=True)
+        df.drop('_datetime', axis=1, inplace=True)
+    except Exception as e:
+        print(f"转换飞行时间时出错: {e}")
     
     return df
 
 def convert_flight_name(df):
+    """转换飞行数据列名
+    
+    Args:
+        df (pandas.DataFrame): 飞行数据
+        
+    Returns:
+        pandas.DataFrame: 列名已转换的DataFrame
+    """
     # 定义替换规则字典
     replacement_rules = {
         'ATA345_GNSU1全球卫星定位系统': '全球卫星定位系统1',
@@ -298,6 +356,7 @@ def convert_flight_name(df):
         'ATA279_CAB3主飞控系统': '主飞控系统3',
         'ATA275_FECU1襟翼控制系统': '襟翼控制系统1',
         'ATA275_FECU2襟翼控制系统': '襟翼控制系统2',
+        'ATA28_FQC燃油系统': '燃油系统',
         'ATA28_FQC燃油系统': '燃油系统',
         'ATA324_BCU刹车控制系统': '刹车控制系统',
         'ATA293_HECU液压电控系统': '液压电控系统',

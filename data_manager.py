@@ -6,6 +6,12 @@ class DataContainer:
     """数据容器类，用于封装原始数据和分析结果"""
     
     def __init__(self, analysis_result, filename):
+        """初始化数据容器
+        
+        Args:
+            analysis_result: 分析结果对象
+            filename (str): 文件名
+        """
         # 使用更灵活的方式处理对象属性，避免手动维护属性对应关系
         self.filename = filename
         self.analysis_result_obj = analysis_result
@@ -31,11 +37,20 @@ class DataManager:
     """数据管理类，用于管理多个数据容器"""
     
     def __init__(self):
+        """初始化数据管理器"""
         self.data_containers = {}
         self.current_data_key = None
     
     def add_data(self, df, filename):
-        """添加新数据"""
+        """添加新数据
+        
+        Args:
+            df (pandas.DataFrame): 数据
+            filename (str): 文件名
+            
+        Returns:
+            tuple: (数据容器对象, 错误信息)
+        """
         try:
             # 分析数据
             analysis_result = analysis_data(df)
@@ -53,7 +68,14 @@ class DataManager:
             return None, str(e)
     
     def remove_data(self, key):
-        """移除指定数据"""
+        """移除指定数据
+        
+        Args:
+            key (str): 数据键
+            
+        Returns:
+            bool: 是否成功移除
+        """
         if key in self.data_containers:
             del self.data_containers[key]
             if self.current_data_key == key:
@@ -62,17 +84,32 @@ class DataManager:
         return False
     
     def get_current_data(self):
-        """获取当前选中的数据"""
+        """获取当前选中的数据
+        
+        Returns:
+            DataContainer: 当前数据容器对象，如果不存在则返回None
+        """
         if self.current_data_key and self.current_data_key in self.data_containers:
             return self.data_containers[self.current_data_key]
         return None
     
     def get_data_keys(self):
-        """获取所有数据键列表"""
+        """获取所有数据键列表
+        
+        Returns:
+            list: 数据键列表
+        """
         return list(self.data_containers.keys())
     
     def select_data(self, key):
-        """选择指定数据"""
+        """选择指定数据
+        
+        Args:
+            key (str): 数据键
+            
+        Returns:
+            bool: 是否成功选择
+        """
         if key in self.data_containers:
             self.current_data_key = key
             return True

@@ -2,8 +2,17 @@ import wx
 
 
 def calculate_window_geometry():
-    """计算窗口初始位置和大小"""
-    screen_width, screen_height = wx.GetDisplaySize()
+    """计算窗口初始位置和大小
+    
+    Returns:
+        tuple: (窗口宽度, 窗口高度, 窗口X坐标, 窗口Y坐标)
+    """
+    try:
+        screen_width, screen_height = wx.GetDisplaySize()
+    except Exception as e:
+        # 如果无法获取屏幕尺寸，使用默认值
+        print(f"获取屏幕尺寸失败: {e}")
+        screen_width, screen_height = 1920, 1080
 
     # 使用相对比例而非绝对像素，确保在不同分辨率屏幕上都有合适的大小
     window_width = int(screen_width * 0.6)
@@ -26,13 +35,20 @@ def create_buttons_batch(parent, button_configs, basic_width, basic_height):
     """
     buttons = []
     for label, event_handler in button_configs:
-        button = wx.Button(parent, label=label)
-        button.SetMinSize((basic_width, basic_height * 1.5))
-        button.SetMaxSize((basic_width, basic_height * 1.5))
+        try:
+            button = wx.Button(parent, label=label)
+            button.SetMinSize((basic_width, basic_height * 1.5))
+            button.SetMaxSize((basic_width, basic_height * 1.5))
 
-        # 如果提供了事件处理函数，则绑定事件
-        if event_handler:
-            button.Bind(wx.EVT_BUTTON, event_handler)
+            # 如果提供了事件处理函数，则绑定事件
+            if event_handler:
+                button.Bind(wx.EVT_BUTTON, event_handler)
 
-        buttons.append(button)
+            buttons.append(button)
+        except Exception as e:
+            print(f"创建按钮 '{label}' 时出错: {e}")
+            # 创建一个禁用的按钮作为占位符
+            button = wx.Button(parent, label=f"{label}(错误)")
+            button.Enable(False)
+            buttons.append(button)
     return buttons

@@ -7,7 +7,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 def find_alarm_periods(alarm_times):
-    """找到连续告警的时间段"""
+    """找到连续告警的时间段
+    
+    Args:
+        alarm_times: 告警时间序列
+        
+    Returns:
+        list: 告警时间段列表
+    """
     if alarm_times.empty:
         return []
 
@@ -33,6 +40,13 @@ def find_alarm_periods(alarm_times):
 def extract_alarm_periods(df_cas, column):
     """
     提取某一列的告警时间段
+    
+    Args:
+        df_cas (pandas.DataFrame): CAS数据
+        column (str): 列名
+        
+    Returns:
+        list: 告警时间段列表
     """
     try:
         mask = df_cas[column] == 1
@@ -47,11 +61,22 @@ def extract_alarm_periods(df_cas, column):
     except AssertionError as e:
         logging.warning(f"断言错误: {e}")
         return []
+    except Exception as e:
+        logging.warning(f"提取告警时间段时出错: {e}")
+        return []
 
 
 def analyze_cas(df, engine_start_time, engine_end_time):
     """
     告警分析主函数
+    
+    Args:
+        df (pandas.DataFrame): 飞行数据
+        engine_start_time: 发动机启动时间
+        engine_end_time: 发动机关车时间
+        
+    Returns:
+        dict: CAS分析结果
     """
     # 初始化返回数据
     cas_result = {
@@ -75,29 +100,34 @@ def analyze_cas(df, engine_start_time, engine_end_time):
         cas_result['no_alarm_columns'] = True
         return cas_result
 
-    df_cas = df[['飞行时间'] + alarm_columns.tolist()]
-    alarm_periods_dict = {}
+    try:
+        df_cas = df[['飞行时间'] + alarm_columns.tolist()]
+        alarm_periods_dict = {}
 
-    for column in alarm_columns:
-        periods = extract_alarm_periods(df_cas, column)
-        if periods:
-            alarm_periods_dict[column] = periods
+        for column in alarm_columns:
+            periods = extract_alarm_periods(df_cas, column)
+            if periods:
+                alarm_periods_dict[column] = periods
 
-    # 新建 alarms 数据列表
-    alarms = []
-    for column, periods in alarm_periods_dict.items():
-        for start, end in periods:
-            # 添加时间范围过滤条件
-            if (engine_start_time is None or start >= engine_start_time) and (engine_end_time is None or end <= engine_end_time):
-                duration = (end - start).total_seconds()+1
-                minutes, seconds = divmod(int(duration), 60)
-                duration_str = f"{minutes} 分钟 {seconds} 秒" if duration >= 60 else f"{duration:.0f} 秒"
-                alarms.append({
-                    'name': column,
-                    'start_time': start.strftime('%H:%M:%S'),
-                    'end_time': end.strftime('%H:%M:%S'),
-                    'duration': duration_str
-                })
+        # 新建 alarms 数据列表
+        alarms = []
+        for column, periods in alarm_periods_dict.items():
+            for start, end in periods:
+                # 添加时间范围过滤条件
+                if (engine_start_time is None or start >= engine_start_time) and (engine_end_time is None or end <= engine_end_time):
+                    duration = (end - start).total_seconds()+1
+                    minutes, seconds = divmod(int(duration), 60)
+                    duration_str = f"{minutes} 分钟 {seconds} 秒" if duration >= 60 else f"{duration:.0f} 秒"
+                    alarms.append({
+                        'name': column,
+                        'start_time': start.strftime('%H:%M:%S'),
+                        'end_time': end.strftime('%H:%M:%S'),
+                        'duration': duration_str
+                    })
 
-    cas_result['alarms'] = alarms
+        cas_result['alarms'] = alarms
+    except Exception as e:
+        logging.error(f"CAS分析过程中出错: {e}")
+        cas_result['errors'] = [f"CAS分析过程中出错: {str(e)}"]
+    
     return cas_result
