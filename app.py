@@ -5,7 +5,7 @@ import sys
 import wx
 from analysis.analysis_data import analysis_data
 
-from ui_components import SidebarPanel, ContentPanel
+from ui_components import SidebarPanel, ContentPanel, RightSidebarPanel
 from data_manager import DataManager
 from event_handlers import EventHandlers
 from utils import calculate_window_geometry
@@ -66,6 +66,9 @@ class AppFrame(wx.Frame):
         # 创建UI界面
         self.create_ui()
 
+        # 保存基础窗口尺寸（不包含右侧边栏）
+        self.base_size = self.GetClientSize()
+        
         # 设置窗口最小尺寸，防止用户将窗口缩得太小
         min_size = self.main_sizer.GetMinSize()
         self.SetMinSize(min_size)
@@ -81,11 +84,13 @@ class AppFrame(wx.Frame):
         # 创建侧边栏面板和内容区域
         self.create_sidebar()
         self.create_content_area()
+        self.create_right_sidebar()
 
-        # 将侧边栏和内容区域添加到主布局
+        # 将侧边栏、内容区域和右侧边栏添加到主布局
         # 侧边栏不伸缩（proportion=0），内容区域占据剩余空间（proportion=1）
         self.main_sizer.Add(self.sidebar_panel, 0, wx.EXPAND)
         self.main_sizer.Add(self.content_panel, 1, wx.EXPAND)
+        self.main_sizer.Add(self.right_sidebar_panel, 0, wx.EXPAND)
 
         # 设置主面板的布局管理器
         self.panel.SetSizer(self.main_sizer)
@@ -116,6 +121,44 @@ class AppFrame(wx.Frame):
         """创建主内容区域"""
         # 为主要内容区域创建独立面板
         self.content_panel = ContentPanel(self.panel)
+        
+        # 绑定切换按钮事件
+        self.content_panel.toggle_button.Bind(wx.EVT_BUTTON, self.on_toggle_right_sidebar)
+        
+        # 初始化按钮标签为右箭头（表示点击后将面板向左展开）
+        self.content_panel.toggle_button.SetLabel("▶")
+
+    def create_right_sidebar(self):
+        """创建右侧边栏区域"""
+        self.right_sidebar_panel = RightSidebarPanel(self.panel)
+        self.right_sidebar_panel.Hide()  # 默认隐藏右侧边栏
+        
+        # 在第一次显示时计算右侧边栏宽度
+        self.right_sidebar_width = 200  # 默认宽度
+        
+    def on_toggle_right_sidebar(self, event):
+        """切换右侧边栏显示状态"""
+        current_size = self.GetSize()
+        
+        if self.right_sidebar_panel.IsShown():
+            # 隐藏右侧边栏
+            self.right_sidebar_panel.Hide()
+            self.content_panel.toggle_button.SetLabel("▶")  # 右箭头，表示点击展开面板
+            
+            # 减小窗口宽度
+            new_width = current_size.width - self.right_sidebar_width
+            self.SetSize((new_width, current_size.height))
+        else:
+            # 显示右侧边栏
+            self.right_sidebar_panel.Show()
+            self.content_panel.toggle_button.SetLabel("◀")  # 左箭头，表示点击收起面板
+            
+            # 增加窗口宽度
+            new_width = current_size.width + self.right_sidebar_width
+            self.SetSize((new_width, current_size.height))
+        
+        # 重新布局
+        self.main_sizer.Layout()
     
     def on_mouse_wheel(self, event):
         """处理鼠标滚轮事件以调整滚动速度"""

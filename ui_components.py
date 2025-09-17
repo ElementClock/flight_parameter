@@ -117,6 +117,46 @@ class SidebarPanel(wx.Panel):
         self.SetMinSize(min_size)
 
 
+class RightSidebarPanel(wx.Panel):
+    """右侧边栏面板类"""
+    
+    def __init__(self, parent):
+        """初始化右侧边栏面板
+        
+        Args:
+            parent: 父窗口
+        """
+        super().__init__(parent)
+        self.create_right_sidebar()
+        self.Hide()  # 默认隐藏
+        
+    def create_right_sidebar(self):
+        """创建右侧边栏区域"""
+        right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # 定义基础尺寸单位
+        screen_width, screen_height = wx.GetDisplaySize()
+        basic_width = int(screen_width * 0.1)
+        basic_height = int(screen_height * 0.02)
+        
+        # 创建标题
+        title = wx.StaticText(self, label="工具面板")
+        font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        title.SetFont(font)
+        title.SetMinSize((basic_width, basic_height))
+        right_sidebar_sizer.Add(title, 0, wx.ALL | wx.CENTER, 10)
+        
+        # 添加一些示例内容
+        content_text = wx.StaticText(self, label="这是右侧工具面板\n您可以在这里放置\n额外的工具和选项")
+        right_sidebar_sizer.Add(content_text, 0, wx.ALL | wx.CENTER, 10)
+        
+        # 设置布局
+        self.SetSizer(right_sidebar_sizer)
+        
+        # 设置固定的最小尺寸
+        self.SetMinSize((200, -1))
+
+
 class ContentPanel(wx.Panel):
     """内容区域面板类"""
     
@@ -128,6 +168,7 @@ class ContentPanel(wx.Panel):
         """
         super().__init__(parent)
         self.textbox = None
+        self.toggle_button = None
         self.create_content_area()
     
     def create_content_area(self):
@@ -139,6 +180,9 @@ class ContentPanel(wx.Panel):
         basic_width = int(screen_width * 0.1)
         basic_height = int(screen_height * 0.02)
 
+        # 创建结果区域标题的水平布局
+        title_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        
         # 创建结果区域标题
         logo_msg_box = wx.StaticText(self, label="数据导出结果", style=wx.ALIGN_CENTER)
         # 设置字体为等宽字体，便于显示格式化数据
@@ -146,7 +190,17 @@ class ContentPanel(wx.Panel):
         logo_msg_box.SetFont(font)
         # 设置最小尺寸确保可见性
         logo_msg_box.SetMinSize((basic_width, basic_height))
-        content_sizer.Add(logo_msg_box, 0, wx.ALL | wx.EXPAND, 10)
+        
+        # 创建切换右侧边栏显示的按钮，使用右箭头表示面板当前处于收起状态
+        self.toggle_button = wx.Button(self, label="▶", size=(30, -1))
+        self.toggle_button.SetMinSize((30, basic_height))
+        
+        # 添加控件到标题布局
+        title_sizer.Add(logo_msg_box, 1, wx.ALIGN_CENTER_VERTICAL)
+        title_sizer.Add(self.toggle_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+        
+        # 添加标题布局到内容布局
+        content_sizer.Add(title_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
         # 创建富文本显示框，用于显示导出结果
         self.textbox = rt.RichTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
