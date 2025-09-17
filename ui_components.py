@@ -140,15 +140,15 @@ class RightSidebarPanel(wx.Panel):
         basic_height = int(screen_height * 0.02)
         
         # 创建标题
-        title = wx.StaticText(self, label="工具面板")
+        title = wx.StaticText(self, label="工具面板", style=wx.ALIGN_CENTER)
         font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
         title.SetFont(font)
         title.SetMinSize((basic_width, basic_height))
-        right_sidebar_sizer.Add(title, 0, wx.ALL | wx.CENTER, 10)
+        right_sidebar_sizer.Add(title, 0, wx.ALL | wx.EXPAND, 10)
         
         # 添加一些示例内容
-        content_text = wx.StaticText(self, label="这是右侧工具面板\n您可以在这里放置\n额外的工具和选项")
-        right_sidebar_sizer.Add(content_text, 0, wx.ALL | wx.CENTER, 10)
+        content_text = wx.StaticText(self, label="这里应该设置一些按钮", style=wx.ALIGN_CENTER)
+        right_sidebar_sizer.Add(content_text, 0, wx.ALL | wx.EXPAND, 10)
         
         # 设置布局
         self.SetSizer(right_sidebar_sizer)
