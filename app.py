@@ -67,7 +67,7 @@ class AppFrame(wx.Frame):
         # 创建主布局管理器，采用水平布局
         self.main_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        # 创建侧边栏面板和内容面板
+        # 创建侧边栏面板和内容区域
         self.create_sidebar()
         self.create_content_area()
 
@@ -80,6 +80,9 @@ class AppFrame(wx.Frame):
         self.panel.SetSizer(self.main_sizer)
         # 调整窗口大小以适应内容
         self.main_sizer.Fit(self.panel)
+        
+        # 绑定鼠标滚轮事件以自定义滚动速度
+        self.content_panel.textbox.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
 
     def create_sidebar(self):
         """创建侧边栏区域"""
@@ -102,6 +105,27 @@ class AppFrame(wx.Frame):
         """创建主内容区域"""
         # 为主要内容区域创建独立面板
         self.content_panel = ContentPanel(self.panel)
+    
+    def on_mouse_wheel(self, event):
+        """处理鼠标滚轮事件以调整滚动速度"""
+        # 获取滚动方向和系统默认滚动增量
+        wheel_rotation = event.GetWheelRotation()
+        wheel_delta = event.GetWheelDelta()
+        
+        # 防止除零错误并计算滚动行数
+        if wheel_delta == 0:
+            return
+            
+        # 计算要滚动的行数，将默认的3行滚动速度加倍到6行
+        scroll_lines = int(6 * wheel_rotation / wheel_delta)
+        
+        # 只有当需要滚动时才执行
+        if scroll_lines != 0:
+            # 使用ScrollLines进行行数滚动
+            self.content_panel.textbox.ScrollLines(-scroll_lines)
+        
+        # 跳过事件以便其他处理器也能处理
+        event.Skip()
 
 
 def main():
