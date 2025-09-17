@@ -14,6 +14,9 @@ from utils import calculate_window_geometry
 class AppFrame(wx.Frame):
     """应用程序主窗口类"""
 
+    # 展开模式：0=向内展开(压缩内容区域)，1=向外展开(窗口扩展)
+    EXPAND_MODE = 0
+
     def __init__(self, parent=None, title="i森超级定制款"):
         """初始化应用程序窗口
         
@@ -66,9 +69,6 @@ class AppFrame(wx.Frame):
         # 创建UI界面
         self.create_ui()
 
-        # 保存基础窗口尺寸（不包含右侧边栏）
-        self.base_size = self.GetClientSize()
-        
         # 设置窗口最小尺寸，防止用户将窗口缩得太小
         min_size = self.main_sizer.GetMinSize()
         self.SetMinSize(min_size)
@@ -100,6 +100,16 @@ class AppFrame(wx.Frame):
         # 绑定鼠标滚轮事件以自定义滚动速度
         self.content_panel.textbox.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
 
+        # 计算右侧边栏的宽度
+        self.right_sidebar_panel.Show()  # 临时显示以计算尺寸
+        self.main_sizer.Layout()
+        self.right_sidebar_width = self.right_sidebar_panel.GetSize().width
+        self.right_sidebar_panel.Hide()  # 恢复隐藏状态
+        self.main_sizer.Layout()
+        
+        # 初始化按钮标签
+        self.update_toggle_button_label()
+
     def create_sidebar(self):
         """创建侧边栏区域"""
         # 为侧边栏创建独立面板，便于管理和布局
@@ -125,37 +135,61 @@ class AppFrame(wx.Frame):
         # 绑定切换按钮事件
         self.content_panel.toggle_button.Bind(wx.EVT_BUTTON, self.on_toggle_right_sidebar)
         
-        # 初始化按钮标签为右箭头（表示点击后将面板向左展开）
-        self.content_panel.toggle_button.SetLabel("▶")
+        # 初始化按钮标签
+        self.update_toggle_button_label()
 
     def create_right_sidebar(self):
         """创建右侧边栏区域"""
         self.right_sidebar_panel = RightSidebarPanel(self.panel)
         self.right_sidebar_panel.Hide()  # 默认隐藏右侧边栏
         
-        # 在第一次显示时计算右侧边栏宽度
-        self.right_sidebar_width = 200  # 默认宽度
+        
+    def update_toggle_button_label(self):
+        """根据当前状态和展开模式更新按钮标签"""
+        # 确保右侧边栏面板已创建
+        if not hasattr(self, 'right_sidebar_panel'):
+            return
+            
+        is_shown = self.right_sidebar_panel.IsShown()
+        
+        if self.EXPAND_MODE == 0:  # 向内展开
+            if is_shown:
+                # 面板已显示，点击将收起（向右箭头）
+                self.content_panel.toggle_button.SetLabel("▶")
+            else:
+                # 面板已隐藏，点击将展开（向左箭头）
+                self.content_panel.toggle_button.SetLabel("◀")
+        else:  # 向外展开
+            if is_shown:
+                # 面板已显示，点击将收起（向左箭头）
+                self.content_panel.toggle_button.SetLabel("◀")
+            else:
+                # 面板已隐藏，点击将展开（向右箭头）
+                self.content_panel.toggle_button.SetLabel("▶")
         
     def on_toggle_right_sidebar(self, event):
         """切换右侧边栏显示状态"""
-        current_size = self.GetSize()
-        
         if self.right_sidebar_panel.IsShown():
             # 隐藏右侧边栏
             self.right_sidebar_panel.Hide()
-            self.content_panel.toggle_button.SetLabel("▶")  # 右箭头，表示点击展开面板
             
-            # 减小窗口宽度
-            new_width = current_size.width - self.right_sidebar_width
-            self.SetSize((new_width, current_size.height))
+            if self.EXPAND_MODE == 1:  # 向外展开模式
+                # 恢复到基础窗口尺寸
+                current_size = self.GetSize()
+                new_width = current_size.width - self.right_sidebar_width
+                self.SetSize((new_width, current_size.height))
         else:
             # 显示右侧边栏
             self.right_sidebar_panel.Show()
-            self.content_panel.toggle_button.SetLabel("◀")  # 左箭头，表示点击收起面板
             
-            # 增加窗口宽度
-            new_width = current_size.width + self.right_sidebar_width
-            self.SetSize((new_width, current_size.height))
+            if self.EXPAND_MODE == 1:  # 向外展开模式
+                # 增加窗口宽度以容纳右侧边栏
+                current_size = self.GetSize()
+                new_width = current_size.width + self.right_sidebar_width
+                self.SetSize((new_width, current_size.height))
+        
+        # 更新按钮标签
+        self.update_toggle_button_label()
         
         # 重新布局
         self.main_sizer.Layout()

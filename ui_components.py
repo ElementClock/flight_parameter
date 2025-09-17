@@ -134,7 +134,7 @@ class RightSidebarPanel(wx.Panel):
         """创建右侧边栏区域"""
         right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
         
-        # 定义基础尺寸单位
+        # 定义基础尺寸单位，与左侧边栏保持一致
         screen_width, screen_height = wx.GetDisplaySize()
         basic_width = int(screen_width * 0.1)
         basic_height = int(screen_height * 0.02)
@@ -153,8 +153,13 @@ class RightSidebarPanel(wx.Panel):
         # 设置布局
         self.SetSizer(right_sidebar_sizer)
         
-        # 设置固定的最小尺寸
-        self.SetMinSize((200, -1))
+        # 设置最小尺寸，与左侧边栏保持一致
+        right_sidebar_sizer.Layout()
+        min_size = right_sidebar_sizer.GetMinSize()
+        # 增加额外宽度和高度（单位：像素），与左侧边栏保持一致
+        min_size.width += 20
+        min_size.height += basic_height * 4
+        self.SetMinSize(min_size)
 
 
 class ContentPanel(wx.Panel):
