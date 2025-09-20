@@ -15,7 +15,7 @@ def calculate_window_geometry():
         screen_width, screen_height = 1920, 1080
 
     # 使用相对比例而非绝对像素，确保在不同分辨率屏幕上都有合适的大小
-    window_width = int(screen_width * 0.5)
+    window_width = int(screen_width * 0.6)
     window_height = int(screen_height * 0.6)
     # 使得初始窗口居中
     app_init_x = (screen_width - window_width) // 2

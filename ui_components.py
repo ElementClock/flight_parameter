@@ -21,6 +21,8 @@ class SidebarPanel(wx.Panel):
         """
         super().__init__(parent)
         self.data_choice = None
+        self.progress_bar = None
+        self.progress_text = None
         self.create_sidebar(on_load_data, on_save_data, on_save_analysis, 
                            on_clear_analysis, on_clear_data, on_quick_save, on_separator)
     
@@ -98,6 +100,20 @@ class SidebarPanel(wx.Panel):
         # 确保按钮区域在窗口缩小时不会被过度压缩
         sidebar_sizer.Add(button_sizer, 1, wx.ALL | wx.EXPAND, 5)
 
+        # 创建进度显示区域 - 放在最底部
+        progress_sizer = wx.BoxSizer(wx.VERTICAL)
+        
+        # 进度文本
+        self.progress_text = wx.StaticText(self, label="就绪")
+        progress_sizer.Add(self.progress_text, 0, wx.ALL | wx.EXPAND, 5)
+        
+        # 进度条
+        self.progress_bar = wx.Gauge(self, range=100, size=(basic_width, basic_height))
+        self.progress_bar.Hide()  # 默认隐藏进度条
+        progress_sizer.Add(self.progress_bar, 0, wx.ALL | wx.EXPAND, 5)
+        
+        sidebar_sizer.Add(progress_sizer, 0, wx.EXPAND)
+
         # 设置侧边栏面板的布局管理器
         self.SetSizer(sidebar_sizer)
 
@@ -115,6 +131,28 @@ class SidebarPanel(wx.Panel):
         min_size.width += 20
         min_size.height += basic_height * 4
         self.SetMinSize(min_size)
+        
+    def show_progress(self, show=True):
+        """显示或隐藏进度条"""
+        if show:
+            self.progress_bar.Show()
+        else:
+            self.progress_bar.Hide()
+            self.progress_text.SetLabel("就绪")
+        self.Layout()
+        
+    def update_progress(self, value, message=""):
+        """更新进度条和进度文本
+        
+        Args:
+            value (int): 进度值(0-100)
+            message (str): 进度消息
+        """
+        if message:
+            self.progress_text.SetLabel(message)
+        self.progress_bar.SetValue(value)
+        self.Refresh()
+        wx.Yield()  # 确保UI更新
 
 
 class RightSidebarPanel(wx.Panel):
@@ -231,7 +269,7 @@ class ContentPanel(wx.Panel):
             lines = text.split('\n')
             for line in lines:
                 # 检查是否为需要红色渲染的文本
-                if '[[RED]]' in line and '[[/RED]]' in line:
+                if '[[RED]]' in line and '[/RED]]' in line:
                     # 提取纯文本（去除标记）
                     clean_line = line.replace('[[RED]]', '').replace('[[/RED]]', '')
                     # 应用红色格式

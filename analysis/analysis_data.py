@@ -31,24 +31,37 @@ class AnalysisResult:
         return None
 
 
-def analysis_data(df):
+def analysis_data(df, progress_callback=None):
     """分析飞行数据主函数
     
     Args:
         df (pandas.DataFrame): 飞行数据
+        progress_callback (callable): 进度更新回调函数
         
     Returns:
         AnalysisResult: 包含分析结果的对象
     """
+    if progress_callback:
+        progress_callback(10, "正在转换飞行时间...")
     df = convert_flight_time(df)
+    
+    if progress_callback:
+        progress_callback(30, "正在转换列名...")
     df = convert_flight_name(df)
+    
     # 动力专业汇报
+    if progress_callback:
+        progress_callback(50, "正在分析发动机数据...")
     engine_data = analyze_engine(df)
     
     # CAS汇报
+    if progress_callback:
+        progress_callback(70, "正在分析CAS告警...")
     cas_data = analyze_cas(df, engine_data.get('takeoff_start_time'), engine_data.get('takeoff_end_time'))
 
     # 生成带标识符的文本输出
+    if progress_callback:
+        progress_callback(90, "正在生成分析报告...")
     text_engine = generate_engine_text_with_markers(engine_data)
     text_cas = generate_cas_text_with_markers(cas_data)
 
@@ -62,6 +75,10 @@ def analysis_data(df):
         engine_data=engine_data,
         cas_data=cas_data
     )
+    
+    if progress_callback:
+        progress_callback(100, "分析完成")
+        
     return result
 
 

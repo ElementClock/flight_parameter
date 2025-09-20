@@ -41,19 +41,20 @@ class DataManager:
         self.data_containers = {}
         self.current_data_key = None
     
-    def add_data(self, df, filename):
+    def add_data(self, df, filename, progress_callback=None):
         """添加新数据
         
         Args:
             df (pandas.DataFrame): 数据
             filename (str): 文件名
+            progress_callback (callable): 进度更新回调函数
             
         Returns:
             tuple: (数据容器对象, 错误信息)
         """
         try:
             # 分析数据
-            analysis_result = analysis_data(df)
+            analysis_result = analysis_data(df, progress_callback)
             
             # 创建数据容器
             data_container = DataContainer(analysis_result, filename)

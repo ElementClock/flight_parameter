@@ -15,6 +15,7 @@ class EventHandlers:
             app_frame: 应用程序主窗口实例
         """
         self.app_frame = app_frame
+        self.current_progress = 0
     
     def load_data(self, event):
         """加载CSV数据文件"""
@@ -30,11 +31,25 @@ class EventHandlers:
             pathnames = fileDialog.GetPaths()
             # 显示正在加载的消息
             self.app_frame.content_panel.textbox.SetValue("正在加载和分析数据，请稍候...\n")
+            # 显示进度条
+            self.app_frame.sidebar_panel.show_progress(True)
 
             # 在新线程中处理数据加载和分析，避免阻塞UI
             thread = threading.Thread(target=self.process_multiple_data, args=(pathnames,))
             thread.daemon = True
             thread.start()
+    
+    def _update_analysis_progress(self, value, message=""):
+        """更新分析进度的内部方法
+        
+        Args:
+            value (int): 进度值(0-100)
+            message (str): 进度消息
+        """
+        # 确保进度值在有效范围内
+        value = max(0, min(100, value))
+        self.current_progress = value
+        wx.CallAfter(self.app_frame.sidebar_panel.update_progress, value, message)
     
     def process_multiple_data(self, pathnames):
         """在后台线程中处理多个数据文件
@@ -42,8 +57,14 @@ class EventHandlers:
         Args:
             pathnames: 文件路径列表
         """
-        for pathname in pathnames:
+        total_files = len(pathnames)
+        for i, pathname in enumerate(pathnames):
             try:
+                # 更新进度
+                progress_msg = f"正在处理文件 {i+1}/{total_files}: {os.path.basename(pathname)}"
+                wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
+                             int((i / total_files) * 50), progress_msg)  # 前50%用于文件读取
+                
                 # 尝试多种编码方式
                 encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
                 df = None
@@ -52,8 +73,12 @@ class EventHandlers:
                 for encoding in encodings:
                     try:
                         df = pd.read_csv(pathname, encoding=encoding)
-                        # 添加数据到数据管理器
-                        data_container, error = self.app_frame.data_manager.add_data(df, os.path.basename(pathname))
+                        # 添加数据到数据管理器，传递进度回调函数
+                        data_container, error = self.app_frame.data_manager.add_data(
+                            df, 
+                            os.path.basename(pathname),
+                            progress_callback=self._update_analysis_progress
+                        )
                         if error:
                             raise Exception(error)
                         
@@ -72,6 +97,9 @@ class EventHandlers:
             except Exception as e:
                 # 在UI线程中显示错误消息
                 wx.CallAfter(self.on_data_load_error, pathname, str(e))
+        
+        # 完成所有文件处理后隐藏进度条
+        wx.CallAfter(self.app_frame.sidebar_panel.show_progress, False)
     
     def on_single_data_loaded(self, pathname, encoding, data_container):
         """在UI线程中更新界面 - 单个数据加载成功
@@ -109,6 +137,8 @@ class EventHandlers:
         """
         wx.MessageBox(f"无法读取文件 '{pathname}': {error_message}", "错误", wx.OK | wx.ICON_ERROR)
         self.app_frame.content_panel.set_formatted_text(f"加载文件失败: {error_message}")
+        # 隐藏进度条
+        self.app_frame.sidebar_panel.show_progress(False)
     
     def save_analysis(self, event):
         """保存分析结果"""
