@@ -54,12 +54,16 @@ def analyze_engine(df):
         return engine_result
 
     try:
+        # 优化内存使用：只选择需要的列进行处理
+        selected_columns = ['飞行时间'] + rpm_columns + ignition_columns
+        df_selected = df[selected_columns].copy()
+        
         # 提取转速数据并计算转速变化
-        engine_rpm = pd.DataFrame({f"engine_{i}_rpm": df[col] for i, col in enumerate(rpm_columns, 1)})
+        engine_rpm = pd.DataFrame({f"engine_{i}_rpm": df_selected[col] for i, col in enumerate(rpm_columns, 1)})
         engine_rpm_diff = engine_rpm.diff()
 
         # 提取点火状态数据
-        engine_ignition = pd.DataFrame({f"engine_{i}_ignition": df[col] for i, col in enumerate(ignition_columns, 1)})
+        engine_ignition = pd.DataFrame({f"engine_{i}_ignition": df_selected[col] for i, col in enumerate(ignition_columns, 1)})
 
         # 新增：存储所有发动机的启动和关车时间
         all_engine_start_times = []
@@ -90,13 +94,13 @@ def analyze_engine(df):
                 rpm_start = period_data[period_data >= 77.5]
 
                 if not rpm_start.empty:
-                    start_time = df.loc[rpm_start.index[0], '飞行时间']
+                    start_time = df_selected.loc[rpm_start.index[0], '飞行时间']
                     engine_start_times.append(start_time)
                     
                     # 找到转速小于等于3%的时期，认为发动机关车
                     rpm_shutdown = period_data[period_data <= 3.0]
                     if not rpm_shutdown.empty:
-                        end_time = df.loc[rpm_shutdown.index[-1], '飞行时间']
+                        end_time = df_selected.loc[rpm_shutdown.index[-1], '飞行时间']
                         engine_end_times.append(end_time)
             
             # 如果有多次启动，记录重启信息
@@ -129,8 +133,11 @@ def analyze_engine(df):
         engine_result['takeoff_info'] = takeoff_info
         engine_result['takeoff_start_time'] = takeoff_start_time
         engine_result['takeoff_end_time'] = takeoff_end_time
-        engine_result['start_time'] = df['飞行时间'].iloc[0] if not df.empty and '飞行时间' in df.columns else None
-        engine_result['end_time'] = df['飞行时间'].iloc[-1] if not df.empty and '飞行时间' in df.columns else None
+        engine_result['start_time'] = df_selected['飞行时间'].iloc[0] if not df_selected.empty and '飞行时间' in df_selected.columns else None
+        engine_result['end_time'] = df_selected['飞行时间'].iloc[-1] if not df_selected.empty and '飞行时间' in df_selected.columns else None
+        
+        # 清理临时数据以释放内存
+        del df_selected, engine_rpm, engine_rpm_diff, engine_ignition
     except Exception as e:
         engine_result['errors'] = [f"分析发动机数据时出错: {str(e)}"]
     

@@ -51,6 +51,45 @@ class EventHandlers:
         self.current_progress = value
         wx.CallAfter(self.app_frame.sidebar_panel.update_progress, value, message)
     
+    def _read_large_csv_in_chunks(self, pathname, encoding, chunksize=10000):
+        """分块读取大型CSV文件以优化内存使用
+        
+        Args:
+            pathname (str): 文件路径
+            encoding (str): 文件编码
+            chunksize (int): 每次读取的行数
+            
+        Returns:
+            pandas.DataFrame: 读取的完整数据框
+        """
+        try:
+            # 先读取列名以确定数据结构
+            df_sample = pd.read_csv(pathname, encoding=encoding, nrows=5)
+            columns = df_sample.columns.tolist()
+            
+            chunks = []
+            total_rows = 0
+            
+            # 获取总行数用于进度计算
+            with open(pathname, 'r', encoding=encoding) as f:
+                total_rows = sum(1 for _ in f) - 1  # 减去标题行
+            
+            rows_read = 0
+            for chunk in pd.read_csv(pathname, encoding=encoding, chunksize=chunksize):
+                chunks.append(chunk)
+                rows_read += len(chunk)
+                
+                # 更新进度（前20%用于文件读取）
+                progress_msg = f"正在读取文件: {os.path.basename(pathname)} ({rows_read}/{total_rows} 行)"
+                wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
+                             int((rows_read / total_rows) * 20), progress_msg)
+            
+            # 合并所有块
+            df = pd.concat(chunks, ignore_index=True)
+            return df
+        except Exception as e:
+            raise e
+    
     def process_multiple_data(self, pathnames):
         """在后台线程中处理多个数据文件
         
@@ -63,7 +102,7 @@ class EventHandlers:
                 # 更新进度
                 progress_msg = f"正在处理文件 {i+1}/{total_files}: {os.path.basename(pathname)}"
                 wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
-                             int((i / total_files) * 50), progress_msg)  # 前50%用于文件读取
+                             int((i / total_files) * 10), progress_msg)  # 前10%用于文件准备
                 
                 # 尝试多种编码方式
                 encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
@@ -72,7 +111,17 @@ class EventHandlers:
 
                 for encoding in encodings:
                     try:
-                        df = pd.read_csv(pathname, encoding=encoding)
+                        # 检查文件大小以决定是否使用分块读取
+                        file_size = os.path.getsize(pathname)
+                        size_threshold = 50 * 1024 * 1024  # 50MB阈值
+                        
+                        if file_size > size_threshold:
+                            # 对大文件使用分块读取
+                            df = self._read_large_csv_in_chunks(pathname, encoding)
+                        else:
+                            # 对小文件直接读取
+                            df = pd.read_csv(pathname, encoding=encoding)
+                        
                         # 添加数据到数据管理器，传递进度回调函数
                         data_container, error = self.app_frame.data_manager.add_data(
                             df, 

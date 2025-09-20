@@ -1,4 +1,3 @@
-import pandas as pd
 from analysis.analysis_data import analysis_data, AnalysisResult as BaseAnalysisResult
 
 

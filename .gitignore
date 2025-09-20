@@ -17,3 +17,7 @@ checkbox_states.json
 *.csv
 oldfile/init_flight_parameter.csv
 *.xlsx
+analysis/__pycache__/cas_analysis.cpython-312.pyc
+analysis/__pycache__/engine_analysis.cpython-312.pyc
+analysis/__pycache__/engine_analysis.cpython-312.pyc
+analysis/__pycache__/cas_analysis.cpython-312.pyc

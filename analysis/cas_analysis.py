@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from datetime import datetime, time  # 新增time模块导入
+from datetime import datetime
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -101,7 +101,10 @@ def analyze_cas(df, engine_start_time, engine_end_time):
         return cas_result
 
     try:
-        df_cas = df[['飞行时间'] + alarm_columns.tolist()]
+        # 优化内存使用：只选择需要的列进行处理
+        selected_columns = ['飞行时间'] + alarm_columns.tolist()
+        df_cas = df[selected_columns].copy()
+        
         alarm_periods_dict = {}
 
         for column in alarm_columns:
@@ -126,8 +129,71 @@ def analyze_cas(df, engine_start_time, engine_end_time):
                     })
 
         cas_result['alarms'] = alarms
+        
+        # 清理临时数据以释放内存
+        del df_cas
     except Exception as e:
         logging.error(f"CAS分析过程中出错: {e}")
         cas_result['errors'] = [f"CAS分析过程中出错: {str(e)}"]
     
     return cas_result
+
+
+def format_cas_output(cas_data):
+    """生成带标识符的CAS分析文本输出
+    
+    Args:
+        cas_data (dict): CAS分析数据
+        
+    Returns:
+        str: 格式化的文本结果
+    """
+    result = []
+    
+    # 检查错误情况
+    if cas_data['is_empty']:
+        result.append("输入的 DataFrame 为空，请检查数据源")
+        return "\n".join(result)
+    if cas_data['missing_time_column']:
+        result.append("缺少 '飞行时间' 列，请检查数据源")
+        return "\n".join(result)
+    if cas_data['no_alarm_columns']:
+        result.append("没有找到告警相关的列，请检查数据源")
+        return "\n".join(result)
+    if 'errors' in cas_data:
+        result.append("CAS分析过程中出错:")
+        result.extend(cas_data['errors'])
+        return "\n".join(result)
+
+    # 检查告警数据
+    if not cas_data['alarms']:
+        result.append("没有发现告警")
+        return "\n".join(result)
+
+    # 格式化告警数据
+    result.append("告警信息:")
+    for alarm in cas_data['alarms']:
+        result.append(f"{alarm['name']} - {alarm['start_time']} - {alarm['end_time']} - {alarm['duration']}")
+
+    return "\n".join(result)
+
+
+def load_alarm_levels():
+    """加载告警级别信息
+    
+    Returns:
+        dict: 告警ID到告警级别的映射字典
+    """
+    alarm_levels = {
+        1: '一级告警',
+        2: '二级告警',
+        3: '三级告警',
+        4: '四级告警',
+        5: '五级告警',
+        6: '六级告警',
+        7: '七级告警',
+        8: '八级告警',
+        9: '九级告警',
+        10: '十级告警',
+    }
+    return alarm_levels

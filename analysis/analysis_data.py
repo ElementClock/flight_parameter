@@ -79,6 +79,9 @@ def analysis_data(df, progress_callback=None):
     if progress_callback:
         progress_callback(100, "分析完成")
         
+    # 清理临时变量以释放内存
+    del engine_data, cas_data, text_engine, text_cas
+    
     return result
 
 
@@ -86,10 +89,10 @@ def generate_engine_text_with_markers(engine_data):
     """生成带标识符的发动机分析文本输出
     
     Args:
-        engine_data (dict): 发动机分析数据
+        engine_data (dict): 包含发动机分析结果的字典，可能包含错误信息
         
     Returns:
-        str: 格式化的文本结果
+        str: 格式化的文本结果，包含错误信息或正常分析结果
     """
     result = []
     
@@ -128,10 +131,10 @@ def generate_cas_text_with_markers(cas_data):
     """生成带标识符的CAS分析文本输出
     
     Args:
-        cas_data (dict): CAS分析数据
+        cas_data (dict): 包含CAS分析结果的字典，可能包含错误信息
         
     Returns:
-        str: 格式化的文本结果
+        str: 格式化的文本结果，包含错误信息或正常分析结果
     """
     result = []
     
@@ -293,31 +296,35 @@ def convert_flight_time(df):
         pandas.DataFrame: 时间列已转换的DataFrame
     """
     try:
+        # 优化内存使用：创建新的DataFrame而不是修改原数据
+        df_new = df.copy()
+        
         # 获取第一列和第四列的列名
-        first_col = df.columns[0]   # 飞参内部时间列 (格式: hh:mm:ss.fff)
-        fourth_col = df.columns[3]  # 日期列 (格式: yy-mm-dd)
+        first_col = df_new.columns[0]   # 飞参内部时间列 (格式: hh:mm:ss.fff)
+        fourth_col = df_new.columns[3]  # 日期列 (格式: yy-mm-dd)
         
         # 将两列数据合并为完整的日期时间字符串
         # 格式: hh:mm:ss.fff + 年份-月份-日
-        datetime_combined = df[first_col].astype(str) + ' ' + df[fourth_col].astype(str)
+        datetime_combined = df_new[first_col].astype(str) + ' ' + df_new[fourth_col].astype(str)
         
         # 转换为datetime对象，支持两位数年份格式（如25-07-11表示2025年7月11日）
-        df['_datetime'] = pd.to_datetime(datetime_combined, format='%H:%M:%S.%f %y-%m-%d', errors='coerce')
+        df_new['_datetime'] = pd.to_datetime(datetime_combined, format='%H:%M:%S.%f %y-%m-%d', errors='coerce')
         
         # 将UTC时间转换为北京时间(UTC+8)
-        df['_datetime'] = df['_datetime'] + timedelta(hours=8)
+        df_new['_datetime'] = df_new['_datetime'] + timedelta(hours=8)
         
         # 更新原数据列
-        df[first_col] = df['_datetime']
+        df_new[first_col] = df_new['_datetime']
 
         # 删除临时列
-        df.rename(columns={first_col: '飞行时间'}, inplace=True)
-        df.drop('_datetime', axis=1, inplace=True)
+        df_new.rename(columns={first_col: '飞行时间'}, inplace=True)
+        df_new.drop('_datetime', axis=1, inplace=True)
+        
+        return df_new
     except Exception as e:
         print(f"转换飞行时间时出错: {e}")
+        return df
     
-    return df
-
 def convert_flight_name(df):
     """转换飞行数据列名
     
@@ -327,6 +334,9 @@ def convert_flight_name(df):
     Returns:
         pandas.DataFrame: 列名已转换的DataFrame
     """
+    # 优化内存使用：创建新的DataFrame而不是修改原数据
+    df_new = df.copy()
+    
     # 定义替换规则字典
     replacement_rules = {
         'ATA345_GNSU1全球卫星定位系统': '全球卫星定位系统1',
@@ -398,7 +408,7 @@ def convert_flight_name(df):
     
     # 创建列名映射字典
     column_mapping = {}
-    for old_name in df.columns:
+    for old_name in df_new.columns:
         new_name = old_name
         for pattern, replacement in replacement_rules.items():
             if pattern in old_name:
@@ -407,6 +417,6 @@ def convert_flight_name(df):
         column_mapping[old_name] = new_name
     
     # 重命名列
-    df = df.rename(columns=column_mapping)
+    df_new = df_new.rename(columns=column_mapping)
     
-    return df
+    return df_new
