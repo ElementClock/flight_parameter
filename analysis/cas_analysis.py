@@ -15,26 +15,30 @@ def find_alarm_periods(alarm_times):
     Returns:
         list: 告警时间段列表
     """
-    if alarm_times.empty:
+    try:
+        if alarm_times.empty:
+            return []
+
+        periods = []
+        start_time = None
+
+        for i, time in enumerate(alarm_times):
+            if start_time is None:
+                start_time = time
+
+            # 判断是否连续，只要存在间断，则结束当前时间段
+            if i < len(alarm_times) - 1 and (alarm_times.iloc[i + 1] - time).total_seconds() > 1:
+                end_time = time
+                periods.append((start_time, end_time))
+                start_time = None
+            elif i == len(alarm_times) - 1:
+                end_time = time
+                periods.append((start_time, end_time))
+
+        return periods
+    except Exception as e:
+        logging.error(f"查找告警时间段时出错: {str(e)}")
         return []
-
-    periods = []
-    start_time = None
-
-    for i, time in enumerate(alarm_times):
-        if start_time is None:
-            start_time = time
-
-        # 判断是否连续，只要存在间断，则结束当前时间段
-        if i < len(alarm_times) - 1 and (alarm_times.iloc[i + 1] - time).total_seconds() > 1:
-            end_time = time
-            periods.append((start_time, end_time))
-            start_time = None
-        elif i == len(alarm_times) - 1:
-            end_time = time
-            periods.append((start_time, end_time))
-
-    return periods
 
 
 def extract_alarm_periods(df_cas, column):
@@ -78,29 +82,29 @@ def analyze_cas(df, engine_start_time, engine_end_time):
     Returns:
         dict: CAS分析结果
     """
-    # 初始化返回数据
-    cas_result = {
-        'type': 'cas',
-        'alarms': [],
-        'is_empty': False,
-        'missing_time_column': False,
-        'no_alarm_columns': False
-    }
-
-    if df.empty:
-        cas_result['is_empty'] = True
-        return cas_result
-
-    if '飞行时间' not in df.columns:
-        cas_result['missing_time_column'] = True
-        return cas_result
-
-    alarm_columns = df.filter(like='显示告警系统').columns
-    if alarm_columns.empty:
-        cas_result['no_alarm_columns'] = True
-        return cas_result
-
     try:
+        # 初始化返回数据
+        cas_result = {
+            'type': 'cas',
+            'alarms': [],
+            'is_empty': False,
+            'missing_time_column': False,
+            'no_alarm_columns': False
+        }
+
+        if df.empty:
+            cas_result['is_empty'] = True
+            return cas_result
+
+        if '飞行时间' not in df.columns:
+            cas_result['missing_time_column'] = True
+            return cas_result
+
+        alarm_columns = df.filter(like='显示告警系统').columns
+        if alarm_columns.empty:
+            cas_result['no_alarm_columns'] = True
+            return cas_result
+
         # 优化内存使用：只选择需要的列进行处理
         selected_columns = ['飞行时间'] + alarm_columns.tolist()
         df_cas = df[selected_columns].copy()
@@ -132,11 +136,18 @@ def analyze_cas(df, engine_start_time, engine_end_time):
         
         # 清理临时数据以释放内存
         del df_cas
+        
+        return cas_result
     except Exception as e:
         logging.error(f"CAS分析过程中出错: {e}")
-        cas_result['errors'] = [f"CAS分析过程中出错: {str(e)}"]
-    
-    return cas_result
+        return {
+            'type': 'cas',
+            'alarms': [],
+            'is_empty': False,
+            'missing_time_column': False,
+            'no_alarm_columns': False,
+            'errors': [f"CAS分析过程中出错: {str(e)}"]
+        }
 
 
 def format_cas_output(cas_data):
@@ -148,34 +159,38 @@ def format_cas_output(cas_data):
     Returns:
         str: 格式化的文本结果
     """
-    result = []
-    
-    # 检查错误情况
-    if cas_data['is_empty']:
-        result.append("输入的 DataFrame 为空，请检查数据源")
-        return "\n".join(result)
-    if cas_data['missing_time_column']:
-        result.append("缺少 '飞行时间' 列，请检查数据源")
-        return "\n".join(result)
-    if cas_data['no_alarm_columns']:
-        result.append("没有找到告警相关的列，请检查数据源")
-        return "\n".join(result)
-    if 'errors' in cas_data:
-        result.append("CAS分析过程中出错:")
-        result.extend(cas_data['errors'])
-        return "\n".join(result)
+    try:
+        result = []
+        
+        # 检查错误情况
+        if cas_data['is_empty']:
+            result.append("输入的 DataFrame 为空，请检查数据源")
+            return "\n".join(result)
+        if cas_data['missing_time_column']:
+            result.append("缺少 '飞行时间' 列，请检查数据源")
+            return "\n".join(result)
+        if cas_data['no_alarm_columns']:
+            result.append("没有找到告警相关的列，请检查数据源")
+            return "\n".join(result)
+        if 'errors' in cas_data:
+            result.append("CAS分析过程中出错:")
+            result.extend(cas_data['errors'])
+            return "\n".join(result)
 
-    # 检查告警数据
-    if not cas_data['alarms']:
-        result.append("没有发现告警")
+        # 检查告警数据
+        if not cas_data['alarms']:
+            result.append("没有发现告警")
+            return "\n".join(result)
+
+        # 格式化告警数据
+        result.append("告警信息:")
+        for alarm in cas_data['alarms']:
+            result.append(f"{alarm['name']} - {alarm['start_time']} - {alarm['end_time']} - {alarm['duration']}")
+
         return "\n".join(result)
-
-    # 格式化告警数据
-    result.append("告警信息:")
-    for alarm in cas_data['alarms']:
-        result.append(f"{alarm['name']} - {alarm['start_time']} - {alarm['end_time']} - {alarm['duration']}")
-
-    return "\n".join(result)
+    except Exception as e:
+        logging.error(f"格式化CAS输出时出错: {str(e)}")
+        return f"格式化CAS输出时出错: {str(e)}"
 
 
 def load_alarm_levels():
@@ -184,16 +199,20 @@ def load_alarm_levels():
     Returns:
         dict: 告警ID到告警级别的映射字典
     """
-    alarm_levels = {
-        1: '一级告警',
-        2: '二级告警',
-        3: '三级告警',
-        4: '四级告警',
-        5: '五级告警',
-        6: '六级告警',
-        7: '七级告警',
-        8: '八级告警',
-        9: '九级告警',
-        10: '十级告警',
-    }
-    return alarm_levels
+    try:
+        alarm_levels = {
+            1: '一级告警',
+            2: '二级告警',
+            3: '三级告警',
+            4: '四级告警',
+            5: '五级告警',
+            6: '六级告警',
+            7: '七级告警',
+            8: '八级告警',
+            9: '九级告警',
+            10: '十级告警',
+        }
+        return alarm_levels
+    except Exception as e:
+        logging.error(f"加载告警级别信息时出错: {str(e)}")
+        return {}

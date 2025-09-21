@@ -1,4 +1,8 @@
+import logging
 from analysis.analysis_data import analysis_data, AnalysisResult as BaseAnalysisResult
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class DataContainer:
@@ -11,25 +15,29 @@ class DataContainer:
             analysis_result: 分析结果对象
             filename (str): 文件名
         """
-        # 使用更灵活的方式处理对象属性，避免手动维护属性对应关系
-        self.filename = filename
-        self.analysis_result_obj = analysis_result
-        
-        # 动态获取analysis_result的所有属性
-        for attr in dir(analysis_result):
-            if not attr.startswith('_'):  # 忽略私有属性
-                setattr(self, attr, getattr(analysis_result, attr))
-        
-        # 合并文本分析结果
-        text_parts = []
-        if hasattr(analysis_result, 'text_analyze') and analysis_result.text_analyze:
-            text_parts.append(analysis_result.text_analyze)
-        if hasattr(analysis_result, 'text_engine') and analysis_result.text_engine:
-            text_parts.append(analysis_result.text_engine)
-        if hasattr(analysis_result, 'text_cas') and analysis_result.text_cas:
-            text_parts.append(analysis_result.text_cas)
-        
-        self.analysis_result = "\n".join(text_parts) if text_parts else ""
+        try:
+            # 使用更灵活的方式处理对象属性，避免手动维护属性对应关系
+            self.filename = filename
+            self.analysis_result_obj = analysis_result
+            
+            # 动态获取analysis_result的所有属性
+            for attr in dir(analysis_result):
+                if not attr.startswith('_'):  # 忽略私有属性
+                    setattr(self, attr, getattr(analysis_result, attr))
+            
+            # 合并文本分析结果
+            text_parts = []
+            if hasattr(analysis_result, 'text_analyze') and analysis_result.text_analyze:
+                text_parts.append(analysis_result.text_analyze)
+            if hasattr(analysis_result, 'text_engine') and analysis_result.text_engine:
+                text_parts.append(analysis_result.text_engine)
+            if hasattr(analysis_result, 'text_cas') and analysis_result.text_cas:
+                text_parts.append(analysis_result.text_cas)
+            
+            self.analysis_result = "\n".join(text_parts) if text_parts else ""
+        except Exception as e:
+            logging.error(f"初始化数据容器时出错: {str(e)}")
+            raise e
 
 
 class DataManager:
@@ -37,8 +45,12 @@ class DataManager:
     
     def __init__(self):
         """初始化数据管理器"""
-        self.data_containers = {}
-        self.current_data_key = None
+        try:
+            self.data_containers = {}
+            self.current_data_key = None
+        except Exception as e:
+            logging.error(f"初始化数据管理器时出错: {str(e)}")
+            raise e
     
     def add_data(self, df, filename, progress_callback=None):
         """添加新数据
@@ -65,6 +77,7 @@ class DataManager:
             
             return data_container, None
         except Exception as e:
+            logging.error(f"添加数据时出错: {str(e)}")
             return None, str(e)
     
     def remove_data(self, key):
@@ -76,12 +89,16 @@ class DataManager:
         Returns:
             bool: 是否成功移除
         """
-        if key in self.data_containers:
-            del self.data_containers[key]
-            if self.current_data_key == key:
-                self.current_data_key = next(iter(self.data_containers), None) if self.data_containers else None
-            return True
-        return False
+        try:
+            if key in self.data_containers:
+                del self.data_containers[key]
+                if self.current_data_key == key:
+                    self.current_data_key = next(iter(self.data_containers), None) if self.data_containers else None
+                return True
+            return False
+        except Exception as e:
+            logging.error(f"移除数据时出错: {str(e)}")
+            return False
     
     def get_current_data(self):
         """获取当前选中的数据
@@ -89,9 +106,13 @@ class DataManager:
         Returns:
             DataContainer: 当前数据容器对象，如果不存在则返回None
         """
-        if self.current_data_key and self.current_data_key in self.data_containers:
-            return self.data_containers[self.current_data_key]
-        return None
+        try:
+            if self.current_data_key and self.current_data_key in self.data_containers:
+                return self.data_containers[self.current_data_key]
+            return None
+        except Exception as e:
+            logging.error(f"获取当前数据时出错: {str(e)}")
+            return None
     
     def get_data_keys(self):
         """获取所有数据键列表
@@ -99,7 +120,11 @@ class DataManager:
         Returns:
             list: 数据键列表
         """
-        return list(self.data_containers.keys())
+        try:
+            return list(self.data_containers.keys())
+        except Exception as e:
+            logging.error(f"获取数据键列表时出错: {str(e)}")
+            return []
     
     def select_data(self, key):
         """选择指定数据
@@ -110,12 +135,19 @@ class DataManager:
         Returns:
             bool: 是否成功选择
         """
-        if key in self.data_containers:
-            self.current_data_key = key
-            return True
-        return False
+        try:
+            if key in self.data_containers:
+                self.current_data_key = key
+                return True
+            return False
+        except Exception as e:
+            logging.error(f"选择数据时出错: {str(e)}")
+            return False
     
     def clear_all_data(self):
         """清除所有数据"""
-        self.data_containers.clear()
-        self.current_data_key = None
+        try:
+            self.data_containers.clear()
+            self.current_data_key = None
+        except Exception as e:
+            logging.error(f"清除所有数据时出错: {str(e)}")

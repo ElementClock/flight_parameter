@@ -1,5 +1,9 @@
 import wx
 import wx.richtext as rt
+import logging
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class SidebarPanel(wx.Panel):
@@ -19,12 +23,16 @@ class SidebarPanel(wx.Panel):
             on_quick_save: 快捷保存事件处理函数
             on_separator: 分隔符事件处理函数
         """
-        super().__init__(parent)
-        self.data_choice = None
-        self.progress_bar = None
-        self.progress_text = None
-        self.create_sidebar(on_load_data, on_save_data, on_save_analysis, 
-                           on_clear_analysis, on_clear_data, on_quick_save, on_separator)
+        try:
+            super().__init__(parent)
+            self.data_choice = None
+            self.progress_bar = None
+            self.progress_text = None
+            self.create_sidebar(on_load_data, on_save_data, on_save_analysis, 
+                               on_clear_analysis, on_clear_data, on_quick_save, on_separator)
+        except Exception as e:
+            logging.error(f"初始化侧边栏面板时出错: {str(e)}")
+            raise e
     
     def create_sidebar(self, on_load_data, on_save_data, on_save_analysis, 
                        on_clear_analysis, on_clear_data, on_quick_save, on_separator):
@@ -39,107 +47,114 @@ class SidebarPanel(wx.Panel):
             on_quick_save: 快捷保存事件处理函数
             on_separator: 分隔符事件处理函数
         """
-        sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
+        try:
+            sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # 定义基础尺寸单位，根据屏幕尺寸动态计算
-        screen_width, screen_height = wx.GetDisplaySize()
-        # 修改基础尺寸参数
-        basic_width = int(screen_width * 0.1)
-        basic_height = int(screen_height * 0.02)
+            # 定义基础尺寸单位，根据屏幕尺寸动态计算
+            screen_width, screen_height = wx.GetDisplaySize()
+            # 修改基础尺寸参数
+            basic_width = int(screen_width * 0.1)
+            basic_height = int(screen_height * 0.02)
 
-        # 创建标题标签
-        logo_label = wx.StaticText(self, label="选择导出模式", style=wx.ALIGN_CENTER)
-        font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
-        logo_label.SetFont(font)
-        # 设置标签最小尺寸，确保在窗口缩小时仍可见
-        logo_label.SetMinSize((basic_width, basic_height))
-        sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 10)
+            # 创建标题标签
+            logo_label = wx.StaticText(self, label="选择导出模式", style=wx.ALIGN_CENTER)
+            font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+            logo_label.SetFont(font)
+            # 设置标签最小尺寸，确保在窗口缩小时仍可见
+            logo_label.SetMinSize((basic_width, basic_height))
+            sidebar_sizer.Add(logo_label, 0, wx.ALL | wx.EXPAND, 10)
 
-        # 创建数据选择下拉菜单
-        self.data_choice = wx.Choice(self, choices=[])
-        self.data_choice.SetMinSize((basic_width, basic_height * 1.5))
-        self.data_choice.SetMaxSize((basic_width, basic_height * 1.5))
-        # 注意：事件绑定将在主框架中完成
-        data_choice_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        data_choice_sizer.AddSpacer(20)  # 左边距
-        data_choice_sizer.Add(self.data_choice, 1, wx.TOP | wx.BOTTOM, 5)  # 上下边距
-        data_choice_sizer.AddSpacer(0)  # 右边距
-        sidebar_sizer.Add(data_choice_sizer, 0, wx.EXPAND)
+            # 创建数据选择下拉菜单
+            self.data_choice = wx.Choice(self, choices=[])
+            self.data_choice.SetMinSize((basic_width, basic_height * 1.5))
+            self.data_choice.SetMaxSize((basic_width, basic_height * 1.5))
+            # 注意：事件绑定将在主框架中完成
+            data_choice_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            data_choice_sizer.AddSpacer(20)  # 左边距
+            data_choice_sizer.Add(self.data_choice, 1, wx.TOP | wx.BOTTOM, 5)  # 上下边距
+            data_choice_sizer.AddSpacer(0)  # 右边距
+            sidebar_sizer.Add(data_choice_sizer, 0, wx.EXPAND)
 
-        # 创建按钮布局管理器
-        button_sizer = wx.BoxSizer(wx.VERTICAL)
+            # 创建按钮布局管理器
+            button_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # 创建按钮
-        buttons_config = [
-            ("加载数据", on_load_data),
-            ("保存数据", on_save_data),
-            ("保存分析", on_save_analysis),
-            ("清除分析", on_clear_analysis),
-            ("清除数据", on_clear_data),
-            ("快捷保存", on_quick_save),
-            ("///", on_separator),
-        ]
-        
-        buttons = []
-        for label, event_handler in buttons_config:
-            button = wx.Button(self, label=label)
-            button.SetMinSize((basic_width, basic_height * 1.5))
-            button.SetMaxSize((basic_width, basic_height * 1.5))
+            # 创建按钮
+            buttons_config = [
+                ("加载数据", on_load_data),
+                ("保存数据", on_save_data),
+                ("保存分析", on_save_analysis),
+                ("清除分析", on_clear_analysis),
+                ("清除数据", on_clear_data),
+                ("快捷保存", on_quick_save),
+                ("///", on_separator),
+            ]
+            
+            buttons = []
+            for label, event_handler in buttons_config:
+                button = wx.Button(self, label=label)
+                button.SetMinSize((basic_width, basic_height * 1.5))
+                button.SetMaxSize((basic_width, basic_height * 1.5))
 
-            # 如果提供了事件处理函数，则绑定事件
-            if event_handler:
-                button.Bind(wx.EVT_BUTTON, event_handler)
+                # 如果提供了事件处理函数，则绑定事件
+                if event_handler:
+                    button.Bind(wx.EVT_BUTTON, event_handler)
 
-            buttons.append(button)
+                buttons.append(button)
 
-        # 添加按钮到布局，不伸缩，居中显示
-        for button in buttons:
-            button_sizer.Add(button, 0, wx.ALL | wx.CENTER, 5)
+            # 添加按钮到布局，不伸缩，居中显示
+            for button in buttons:
+                button_sizer.Add(button, 0, wx.ALL | wx.CENTER, 5)
 
-        # 添加按钮布局到侧边栏布局，设置合适的比例和最小尺寸
-        # 确保按钮区域在窗口缩小时不会被过度压缩
-        sidebar_sizer.Add(button_sizer, 1, wx.ALL | wx.EXPAND, 5)
+            # 添加按钮布局到侧边栏布局，设置合适的比例和最小尺寸
+            # 确保按钮区域在窗口缩小时不会被过度压缩
+            sidebar_sizer.Add(button_sizer, 1, wx.ALL | wx.EXPAND, 5)
 
-        # 创建进度显示区域 - 放在最底部
-        progress_sizer = wx.BoxSizer(wx.VERTICAL)
-        
-        # 进度文本
-        self.progress_text = wx.StaticText(self, label="就绪")
-        progress_sizer.Add(self.progress_text, 0, wx.ALL | wx.EXPAND, 5)
-        
-        # 进度条
-        self.progress_bar = wx.Gauge(self, range=100, size=(basic_width, basic_height))
-        self.progress_bar.Hide()  # 默认隐藏进度条
-        progress_sizer.Add(self.progress_bar, 0, wx.ALL | wx.EXPAND, 5)
-        
-        sidebar_sizer.Add(progress_sizer, 0, wx.EXPAND)
+            # 创建进度显示区域 - 放在最底部
+            progress_sizer = wx.BoxSizer(wx.VERTICAL)
+            
+            # 进度文本
+            self.progress_text = wx.StaticText(self, label="就绪")
+            progress_sizer.Add(self.progress_text, 0, wx.ALL | wx.EXPAND, 5)
+            
+            # 进度条
+            self.progress_bar = wx.Gauge(self, range=100, size=(basic_width, basic_height))
+            self.progress_bar.Hide()  # 默认隐藏进度条
+            progress_sizer.Add(self.progress_bar, 0, wx.ALL | wx.EXPAND, 5)
+            
+            sidebar_sizer.Add(progress_sizer, 0, wx.EXPAND)
 
-        # 设置侧边栏面板的布局管理器
-        self.SetSizer(sidebar_sizer)
+            # 设置侧边栏面板的布局管理器
+            self.SetSizer(sidebar_sizer)
 
-        # 手动计算并设置最小尺寸，确保所有按钮可见
-        # 先调用Layout让Sizer计算布局
-        sidebar_sizer.Layout()
-        # 获取内容所需最小尺寸
-        min_size = sidebar_sizer.GetMinSize()
-        # 设置侧边栏面板的最小尺寸
-        self.SetMinSize(min_size)
+            # 手动计算并设置最小尺寸，确保所有按钮可见
+            # 先调用Layout让Sizer计算布局
+            sidebar_sizer.Layout()
+            # 获取内容所需最小尺寸
+            min_size = sidebar_sizer.GetMinSize()
+            # 设置侧边栏面板的最小尺寸
+            self.SetMinSize(min_size)
 
-        # 可选：手动调整最终最小尺寸
-        min_size = sidebar_sizer.GetMinSize()
-        # 增加额外的宽高（单位：像素）
-        min_size.width += 20
-        min_size.height += basic_height * 4
-        self.SetMinSize(min_size)
+            # 可选：手动调整最终最小尺寸
+            min_size = sidebar_sizer.GetMinSize()
+            # 增加额外的宽高（单位：像素）
+            min_size.width += 20
+            min_size.height += basic_height * 4
+            self.SetMinSize(min_size)
+        except Exception as e:
+            logging.error(f"创建侧边栏区域时出错: {str(e)}")
+            raise e
         
     def show_progress(self, show=True):
         """显示或隐藏进度条"""
-        if show:
-            self.progress_bar.Show()
-        else:
-            self.progress_bar.Hide()
-            self.progress_text.SetLabel("就绪")
-        self.Layout()
+        try:
+            if show:
+                self.progress_bar.Show()
+            else:
+                self.progress_bar.Hide()
+                self.progress_text.SetLabel("就绪")
+            self.Layout()
+        except Exception as e:
+            logging.error(f"显示或隐藏进度条时出错: {str(e)}")
         
     def update_progress(self, value, message=""):
         """更新进度条和进度文本
@@ -148,11 +163,14 @@ class SidebarPanel(wx.Panel):
             value (int): 进度值(0-100)
             message (str): 进度消息
         """
-        if message:
-            self.progress_text.SetLabel(message)
-        self.progress_bar.SetValue(value)
-        self.Refresh()
-        wx.Yield()  # 确保UI更新
+        try:
+            if message:
+                self.progress_text.SetLabel(message)
+            self.progress_bar.SetValue(value)
+            self.Refresh()
+            wx.Yield()  # 确保UI更新
+        except Exception as e:
+            logging.error(f"更新进度条和进度文本时出错: {str(e)}")
 
 
 class RightSidebarPanel(wx.Panel):
@@ -164,40 +182,48 @@ class RightSidebarPanel(wx.Panel):
         Args:
             parent: 父窗口
         """
-        super().__init__(parent)
-        self.create_right_sidebar()
-        self.Hide()  # 默认隐藏
+        try:
+            super().__init__(parent)
+            self.create_right_sidebar()
+            self.Hide()  # 默认隐藏
+        except Exception as e:
+            logging.error(f"初始化右侧边栏面板时出错: {str(e)}")
+            raise e
         
     def create_right_sidebar(self):
         """创建右侧边栏区域"""
-        right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
-        
-        # 定义基础尺寸单位，与左侧边栏保持一致
-        screen_width, screen_height = wx.GetDisplaySize()
-        basic_width = int(screen_width * 0.1)
-        basic_height = int(screen_height * 0.02)
-        
-        # 创建标题
-        title = wx.StaticText(self, label="工具面板", style=wx.ALIGN_CENTER)
-        font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
-        title.SetFont(font)
-        title.SetMinSize((basic_width, basic_height))
-        right_sidebar_sizer.Add(title, 0, wx.ALL | wx.EXPAND, 10)
-        
-        # 添加一些示例内容
-        content_text = wx.StaticText(self, label="这里应该设置一些按钮", style=wx.ALIGN_CENTER)
-        right_sidebar_sizer.Add(content_text, 0, wx.ALL | wx.EXPAND, 10)
-        
-        # 设置布局
-        self.SetSizer(right_sidebar_sizer)
-        
-        # 设置最小尺寸，与左侧边栏保持一致
-        right_sidebar_sizer.Layout()
-        min_size = right_sidebar_sizer.GetMinSize()
-        # 增加额外宽度和高度（单位：像素），与左侧边栏保持一致
-        min_size.width += 20
-        min_size.height += basic_height * 4
-        self.SetMinSize(min_size)
+        try:
+            right_sidebar_sizer = wx.BoxSizer(wx.VERTICAL)
+            
+            # 定义基础尺寸单位，与左侧边栏保持一致
+            screen_width, screen_height = wx.GetDisplaySize()
+            basic_width = int(screen_width * 0.1)
+            basic_height = int(screen_height * 0.02)
+            
+            # 创建标题
+            title = wx.StaticText(self, label="工具面板", style=wx.ALIGN_CENTER)
+            font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+            title.SetFont(font)
+            title.SetMinSize((basic_width, basic_height))
+            right_sidebar_sizer.Add(title, 0, wx.ALL | wx.EXPAND, 10)
+            
+            # 添加一些示例内容
+            content_text = wx.StaticText(self, label="这里应该设置一些按钮", style=wx.ALIGN_CENTER)
+            right_sidebar_sizer.Add(content_text, 0, wx.ALL | wx.EXPAND, 10)
+            
+            # 设置布局
+            self.SetSizer(right_sidebar_sizer)
+            
+            # 设置最小尺寸，与左侧边栏保持一致
+            right_sidebar_sizer.Layout()
+            min_size = right_sidebar_sizer.GetMinSize()
+            # 增加额外宽度和高度（单位：像素），与左侧边栏保持一致
+            min_size.width += 20
+            min_size.height += basic_height * 4
+            self.SetMinSize(min_size)
+        except Exception as e:
+            logging.error(f"创建右侧边栏区域时出错: {str(e)}")
+            raise e
 
 
 class ContentPanel(wx.Panel):
@@ -209,51 +235,59 @@ class ContentPanel(wx.Panel):
         Args:
             parent: 父窗口
         """
-        super().__init__(parent)
-        self.textbox = None
-        self.toggle_button = None
-        self.create_content_area()
+        try:
+            super().__init__(parent)
+            self.textbox = None
+            self.toggle_button = None
+            self.create_content_area()
+        except Exception as e:
+            logging.error(f"初始化内容区域面板时出错: {str(e)}")
+            raise e
     
     def create_content_area(self):
         """创建主内容区域"""
-        content_sizer = wx.BoxSizer(wx.VERTICAL)
+        try:
+            content_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # 定义基础尺寸单位
-        screen_width, screen_height = wx.GetDisplaySize()
-        basic_width = int(screen_width * 0.1)
-        basic_height = int(screen_height * 0.02)
+            # 定义基础尺寸单位
+            screen_width, screen_height = wx.GetDisplaySize()
+            basic_width = int(screen_width * 0.1)
+            basic_height = int(screen_height * 0.02)
 
-        # 创建结果区域标题的水平布局
-        title_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        
-        # 创建结果区域标题
-        logo_msg_box = wx.StaticText(self, label="数据导出结果", style=wx.ALIGN_CENTER)
-        # 设置字体为等宽字体，便于显示格式化数据
-        font = wx.Font(12, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
-        logo_msg_box.SetFont(font)
-        # 设置最小尺寸确保可见性
-        logo_msg_box.SetMinSize((basic_width, basic_height))
-        
-        # 创建切换右侧边栏显示的按钮，使用右箭头表示面板当前处于收起状态
-        self.toggle_button = wx.Button(self, label="▶", size=(30, -1))
-        self.toggle_button.SetMinSize((30, basic_height))
-        
-        # 添加控件到标题布局
-        title_sizer.Add(logo_msg_box, 1, wx.ALIGN_CENTER_VERTICAL)
-        title_sizer.Add(self.toggle_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
-        
-        # 添加标题布局到内容布局
-        content_sizer.Add(title_sizer, 0, wx.ALL | wx.EXPAND, 10)
+            # 创建结果区域标题的水平布局
+            title_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            
+            # 创建结果区域标题
+            logo_msg_box = wx.StaticText(self, label="数据导出结果", style=wx.ALIGN_CENTER)
+            # 设置字体为等宽字体，便于显示格式化数据
+            font = wx.Font(12, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+            logo_msg_box.SetFont(font)
+            # 设置最小尺寸确保可见性
+            logo_msg_box.SetMinSize((basic_width, basic_height))
+            
+            # 创建切换右侧边栏显示的按钮，使用右箭头表示面板当前处于收起状态
+            self.toggle_button = wx.Button(self, label="▶", size=(30, -1))
+            self.toggle_button.SetMinSize((30, basic_height))
+            
+            # 添加控件到标题布局
+            title_sizer.Add(logo_msg_box, 1, wx.ALIGN_CENTER_VERTICAL)
+            title_sizer.Add(self.toggle_button, 0, wx.ALIGN_CENTER_VERTICAL | wx.LEFT, 5)
+            
+            # 添加标题布局到内容布局
+            content_sizer.Add(title_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
-        # 创建富文本显示框，用于显示导出结果
-        self.textbox = rt.RichTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
-        # 文本框占据剩余空间
-        content_sizer.Add(self.textbox, 1, wx.ALL | wx.EXPAND, 5)
-        # 设置内容区域最小尺寸
-        content_sizer.SetMinSize((3 * basic_width, 10 * basic_height))
+            # 创建富文本显示框，用于显示导出结果
+            self.textbox = rt.RichTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
+            # 文本框占据剩余空间
+            content_sizer.Add(self.textbox, 1, wx.ALL | wx.EXPAND, 5)
+            # 设置内容区域最小尺寸
+            content_sizer.SetMinSize((3 * basic_width, 10 * basic_height))
 
-        # 设置内容面板的布局管理器
-        self.SetSizer(content_sizer)
+            # 设置内容面板的布局管理器
+            self.SetSizer(content_sizer)
+        except Exception as e:
+            logging.error(f"创建主内容区域时出错: {str(e)}")
+            raise e
     
     def set_formatted_text(self, text):
         """设置格式化的文本内容
@@ -318,5 +352,6 @@ class ContentPanel(wx.Panel):
                     self.textbox.WriteText(line + '\n')
         except Exception as e:
             # 出现异常时显示原始文本
+            logging.error(f"设置格式化文本时出错: {str(e)}")
             self.textbox.Clear()
             self.textbox.WriteText(f"显示文本时出错: {str(e)}\n原始文本:\n{text}")

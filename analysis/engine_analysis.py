@@ -1,5 +1,9 @@
 import re
 import pandas as pd
+import logging
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def analyze_engine(df):
@@ -14,46 +18,46 @@ def analyze_engine(df):
     Returns:
         dict: 发动机分析结果
     """
-    # 初始化返回数据
-    engine_result = {
-        'type': 'engine',
-        'has_takeoff_info': False,
-        'takeoff_info': [],
-        'takeoff_start_time': None,
-        'takeoff_end_time': None,
-        'start_time': None,
-        'end_time': None
-    }
-    
-    # 存储符合条件的发动机信息
-    takeoff_info = []
-    
-    # 新增初始化字段用于返回起飞时间
-    takeoff_start_time = None
-    takeoff_end_time = None
-    
-    # 新增：记录发动机重启信息
-    restart_info = {}
-
-    # 使用正则表达式匹配所有需要的列
-    rpm_pattern = re.compile(r'(\d)发发动机转速')
-    ignition_pattern = re.compile(r'(\d)发点火状态')
-
-    # 提取转速和点火状态列
-    rpm_columns = sorted([col for col in df.columns if rpm_pattern.search(col)],
-                         key=lambda x: int(rpm_pattern.search(x).group(1)))
-    ignition_columns = sorted([col for col in df.columns if ignition_pattern.search(col)],
-                              key=lambda x: int(ignition_pattern.search(x).group(1)))
-
-    # 检查是否有数据
-    if not rpm_columns or not ignition_columns:
-        engine_result['errors'] = [
-            "未找到包含 '机电信息采集系统' 的列",
-            "未找到包含 '主飞控系统' 的列"
-        ]
-        return engine_result
-
     try:
+        # 初始化返回数据
+        engine_result = {
+            'type': 'engine',
+            'has_takeoff_info': False,
+            'takeoff_info': [],
+            'takeoff_start_time': None,
+            'takeoff_end_time': None,
+            'start_time': None,
+            'end_time': None
+        }
+        
+        # 存储符合条件的发动机信息
+        takeoff_info = []
+        
+        # 新增初始化字段用于返回起飞时间
+        takeoff_start_time = None
+        takeoff_end_time = None
+        
+        # 新增：记录发动机重启信息
+        restart_info = {}
+
+        # 使用正则表达式匹配所有需要的列
+        rpm_pattern = re.compile(r'(\d)发发动机转速')
+        ignition_pattern = re.compile(r'(\d)发点火状态')
+
+        # 提取转速和点火状态列
+        rpm_columns = sorted([col for col in df.columns if rpm_pattern.search(col)],
+                             key=lambda x: int(rpm_pattern.search(x).group(1)))
+        ignition_columns = sorted([col for col in df.columns if ignition_pattern.search(col)],
+                                  key=lambda x: int(ignition_pattern.search(x).group(1)))
+
+        # 检查是否有数据
+        if not rpm_columns or not ignition_columns:
+            engine_result['errors'] = [
+                "未找到包含 '机电信息采集系统' 的列",
+                "未找到包含 '主飞控系统' 的列"
+            ]
+            return engine_result
+
         # 优化内存使用：只选择需要的列进行处理
         selected_columns = ['飞行时间'] + rpm_columns + ignition_columns
         df_selected = df[selected_columns].copy()
@@ -138,7 +142,17 @@ def analyze_engine(df):
         
         # 清理临时数据以释放内存
         del df_selected, engine_rpm, engine_rpm_diff, engine_ignition
+        
+        return engine_result
     except Exception as e:
-        engine_result['errors'] = [f"分析发动机数据时出错: {str(e)}"]
-    
-    return engine_result
+        logging.error(f"分析发动机数据时出错: {str(e)}")
+        return {
+            'type': 'engine',
+            'errors': [f"分析发动机数据时出错: {str(e)}"],
+            'has_takeoff_info': False,
+            'takeoff_info': [],
+            'takeoff_start_time': None,
+            'takeoff_end_time': None,
+            'start_time': None,
+            'end_time': None
+        }
