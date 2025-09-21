@@ -49,6 +49,8 @@ class DataContainer:
                 text_parts.append(analysis_result.text_analyze)
             if hasattr(analysis_result, 'text_engine') and analysis_result.text_engine:
                 text_parts.append(analysis_result.text_engine)
+            if hasattr(analysis_result, 'text_fuel') and analysis_result.text_fuel:
+                text_parts.append(analysis_result.text_fuel)
             if hasattr(analysis_result, 'text_cas') and analysis_result.text_cas:
                 text_parts.append(analysis_result.text_cas)
             
