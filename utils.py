@@ -1,8 +1,25 @@
-import wx
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+工具函数模块
+============
+
+提供应用程序中使用的各种辅助函数。
+"""
+
 import logging
 
+import wx
+
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 def calculate_window_geometry():

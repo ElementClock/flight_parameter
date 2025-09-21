@@ -1,8 +1,26 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+数据管理模块
+============
+
+管理应用程序中的数据容器，包括数据的添加、删除、选择等操作。
+"""
+
 import logging
+
+# 项目模块导入
 from analysis.analysis_data import analysis_data, AnalysisResult as BaseAnalysisResult
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 class DataContainer:

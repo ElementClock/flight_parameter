@@ -1,13 +1,31 @@
-from datetime import timedelta
-import pandas as pd
-import os
-import logging
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
+"""
+数据分析主模块
+==============
+
+飞行数据主分析流程，协调各个子分析模块完成完整的数据分析任务。
+"""
+
+import logging
+import os
+from datetime import timedelta
+
+import pandas as pd
+
+# 项目模块导入
 from analysis.cas_analysis import analyze_cas
 from analysis.engine_analysis import analyze_engine
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 class AnalysisResult:

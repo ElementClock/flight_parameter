@@ -1,18 +1,44 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+飞行参数分析工具主程序
+====================
+
+飞行参数分析工具是一个专为航空工程技术人员和飞行数据分析人员设计的桌面应用程序，
+用于快速处理和分析飞行数据并生成专业报告。
+
+主要功能:
+- 数据加载与管理：支持CSV格式文件多文件加载，自动识别编码（UTF-8、GBK等）
+- 发动机参数分析：识别启动/关车时间、转速变化、点火状态、起飞时间段
+- CAS告警分析：识别告警时间段、类型及持续时间统计
+- 结果展示与交互：图形化界面实时显示结果，支持多文件切换查看
+- 数据导出功能：可将分析结果保存为文本文件，原始数据导出为CSV
+- 用户体验优化：高DPI适配、自适应窗口、多线程防卡顿、友好错误提示
+"""
+
 import ctypes
+import logging
 import os
 import sys
-import logging
 
 import wx
-from analysis.analysis_data import analysis_data
 
-from ui_components import SidebarPanel, ContentPanel, RightSidebarPanel
+# 项目模块导入
+from analysis.analysis_data import analysis_data
 from data_manager import DataManager
 from event_handlers import EventHandlers
+from ui_components import SidebarPanel, ContentPanel, RightSidebarPanel
 from utils import calculate_window_geometry
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 class AppFrame(wx.Frame):
@@ -21,12 +47,12 @@ class AppFrame(wx.Frame):
     # 展开模式：0=向内展开(压缩内容区域)，1=向外展开(窗口扩展)
     EXPAND_MODE = 0
 
-    def __init__(self, parent=None, title="i森超级定制款"):
+    def __init__(self, parent=None, title="飞行参数分析工具"):
         """初始化应用程序窗口
         
         Args:
             parent: 父窗口，默认为None
-            title: 窗口标题，默认为"i森超级定制款"
+            title: 窗口标题，默认为"飞行参数分析工具"
         """
         try:
             # 启用高DPI支持，确保在高分辨率屏幕上正确显示

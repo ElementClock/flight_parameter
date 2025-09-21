@@ -57,8 +57,8 @@
    - 程序入口点
 
 2. **UI组件** ([ui_components.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py))
-   - [SidebarPanel](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py#L3-L93)：侧边栏面板，包含操作按钮和数据选择器
-   - [ContentPanel](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py#L96-L130)：内容面板，用于显示分析结果
+   - [SidebarPanel](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py#L31-L95)：侧边栏面板，包含操作按钮和数据选择器
+   - [ContentPanel](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py#L186-L222)：内容面板，用于显示分析结果
 
 3. **事件处理** ([event_handlers.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/event_handlers.py))
    - 处理用户界面的各种事件
@@ -96,7 +96,7 @@
 1. 克隆或下载项目代码
 2. 安装依赖包：
    ```bash
-   pip install wxPython pandas
+   pip install -r requirements.txt
    ```
 
 ### 运行方式
@@ -140,6 +140,7 @@ flight_parameter/
 ├── event_handlers.py         # 事件处理器
 ├── ui_components.py          # UI组件
 ├── utils.py                  # 工具函数
+├── requirements.txt          # 项目依赖
 └── readme.md                 # 项目说明文档
 ```
 

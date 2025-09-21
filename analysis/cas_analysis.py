@@ -1,9 +1,26 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+CAS告警分析模块
+===============
+
+分析CAS告警数据，识别告警时间段、类型及持续时间统计。
+"""
+
 import logging
-import pandas as pd
 from datetime import datetime
 
+import pandas as pd
+
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 def find_alarm_periods(alarm_times):

@@ -1,9 +1,28 @@
-import re
-import pandas as pd
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+发动机分析模块
+==============
+
+分析发动机数据：提取发动机转速和点火状态，计算转速变化。
+发动机启动成功: 发动机转速＞77.5%
+发动机关车: 发动机转速≤3%
+"""
+
 import logging
+import re
+
+import pandas as pd
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 def analyze_engine(df):

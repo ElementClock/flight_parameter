@@ -1,19 +1,34 @@
-import threading
-import os
-import pandas as pd
-import wx
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+事件处理器模块
+==============
+
+处理应用程序中的各种事件，包括数据加载、保存、分析等操作。
+使用线程池管理并发任务，确保UI响应性。
+"""
+
 import logging
-from wx import ID_CANCEL, NOT_FOUND
+import os
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+import pandas as pd
+import wx
+from wx import ID_CANCEL, NOT_FOUND
 
 # 设置最大工作线程数为4，避免过多线程竞争资源
 MAX_WORKERS = 4
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 class EventHandlers:

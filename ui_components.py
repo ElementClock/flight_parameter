@@ -1,9 +1,26 @@
-import wx
-import wx.richtext as rt
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+UI组件模块
+==========
+
+定义应用程序的用户界面组件，包括侧边栏、内容区域和右侧边栏等。
+"""
+
 import logging
 
+import wx
+import wx.richtext as rt
+
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 class SidebarPanel(wx.Panel):
