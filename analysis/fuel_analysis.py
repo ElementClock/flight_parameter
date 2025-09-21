@@ -42,7 +42,9 @@ def analyze_fuel(df):
             'total_fuel_consumption': None,
             'start_time': None,
             'end_time': None,
-            'warnings': []
+            'warnings': [],
+            'low_fuel_events': [],
+            'imbalance_fuel_events': []
         }
         
         # 查找燃油相关列
@@ -129,7 +131,8 @@ def analyze_fuel(df):
                 'start_fuel': start_fuel,
                 'end_fuel': end_fuel,
                 'consumption': consumption,
-                'temperature_data': temp_data
+                'temperature_data': temp_data,
+                'fuel_data': fuel_data  # 保存全过程油量数据用于后续分析
             })
             
             total_start_fuel += start_fuel
@@ -158,6 +161,129 @@ def analyze_fuel(df):
         # 计算总燃油消耗
         total_fuel_consumption = total_start_fuel - total_end_fuel
         
+        # 低油量监测（全过程）
+        low_fuel_events = []
+        tank_info_dict = {tank['tank_name']: tank for tank in tank_info}
+        
+        for tank_name, tank in tank_info_dict.items():
+            # 检查是否有任何时刻油量低于200kg
+            low_fuel_mask = tank['fuel_data'] < 200
+            if low_fuel_mask.any():
+                # 找到所有低于200kg的时间点
+                low_fuel_times = df_selected.loc[low_fuel_mask, '飞行时间']
+                low_fuel_values = tank['fuel_data'][low_fuel_mask]
+                
+                # 将连续的时间点合并为时间段
+                time_periods = []
+                if len(low_fuel_times) > 0:
+                    # 初始化第一个时间段
+                    start_time = low_fuel_times.iloc[0]
+                    end_time = low_fuel_times.iloc[0]
+                    min_fuel = low_fuel_values.iloc[0]
+                    
+                    # 遍历所有低油量时间点
+                    for i in range(1, len(low_fuel_times)):
+                        current_time = low_fuel_times.iloc[i]
+                        current_fuel = low_fuel_values.iloc[i]
+                        
+                        # 检查是否与前一个时间点连续（时间差不超过1秒）
+                        time_diff = (current_time - low_fuel_times.iloc[i-1]).total_seconds()
+                        if time_diff <= 1.0:
+                            # 更新结束时间和最小油量
+                            end_time = current_time
+                            min_fuel = min(min_fuel, current_fuel)
+                        else:
+                            # 结束当前时间段并开始新时间段
+                            time_periods.append({
+                                'start_time': start_time,
+                                'end_time': end_time,
+                                'min_fuel': min_fuel
+                            })
+                            start_time = current_time
+                            end_time = current_time
+                            min_fuel = current_fuel
+                    
+                    # 添加最后一个时间段
+                    time_periods.append({
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'min_fuel': min_fuel
+                    })
+                
+                low_fuel_events.append({
+                    'tank_name': tank_name,
+                    'times': low_fuel_times.tolist(),
+                    'values': low_fuel_values.tolist(),
+                    'count': len(low_fuel_times),
+                    'time_periods': time_periods
+                })
+        
+        # 不平衡油量监测（全过程）
+        imbalance_fuel_events = []
+        # 查找1号和2号油箱（左侧）以及3号和4号油箱（右侧）
+        tank_1 = tank_info_dict.get("Ⅰ号")
+        tank_2 = tank_info_dict.get("Ⅱ号")
+        tank_3 = tank_info_dict.get("Ⅲ号")
+        tank_4 = tank_info_dict.get("Ⅳ号")
+        
+        if tank_1 and tank_2 and tank_3 and tank_4:
+            # 计算两侧油量
+            left_side_fuel = tank_1['fuel_data'] + tank_2['fuel_data']
+            right_side_fuel = tank_3['fuel_data'] + tank_4['fuel_data']
+            
+            # 检查不平衡情况
+            fuel_difference = abs(left_side_fuel - right_side_fuel)
+            imbalance_mask = fuel_difference > 100
+            
+            if imbalance_mask.any():
+                # 找到所有不平衡的时间点
+                imbalance_times = df_selected.loc[imbalance_mask, '飞行时间']
+                difference_values = fuel_difference[imbalance_mask]
+                
+                # 将连续的时间点合并为时间段
+                time_periods = []
+                if len(imbalance_times) > 0:
+                    # 初始化第一个时间段
+                    start_time = imbalance_times.iloc[0]
+                    end_time = imbalance_times.iloc[0]
+                    max_difference = difference_values.iloc[0]
+                    
+                    # 遍历所有不平衡时间点
+                    for i in range(1, len(imbalance_times)):
+                        current_time = imbalance_times.iloc[i]
+                        current_difference = difference_values.iloc[i]
+                        
+                        # 检查是否与前一个时间点连续（时间差不超过1秒，假设数据是每秒记录一次）
+                        time_diff = (current_time - imbalance_times.iloc[i-1]).total_seconds()
+                        if time_diff <= 1.0:
+                            # 更新结束时间和最大差异
+                            end_time = current_time
+                            max_difference = max(max_difference, current_difference)
+                        else:
+                            # 结束当前时间段并开始新时间段
+                            time_periods.append({
+                                'start_time': start_time,
+                                'end_time': end_time,
+                                'max_difference': max_difference
+                            })
+                            start_time = current_time
+                            end_time = current_time
+                            max_difference = current_difference
+                    
+                    # 添加最后一个时间段
+                    time_periods.append({
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'max_difference': max_difference
+                    })
+                
+                imbalance_fuel_events.append({
+                    'times': imbalance_times.tolist(),
+                    'differences': difference_values.tolist(),
+                    'count': len(imbalance_times),
+                    'time_periods': time_periods
+                })
+        
         # 填充返回数据
         fuel_result['has_fuel_info'] = bool(tank_info)
         fuel_result['fuel_tanks'] = tank_info
@@ -166,6 +292,8 @@ def analyze_fuel(df):
         fuel_result['total_engine_fuel_consumption'] = total_engine_fuel_consumption
         fuel_result['start_time'] = df_selected['飞行时间'].iloc[0] if not df_selected.empty and '飞行时间' in df_selected.columns else None
         fuel_result['end_time'] = df_selected['飞行时间'].iloc[-1] if not df_selected.empty and '飞行时间' in df_selected.columns else None
+        fuel_result['low_fuel_events'] = low_fuel_events
+        fuel_result['imbalance_fuel_events'] = imbalance_fuel_events
         
         # 清理临时数据以释放内存
         del df_selected
@@ -183,7 +311,9 @@ def analyze_fuel(df):
             'total_engine_fuel_consumption': None,
             'start_time': None,
             'end_time': None,
-            'warnings': []
+            'warnings': [],
+            'low_fuel_events': [],
+            'imbalance_fuel_events': []
         }
 
 
@@ -218,6 +348,34 @@ def generate_fuel_text_with_markers(fuel_data):
         if 'warnings' in fuel_data and fuel_data['warnings']:
             for warning in fuel_data['warnings']:
                 result.append(f"[[AMBER]]警告: {warning}[[/AMBER]]")
+        
+        # 添加低油量事件信息
+        if 'low_fuel_events' in fuel_data and fuel_data['low_fuel_events']:
+            for event in fuel_data['low_fuel_events']:
+                result.append(f"  {event['tank_name']}油箱本次飞行累计 {event['count']} s油量低于200kg，最低油量为 {min(event['values']):.2f} kg")
+                
+                # 如果有时间段信息，添加详细的时间段
+                if 'time_periods' in event and event['time_periods']:
+                    result.append("    低油量时间段详情:")
+                    for period in event['time_periods']:
+                        if period['start_time'] == period['end_time']:
+                            result.append(f"      - {period['start_time'].strftime('%H:%M:%S')} : 最低油量 {period['min_fuel']:.2f} kg")
+                        else:
+                            result.append(f"      - {period['start_time'].strftime('%H:%M:%S')} ~ {period['end_time'].strftime('%H:%M:%S')} : 最低油量 {period['min_fuel']:.2f} kg")
+        
+        # 添加不平衡油量事件信息
+        if 'imbalance_fuel_events' in fuel_data and fuel_data['imbalance_fuel_events']:
+            for event in fuel_data['imbalance_fuel_events']:
+                result.append(f"  本次飞行不平衡油量累计 {event['count']} s，最大差异为 {max(event['differences']):.2f} kg")
+                
+                # 如果有时间段信息，添加详细的时间段
+                if 'time_periods' in event and event['time_periods']:
+                    result.append("    不平衡时间段详情:")
+                    for period in event['time_periods']:
+                        if period['start_time'] == period['end_time']:
+                            result.append(f"      - {period['start_time'].strftime('%H:%M:%S')} : 差异 {period['max_difference']:.2f} kg")
+                        else:
+                            result.append(f"      - {period['start_time'].strftime('%H:%M:%S')} ~ {period['end_time'].strftime('%H:%M:%S')} : 最大差异 {period['max_difference']:.2f} kg")
         
         # 添加总燃油消耗信息
         if fuel_data['total_fuel_consumption'] is not None:
