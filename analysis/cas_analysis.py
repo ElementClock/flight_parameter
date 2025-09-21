@@ -208,28 +208,3 @@ def format_cas_output(cas_data):
     except Exception as e:
         logging.error(f"格式化CAS输出时出错: {str(e)}")
         return f"格式化CAS输出时出错: {str(e)}"
-
-
-def load_alarm_levels():
-    """加载告警级别信息
-    
-    Returns:
-        dict: 告警ID到告警级别的映射字典
-    """
-    try:
-        alarm_levels = {
-            1: '一级告警',
-            2: '二级告警',
-            3: '三级告警',
-            4: '四级告警',
-            5: '五级告警',
-            6: '六级告警',
-            7: '七级告警',
-            8: '八级告警',
-            9: '九级告警',
-            10: '十级告警',
-        }
-        return alarm_levels
-    except Exception as e:
-        logging.error(f"加载告警级别信息时出错: {str(e)}")
-        return {}
