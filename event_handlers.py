@@ -4,6 +4,13 @@ import pandas as pd
 import wx
 import logging
 from wx import ID_CANCEL, NOT_FOUND
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# 设置最大工作线程数为4，避免过多线程竞争资源
+MAX_WORKERS = 4
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,6 +28,8 @@ class EventHandlers:
         try:
             self.app_frame = app_frame
             self.current_progress = 0
+            # 创建线程池
+            self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
         except Exception as e:
             logging.error(f"初始化事件处理器时出错: {str(e)}")
             raise e
@@ -43,10 +52,9 @@ class EventHandlers:
                 # 显示进度条
                 self.app_frame.sidebar_panel.show_progress(True)
 
-                # 在新线程中处理数据加载和分析，避免阻塞UI
-                thread = threading.Thread(target=self.process_multiple_data, args=(pathnames,))
-                thread.daemon = True
-                thread.start()
+                # 使用线程池处理数据加载和分析，避免阻塞UI
+                future = self.executor.submit(self.process_multiple_data, pathnames)
+                # 可以在这里添加对future的处理，如添加回调函数
         except Exception as e:
             logging.error(f"加载数据时出错: {str(e)}")
             wx.MessageBox(f"加载数据时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
@@ -139,78 +147,104 @@ class EventHandlers:
             logging.error(f"分块读取CSV文件时出错: {str(e)}")
             raise e
     
+    def _process_single_file(self, pathname, index, total_files):
+        """处理单个文件
+        
+        Args:
+            pathname (str): 文件路径
+            index (int): 文件索引
+            total_files (int): 总文件数
+        """
+        try:
+            # 更新进度
+            progress_msg = f"正在处理文件 {index+1}/{total_files}: {os.path.basename(pathname)}"
+            wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
+                         int((index / total_files) * 10), progress_msg)  # 前10%用于文件准备
+            
+            # 首先尝试检测文件编码
+            detected_encoding = self._detect_file_encoding(pathname)
+            
+            # 定义尝试的编码列表
+            encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
+            if detected_encoding and detected_encoding not in encodings:
+                # 将检测到的编码放在首位
+                encodings.insert(0, detected_encoding)
+            elif detected_encoding:
+                # 如果检测到的编码在列表中，将其移到首位
+                encodings.remove(detected_encoding)
+                encodings.insert(0, detected_encoding)
+            
+            df = None
+            last_error = None
+
+            for encoding in encodings:
+                try:
+                    # 检查文件大小以决定是否使用分块读取
+                    file_size = os.path.getsize(pathname)
+                    size_threshold = 50 * 1024 * 1024  # 50MB阈值
+                    
+                    if file_size > size_threshold:
+                        # 对大文件使用分块读取
+                        df = self._read_large_csv_in_chunks(pathname, encoding)
+                    else:
+                        # 对小文件直接读取
+                        df = pd.read_csv(pathname, encoding=encoding)
+                    
+                    # 添加数据到数据管理器，传递进度回调函数
+                    data_container, error = self.app_frame.data_manager.add_data(
+                        df, 
+                        os.path.basename(pathname),
+                        progress_callback=self._update_analysis_progress
+                    )
+                    if error:
+                        raise Exception(error)
+                    
+                    # 在UI线程中更新界面
+                    wx.CallAfter(self.on_single_data_loaded, pathname, encoding, data_container)
+                    break
+                except UnicodeDecodeError as e:
+                    last_error = e
+                    logging.warning(f"使用 {encoding} 编码读取文件失败: {str(e)}")
+                    continue
+                except Exception as e:
+                    logging.error(f"处理文件 {pathname} 时出错: {str(e)}")
+                    raise e
+
+            if df is None:
+                error_msg = f"无法使用任何编码读取文件: {pathname}"
+                logging.error(error_msg)
+                raise last_error if last_error else Exception(error_msg)
+
+        except Exception as e:
+            # 在UI线程中显示错误消息
+            wx.CallAfter(self.on_data_load_error, pathname, str(e))
+    
     def process_multiple_data(self, pathnames):
-        """在后台线程中处理多个数据文件
+        """在线程池中处理多个数据文件
         
         Args:
             pathnames: 文件路径列表
         """
         try:
             total_files = len(pathnames)
-            for i, pathname in enumerate(pathnames):
-                try:
-                    # 更新进度
-                    progress_msg = f"正在处理文件 {i+1}/{total_files}: {os.path.basename(pathname)}"
-                    wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
-                                 int((i / total_files) * 10), progress_msg)  # 前10%用于文件准备
-                    
-                    # 首先尝试检测文件编码
-                    detected_encoding = self._detect_file_encoding(pathname)
-                    
-                    # 定义尝试的编码列表
-                    encodings = ['utf-8', 'gbk', 'gb2312', 'latin1']
-                    if detected_encoding and detected_encoding not in encodings:
-                        # 将检测到的编码放在首位
-                        encodings.insert(0, detected_encoding)
-                    elif detected_encoding:
-                        # 如果检测到的编码在列表中，将其移到首位
-                        encodings.remove(detected_encoding)
-                        encodings.insert(0, detected_encoding)
-                    
-                    df = None
-                    last_error = None
-
-                    for encoding in encodings:
-                        try:
-                            # 检查文件大小以决定是否使用分块读取
-                            file_size = os.path.getsize(pathname)
-                            size_threshold = 50 * 1024 * 1024  # 50MB阈值
-                            
-                            if file_size > size_threshold:
-                                # 对大文件使用分块读取
-                                df = self._read_large_csv_in_chunks(pathname, encoding)
-                            else:
-                                # 对小文件直接读取
-                                df = pd.read_csv(pathname, encoding=encoding)
-                            
-                            # 添加数据到数据管理器，传递进度回调函数
-                            data_container, error = self.app_frame.data_manager.add_data(
-                                df, 
-                                os.path.basename(pathname),
-                                progress_callback=self._update_analysis_progress
-                            )
-                            if error:
-                                raise Exception(error)
-                            
-                            # 在UI线程中更新界面
-                            wx.CallAfter(self.on_single_data_loaded, pathname, encoding, data_container)
-                            break
-                        except UnicodeDecodeError as e:
-                            last_error = e
-                            logging.warning(f"使用 {encoding} 编码读取文件失败: {str(e)}")
-                            continue
-                        except Exception as e:
-                            logging.error(f"处理文件 {pathname} 时出错: {str(e)}")
-                            raise e
-
-                    if df is None:
-                        error_msg = f"无法使用任何编码读取文件: {pathname}"
-                        logging.error(error_msg)
-                        raise last_error if last_error else Exception(error_msg)
-
-                except Exception as e:
-                    # 在UI线程中显示错误消息
-                    wx.CallAfter(self.on_data_load_error, pathname, str(e))
+            
+            # 如果只有一个文件，直接在当前线程中处理
+            if total_files == 1:
+                self._process_single_file(pathnames[0], 0, total_files)
+            else:
+                # 对于多个文件，使用线程池并发处理
+                futures = []
+                for i, pathname in enumerate(pathnames):
+                    # 提交任务到线程池
+                    future = self.executor.submit(self._process_single_file, pathname, i, total_files)
+                    futures.append(future)
+                
+                # 等待所有任务完成
+                for future in as_completed(futures):
+                    try:
+                        future.result()  # 获取结果，如果有异常会抛出
+                    except Exception as e:
+                        logging.error(f"处理文件时出错: {str(e)}")
             
             # 完成所有文件处理后隐藏进度条
             wx.CallAfter(self.app_frame.sidebar_panel.show_progress, False)
@@ -402,6 +436,8 @@ class EventHandlers:
     def on_close(self, event):
         """处理窗口关闭事件"""
         try:
+            # 关闭线程池
+            self.executor.shutdown(wait=True)
             # 销毁窗口
             self.app_frame.Destroy()
         except Exception as e:
