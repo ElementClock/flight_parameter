@@ -339,38 +339,106 @@ def convert_flight_time(df):
     """
     将飞参数据中的时间列转换为标准的北京时间格式
     
+    修改说明：
+    - 获取第4、5、6列数据
+    - 第4列为日期数据（格式：2025/10/13 或 25-10-13）
+    - 第5列为标识符数据（1为可信，0为不可信）
+    - 第6列为时间数据（格式：1:01:55）
+    - 只保留标识符为1的可信数据
+    - 合并日期和时间数据转换为datetime对象
+    - 将飞行时间列移动到第一列
+    
     参数:
         df (pandas.DataFrame): 包含飞参数据的DataFrame
         
     返回:
-        pandas.DataFrame: 时间列已转换的DataFrame
+        pandas.DataFrame: 时间列已转换并移动到第一列的DataFrame
     """
     try:
-        # 优化内存使用：创建新的DataFrame而不是修改原数据
-        df_new = df.copy()
+        # 获取第4、5、6列的列名
+        date_col = df.columns[3]    # 第4列：日期数据
+        flag_col = df.columns[4]    # 第5列：标识符数据
+        time_col = df.columns[5]    # 第6列：时间数据
         
-        # 获取第一列和第四列的列名
-        first_col = df_new.columns[0]   # 飞参内部时间列 (格式: hh:mm:ss.fff)
-        fourth_col = df_new.columns[3]  # 日期列 (格式: yy-mm-dd)
+        # 过滤标识符为1的可信数据
+        df_filtered = df[df[flag_col] == 1].copy()
         
-        # 将两列数据合并为完整的日期时间字符串
-        # 格式: hh:mm:ss.fff + 年份-月份-日
-        datetime_combined = df_new[first_col].astype(str) + ' ' + df_new[fourth_col].astype(str)
+        if df_filtered.empty:
+            logging.warning("过滤后没有可信数据")
+            return df
+            
+        # 根据字符长度判断日期格式
+        sample_date = str(df_filtered[date_col].iloc[0]) if not df_filtered.empty else ""
+        parsed_dates = None
         
-        # 转换为datetime对象，支持两位数年份格式（如25-07-11表示2025年7月11日）
-        df_new['_datetime'] = pd.to_datetime(datetime_combined, format='%H:%M:%S.%f %y-%m-%d', errors='coerce')
+        # 根据字符长度判断日期格式
+        if len(sample_date) >= 10:  # "2025/10/13" 格式，长度至少为10
+            # 尝试使用 %Y/%m/%d 格式解析
+            try:
+                parsed_dates = pd.to_datetime(df_filtered[date_col], format='%Y/%m/%d', errors='coerce')
+                # 检查是否成功解析了大部分数据
+                if parsed_dates.isna().sum() / len(parsed_dates) > 0.5:  # 如果超过一半无法解析
+                    parsed_dates = None  # 重置，尝试其他格式
+            except Exception:
+                parsed_dates = None
+                
+        elif len(sample_date) >= 8 and len(sample_date) < 10:  # "25-10-13" 格式，长度通常为8
+            # 尝试使用 %y-%m-%d 格式解析
+            try:
+                parsed_dates = pd.to_datetime(df_filtered[date_col], format='%y-%m-%d', errors='coerce')
+                # 检查是否成功解析了大部分数据
+                if parsed_dates.isna().sum() / len(parsed_dates) > 0.5:  # 如果超过一半无法解析
+                    parsed_dates = None  # 重置，尝试其他格式
+            except Exception:
+                parsed_dates = None
         
-        # 将UTC时间转换为北京时间(UTC+8)
-        df_new['_datetime'] = df_new['_datetime'] + timedelta(hours=8)
+        # 如果基于长度的判断失败，则尝试其他方法
+        if parsed_dates is None:
+            # 尝试自动解析
+            parsed_dates = pd.to_datetime(df_filtered[date_col], errors='coerce')
+            
+            # 如果自动解析失败较多，则尝试指定格式
+            if not df_filtered.empty and parsed_dates.isna().sum() / len(parsed_dates) > 0.5:
+                # 尝试 %Y/%m/%d 格式
+                try:
+                    parsed_dates_y = pd.to_datetime(df_filtered[date_col], format='%Y/%m/%d', errors='coerce')
+                    # 如果这种格式解析效果更好，则使用
+                    if parsed_dates_y.isna().sum() < parsed_dates.isna().sum():
+                        parsed_dates = parsed_dates_y
+                except Exception:
+                    pass
+                    
+                # 尝试 %y-%m-%d 格式
+                try:
+                    parsed_dates_yy = pd.to_datetime(df_filtered[date_col], format='%y-%m-%d', errors='coerce')
+                    # 如果这种格式解析效果更好，则使用
+                    if parsed_dates_yy.isna().sum() < parsed_dates.isna().sum():
+                        parsed_dates = parsed_dates_yy
+                except Exception:
+                    pass
+        
+        # 将日期和时间数据合并为完整的日期时间字符串
+        # 格式: 2025/10/13 1:01:55
+        datetime_combined = parsed_dates.astype(str) + ' ' + df_filtered[time_col].astype(str)
+        
+        # 转换为datetime对象，支持标准日期时间格式
+        df_filtered['_datetime'] = pd.to_datetime(datetime_combined, errors='coerce')
+        
+        # 将时间转换为北京时间(UTC+8)
+        df_filtered['_datetime'] = df_filtered['_datetime'] + timedelta(hours=8)
         
         # 更新原数据列
-        df_new[first_col] = df_new['_datetime']
-
-        # 删除临时列
-        df_new.rename(columns={first_col: '飞行时间'}, inplace=True)
-        df_new.drop('_datetime', axis=1, inplace=True)
+        df_filtered[date_col] = df_filtered['_datetime']
         
-        return df_new
+        # 删除临时列和不再需要的标识符、时间列
+        df_filtered.rename(columns={date_col: '飞行时间'}, inplace=True)
+        df_filtered.drop(['_datetime', flag_col, time_col], axis=1, inplace=True)
+        
+        # 将"飞行时间"列移动到第一列
+        flight_time_col = df_filtered.pop('飞行时间')
+        df_filtered.insert(0, '飞行时间', flight_time_col)
+        
+        return df_filtered
     except Exception as e:
         logging.error(f"转换飞行时间时出错: {e}")
         return df

@@ -127,8 +127,8 @@ class EventHandlers:
             pandas.DataFrame: 读取的完整数据框
         """
         try:
-            # 先读取列名以确定数据结构
-            df_sample = pd.read_csv(pathname, encoding=encoding, nrows=5)
+            # 先读取列名以确定数据结构，指定日期列为字符串类型
+            df_sample = pd.read_csv(pathname, encoding=encoding, nrows=5, dtype={3: str})
             columns = df_sample.columns.tolist()
             
             chunks = []
@@ -139,7 +139,7 @@ class EventHandlers:
                 total_rows = sum(1 for _ in f) - 1  # 减去标题行
             
             rows_read = 0
-            for chunk in pd.read_csv(pathname, encoding=encoding, chunksize=chunksize):
+            for chunk in pd.read_csv(pathname, encoding=encoding, chunksize=chunksize, dtype={3: str}):
                 chunks.append(chunk)
                 rows_read += len(chunk)
                 
@@ -202,8 +202,8 @@ class EventHandlers:
                         # 对大文件使用分块读取
                         df = self._read_large_csv_in_chunks(pathname, encoding)
                     else:
-                        # 对小文件直接读取
-                        df = pd.read_csv(pathname, encoding=encoding)
+                        # 对小文件直接读取，指定第4列为字符串类型
+                        df = pd.read_csv(pathname, encoding=encoding, dtype={3: str})
                     
                     # 添加数据到数据管理器，传递进度回调函数
                     data_container, error = self.app_frame.data_manager.add_data(
