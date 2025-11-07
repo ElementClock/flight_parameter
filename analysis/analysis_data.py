@@ -18,6 +18,7 @@ import pandas as pd
 from analysis.cas_analysis import analyze_cas
 from analysis.engine_analysis import analyze_engine
 from analysis.fuel_analysis import analyze_fuel, generate_fuel_text_with_markers
+from analysis.power_analysis import analyze_power, generate_power_text_with_markers
 
 # 配置日志
 logging.basicConfig(
@@ -83,6 +84,11 @@ def analysis_data(df, progress_callback=None):
             progress_callback(60, "正在分析燃油系统数据...")
         fuel_data = analyze_fuel(df)
         
+        # 电源系统分析
+        if progress_callback:
+            progress_callback(65, "正在分析电源系统数据...")
+        power_data = analyze_power(df)
+        
         # CAS汇报
         if progress_callback:
             progress_callback(70, "正在分析CAS告警...")
@@ -93,18 +99,21 @@ def analysis_data(df, progress_callback=None):
             progress_callback(90, "正在生成分析报告...")
         text_engine = generate_engine_text_with_markers(engine_data)
         text_fuel = generate_fuel_text_with_markers(fuel_data)
+        text_power = generate_power_text_with_markers(power_data)
         text_cas = generate_cas_text_with_markers(cas_data)
 
         # 将所有结果封装到AnalysisResult对象中
         result = AnalysisResult(
             text_engine=text_engine,
             text_fuel=text_fuel,
+            text_power=text_power,
             text_cas=text_cas,
             engine_start_time=engine_data.get('takeoff_start_time'),
             engine_end_time=engine_data.get('takeoff_end_time'),
             df=df,
             engine_data=engine_data,
             fuel_data=fuel_data,
+            power_data=power_data,
             cas_data=cas_data
         )
         
@@ -112,7 +121,7 @@ def analysis_data(df, progress_callback=None):
             progress_callback(100, "分析完成")
             
         # 清理临时变量以释放内存
-        del engine_data, fuel_data, cas_data, text_engine, text_fuel, text_cas
+        del engine_data, fuel_data, power_data, cas_data, text_engine, text_fuel, text_power, text_cas
         
         return result
     except Exception as e:
