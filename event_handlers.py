@@ -205,11 +205,12 @@ class EventHandlers:
                         # 对小文件直接读取，指定第4列为字符串类型
                         df = pd.read_csv(pathname, encoding=encoding, dtype={3: str})
                     
-                    # 添加数据到数据管理器，传递进度回调函数
+                    # 添加数据到数据管理器，传递进度回调函数和原始路径
                     data_container, error = self.app_frame.data_manager.add_data(
                         df, 
                         os.path.basename(pathname),
-                        progress_callback=self._update_analysis_progress
+                        progress_callback=self._update_analysis_progress,
+                        original_path=pathname  # 传递原始文件路径
                     )
                     if error:
                         raise Exception(error)
@@ -317,9 +318,51 @@ class EventHandlers:
         try:
             current_container = self.app_frame.data_manager.get_current_data()
             if current_container:
+                # 确定文件标识符 (F: 飞行架次, D: 地面试车, N: 未开车)
+                identifier = "N"  # 默认为未开车
+                if (hasattr(current_container, 'engine_data') and 
+                    current_container.engine_data and 
+                    current_container.engine_data.get('has_takeoff_info')):
+                    # 检查是否有起飞信息来判断是飞行还是地面试验
+                    start_time = current_container.engine_data.get('takeoff_start_time')
+                    end_time = current_container.engine_data.get('takeoff_end_time')
+                    
+                    # 如果有明确的开关车时间，则认为是地面试验开车
+                    if start_time and end_time:
+                        identifier = "D"
+                        
+                        # 进一步检查是否是飞行架次（简单判断：持续时间超过一定阈值）
+                        try:
+                            duration = end_time - start_time
+                            # 如果发动机运行时间超过10分钟，认为是飞行架次
+                            if duration.total_seconds() > 600:
+                                identifier = "F"
+                        except:
+                            pass
+                
+                # 生成默认文件名
+                from datetime import datetime
+                import os
+                
+                # 使用当前时间作为文件时间部分
+                current_time = datetime.now().strftime("%Y%m%d")
+                default_filename_base = f"{identifier}{current_time}"
+                default_analysis_filename = f"{default_filename_base}_分析.txt"
+                
+                # 获取原始文件的目录，如果有的话
+                if hasattr(current_container, 'original_path') and current_container.original_path:
+                    save_directory = os.path.dirname(current_container.original_path)
+                else:
+                    # 如果没有原始路径信息，则保存到当前工作目录
+                    save_directory = os.getcwd()
+                
+                # 构建完整默认路径
+                default_analysis_path = os.path.join(save_directory, default_analysis_filename)
+                
                 with wx.FileDialog(
                     self.app_frame,
                     message="保存分析结果",
+                    defaultFile=default_analysis_path,  # 预填充默认文件名和路径
                     wildcard="文本文件 (*.txt)|*.txt",
                     style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
                 ) as fileDialog:
@@ -351,9 +394,51 @@ class EventHandlers:
         try:
             current_container = self.app_frame.data_manager.get_current_data()
             if current_container:
+                # 确定文件标识符 (F: 飞行架次, D: 地面试车, N: 未开车)
+                identifier = "N"  # 默认为未开车
+                if (hasattr(current_container, 'engine_data') and 
+                    current_container.engine_data and 
+                    current_container.engine_data.get('has_takeoff_info')):
+                    # 检查是否有起飞信息来判断是飞行还是地面试验
+                    start_time = current_container.engine_data.get('takeoff_start_time')
+                    end_time = current_container.engine_data.get('takeoff_end_time')
+                    
+                    # 如果有明确的开关车时间，则认为是地面试验开车
+                    if start_time and end_time:
+                        identifier = "D"
+                        
+                        # 进一步检查是否是飞行架次（简单判断：持续时间超过一定阈值）
+                        try:
+                            duration = end_time - start_time
+                            # 如果发动机运行时间超过10分钟，认为是飞行架次
+                            if duration.total_seconds() > 600:
+                                identifier = "F"
+                        except:
+                            pass
+                
+                # 生成默认文件名
+                from datetime import datetime
+                import os
+                
+                # 使用当前时间作为文件时间部分
+                current_time = datetime.now().strftime("%Y%m%d")
+                default_filename_base = f"{identifier}{current_time}"
+                default_data_filename = f"{default_filename_base}.csv"
+                
+                # 获取原始文件的目录，如果有的话
+                if hasattr(current_container, 'original_path') and current_container.original_path:
+                    save_directory = os.path.dirname(current_container.original_path)
+                else:
+                    # 如果没有原始路径信息，则保存到当前工作目录
+                    save_directory = os.getcwd()
+                
+                # 构建完整默认路径
+                default_data_path = os.path.join(save_directory, default_data_filename)
+                
                 with wx.FileDialog(
                     self.app_frame,
                     message="保存CSV数据",
+                    defaultFile=default_data_path,  # 预填充默认文件名和路径
                     wildcard="CSV文件 (*.csv)|*.csv",
                     style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
                 ) as fileDialog:
@@ -443,10 +528,78 @@ class EventHandlers:
     def single_button_event_1(self, event):
         """处理单个文件导出按钮点击事件"""
         try:
-            # 提交任务到线程池
-            pass
+            # 获取当前选中的数据容器
+            current_container = self.app_frame.data_manager.get_current_data()
+            
+            if not current_container:
+                wx.MessageBox("暂无数据可保存", "提示", wx.OK | wx.ICON_INFORMATION)
+                return
+            
+            # 确定文件标识符 (F: 飞行架次, D: 地面试车, N: 未开车)
+            identifier = "N"  # 默认为未开车
+            if (hasattr(current_container, 'engine_data') and 
+                current_container.engine_data and 
+                current_container.engine_data.get('has_takeoff_info')):
+                # 检查是否有起飞信息来判断是飞行还是地面试验
+                start_time = current_container.engine_data.get('takeoff_start_time')
+                end_time = current_container.engine_data.get('takeoff_end_time')
+                
+                # 如果有明确的开关车时间，则认为是地面试验开车
+                if start_time and end_time:
+                    identifier = "D"
+                    
+                    # 进一步检查是否是飞行架次（简单判断：持续时间超过一定阈值）
+                    try:
+                        duration = end_time - start_time
+                        # 如果发动机运行时间超过10分钟，认为是飞行架次
+                        if duration.total_seconds() > 600:
+                            identifier = "F"
+                    except:
+                        pass
+            
+            # 生成文件名
+            from datetime import datetime
+            import os
+            
+            # 获取原始文件的目录，如果有的话
+            if hasattr(current_container, 'original_path') and current_container.original_path:
+                save_directory = os.path.dirname(current_container.original_path)
+            else:
+                # 如果没有原始路径信息，则保存到当前工作目录
+                save_directory = os.getcwd()
+            
+            # 使用当前时间作为文件时间部分
+            current_time = datetime.now().strftime("%Y%m%d")
+            default_filename_base = f"{identifier}{current_time}"
+            
+            # 创建保存数据和分析结果的默认路径
+            default_data_filename = f"{default_filename_base}.csv"
+            default_analysis_filename = f"{default_filename_base}_分析.txt"
+            
+            # 构建完整路径
+            default_data_path = os.path.join(save_directory, default_data_filename)
+            default_analysis_path = os.path.join(save_directory, default_analysis_filename)
+            
+            try:
+                # 保存数据文件
+                current_container.df.to_csv(default_data_path, encoding='utf-8-sig', index=False)
+                
+                # 保存分析结果文件
+                with open(default_analysis_path, 'w', encoding='utf-8') as f:
+                    f.write(current_container.analysis_result)
+                
+                # 显示保存结果
+                message = f"快捷保存完成！\n\n数据文件已保存至: {default_data_path}\n分析结果已保存至: {default_analysis_path}"
+                self.app_frame.content_panel.set_formatted_text(message)
+                wx.MessageBox(message, "保存成功", wx.OK | wx.ICON_INFORMATION)
+                
+            except Exception as e:
+                logging.error(f"快捷保存时出错: {str(e)}")
+                wx.MessageBox(f"快捷保存时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+                
         except Exception as e:
-            logging.error(f"处理单个文件导出按钮点击事件时出错: {str(e)}")
+            logging.error(f"处理快捷保存按钮点击事件时出错: {str(e)}")
+            wx.MessageBox(f"快捷保存时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
     
     def on_close(self, event):
         """处理窗口关闭事件"""

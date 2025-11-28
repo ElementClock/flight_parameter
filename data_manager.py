@@ -26,16 +26,18 @@ logging.basicConfig(
 class DataContainer:
     """数据容器类，用于封装原始数据和分析结果"""
     
-    def __init__(self, analysis_result, filename):
+    def __init__(self, analysis_result, filename, original_path=None):
         """初始化数据容器
         
         Args:
             analysis_result: 分析结果对象
             filename (str): 文件名
+            original_path (str): 原始文件路径
         """
         try:
             # 使用更灵活的方式处理对象属性，避免手动维护属性对应关系
             self.filename = filename
+            self.original_path = original_path  # 保存原始文件路径
             self.analysis_result_obj = analysis_result
             
             # 动态获取analysis_result的所有属性
@@ -74,13 +76,14 @@ class DataManager:
             logging.error(f"初始化数据管理器时出错: {str(e)}")
             raise e
     
-    def add_data(self, df, filename, progress_callback=None):
+    def add_data(self, df, filename, progress_callback=None, original_path=None):
         """添加新数据
         
         Args:
             df (pandas.DataFrame): 数据
             filename (str): 文件名
             progress_callback (callable): 进度更新回调函数
+            original_path (str): 原始文件路径
             
         Returns:
             tuple: (数据容器对象, 错误信息)
@@ -90,7 +93,7 @@ class DataManager:
             analysis_result = analysis_data(df, progress_callback)
             
             # 创建数据容器
-            data_container = DataContainer(analysis_result, filename)
+            data_container = DataContainer(analysis_result, filename, original_path)
             
             # 存储数据容器
             key = data_container.filename

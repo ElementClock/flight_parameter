@@ -24,6 +24,15 @@
   - 识别CAS告警时间段
   - 分析不同告警类型的发生时间
   - 提供告警持续时间统计
+- **燃油系统分析**：
+  - 分析各油箱燃油量及消耗情况
+  - 监测低油量事件
+  - 检测油箱间燃油不平衡情况
+  - 分析发动机燃油消耗
+- **电源系统分析**：
+  - 分析直流发电机状态（电压、电流、功率）
+  - 分析交流发电机状态（电压、电流、功率）
+  - 监测汇流条电压和电流
 
 ### 3. 结果展示与交互
 - 图形化用户界面，操作简便直观
@@ -71,7 +80,9 @@
 5. **分析模块** ([analysis/](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis))
    - [analysis_data.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/analysis_data.py)：主分析流程
    - [engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/engine_analysis.py)：发动机参数分析
-   - [cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/cas_analysis.py)：校准空速分析
+   - [cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/cas_analysis.py)：CAS告警分析
+   - [fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/fuel_analysis.py)：燃油系统分析
+   - [power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/power_analysis.py)：电源系统分析
 
 6. **工具函数** ([utils.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/utils.py))
    - 提供辅助函数，如窗口尺寸计算等
@@ -130,8 +141,10 @@ pyinstaller --onefile --windowed app.py
 flight_parameter/
 ├── analysis/                 # 分析模块
 │   ├── analysis_data.py      # 主分析流程
-│   ├── cas_analysis.py       # CAS分析
-│   └── engine_analysis.py    # 发动机分析
+│   ├── cas_analysis.py       # CAS告警分析
+│   ├── engine_analysis.py    # 发动机分析
+│   ├── fuel_analysis.py      # 燃油系统分析
+│   └── power_analysis.py     # 电源系统分析
 ├── oldfile/                  # 旧版本文件（历史版本，不再维护）
 │   ├── App_fparameter.py     # 旧版基于Tkinter的实现
 │   └── App_fparameter_wx.py  # 旧版基于wxPython的实现
@@ -164,8 +177,8 @@ flight_parameter/
 
 - [ ] 分离专业分析的子函数功能
 - [ ] 增强错误处理机制
-- [ ] 添加更多分析模块
 - [ ] 优化用户界面体验
+- [ ] 增加更多分析模块（如液压、环控等系统）
 
 ## 许可证
 
