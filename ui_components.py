@@ -224,6 +224,12 @@ class RightSidebarPanel(wx.Panel):
             title.SetMinSize((basic_width, basic_height))
             right_sidebar_sizer.Add(title, 0, wx.ALL | wx.EXPAND, 10)
             
+            # 添加航路点绘制按钮
+            self.route_visualization_button = wx.Button(self, label="航路点绘制")
+            self.route_visualization_button.SetMinSize((basic_width, basic_height * 1.5))
+            self.route_visualization_button.SetMaxSize((basic_width, basic_height * 1.5))
+            right_sidebar_sizer.Add(self.route_visualization_button, 0, wx.ALL | wx.CENTER, 5)
+            
             # 添加一些示例内容
             content_text = wx.StaticText(self, label="这里应该设置一些按钮", style=wx.ALIGN_CENTER)
             right_sidebar_sizer.Add(content_text, 0, wx.ALL | wx.EXPAND, 10)

@@ -1,5 +1,5 @@
 import matplotlib
-matplotlib.use('TkAgg')  # 设置matplotlib后端
+matplotlib.use('Agg')  # 设置matplotlib后端为非交互式
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.font_manager as fm
@@ -10,6 +10,179 @@ import pandas as pd
 from adjustText import adjust_text
 import random
 from rtree import index
+import wx
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
+from matplotlib.figure import Figure
+import os
+from abc import ABC, abstractmethod
+from openpyxl import Workbook
+
+
+class CoordinateParser(ABC):
+    """坐标解析器抽象基类"""
+    
+    @abstractmethod
+    def parse(self, coord_str):
+        """解析坐标字符串，返回(纬度, 经度)的十进制度数"""
+        pass
+
+
+class DDMMFormatParser(CoordinateParser):
+    """DDMM.M格式坐标解析器（度分格式，带小数）"""
+    
+    def parse(self, coord_str):
+        if not isinstance(coord_str, str):
+            return None, None
+        
+        # 移除空格
+        coord_str = coord_str.replace(' ', '')
+        
+        # 提取纬度和经度部分
+        if 'N' in coord_str and 'E' in coord_str:
+            parts = coord_str.split('E')
+            lat_part = parts[0].replace('N', '')
+            lon_part = parts[1]
+            
+            # 解析纬度 (格式为 DDMM.M ，例如 3045.100)
+            if '.' in lat_part and len(lat_part) > 2 and lat_part[2] != '.':  
+                degrees = int(lat_part[:2])
+                minutes = float(lat_part[2:])
+                latitude = degrees + minutes / 60
+            else:
+                return None, None
+            
+            # 解析经度 (格式为 DDDMM.M ，例如 11151.180)
+            if '.' in lon_part and len(lon_part) > 3 and lon_part[3] != '.':  
+                degrees = int(lon_part[:3])
+                minutes = float(lon_part[3:])
+                longitude = degrees + minutes / 60
+            else:
+                return None, None
+                
+            return latitude, longitude
+        
+        return None, None
+
+
+class DDMMSSFormatParser(CoordinateParser):
+    """DDMMSS格式坐标解析器（度分秒格式）"""
+    
+    def parse(self, coord_str):
+        if not isinstance(coord_str, str):
+            return None, None
+        
+        # 移除空格
+        coord_str = coord_str.replace(' ', '')
+        
+        # 提取纬度和经度部分
+        if 'N' in coord_str and 'E' in coord_str:
+            parts = coord_str.split('E')
+            lat_part = parts[0].replace('N', '')
+            lon_part = parts[1]
+            
+            # 解析纬度 (格式为 DDMMSS ，例如 304510)
+            if len(lat_part) >= 6:
+                degrees = int(lat_part[:2])
+                minutes = int(lat_part[2:4])
+                seconds = int(lat_part[4:6])
+                latitude = degrees + minutes/60 + seconds/3600
+            else:
+                return None, None
+            
+            # 解析经度 (格式为 DDDMMSS ，例如 1115118)
+            if len(lon_part) >= 7:
+                degrees = int(lon_part[:3])
+                minutes = int(lon_part[3:5])
+                seconds = int(lon_part[5:7])
+                longitude = degrees + minutes/60 + seconds/3600
+            else:
+                return None, None
+                
+            return latitude, longitude
+        
+        return None, None
+
+
+class DDDecimalFormatParser(CoordinateParser):
+    """DD.D格式坐标解析器（只有度，带小数）"""
+    
+    def parse(self, coord_str):
+        if not isinstance(coord_str, str):
+            return None, None
+        
+        # 移除空格
+        coord_str = coord_str.replace(' ', '')
+        
+        # 提取纬度和经度部分
+        if 'N' in coord_str and 'E' in coord_str:
+            parts = coord_str.split('E')
+            lat_part = parts[0].replace('N', '')
+            lon_part = parts[1]
+            
+            # 解析纬度 (格式为 DD.D ，例如 30.75)
+            if '.' in lat_part and len(lat_part) <= 5:  # 限制长度避免误判
+                try:
+                    latitude = float(lat_part)
+                except ValueError:
+                    return None, None
+            else:
+                return None, None
+            
+            # 解析经度 (格式为 DDD.D ，例如 111.85)
+            if '.' in lon_part and len(lon_part) <= 6:  # 限制长度避免误判
+                try:
+                    longitude = float(lon_part)
+                except ValueError:
+                    return None, None
+            else:
+                return None, None
+                
+            return latitude, longitude
+        
+        return None, None
+
+
+class CoordinateParserFactory:
+    """坐标解析器工厂类"""
+    
+    @staticmethod
+    def create_parser(coord_str):
+        """根据坐标字符串特征创建适当的解析器"""
+        if not isinstance(coord_str, str):
+            return None
+        
+        coord_str = coord_str.replace(' ', '')
+        
+        if 'N' not in coord_str or 'E' not in coord_str:
+            return None
+        
+        parts = coord_str.split('E')
+        if len(parts) != 2:
+            return None
+            
+        lat_part = parts[0].replace('N', '')
+        lon_part = parts[1]
+        
+        # 判断纬度格式
+        lat_is_ddmm_m = '.' in lat_part and len(lat_part) > 2 and lat_part[2] != '.'
+        lat_is_ddmmss = len(lat_part) >= 6 and '.' not in lat_part
+        lat_is_d_decimal = '.' in lat_part and (len(lat_part) <= 5 or lat_part[2] == '.')
+        
+        # 判断经度格式
+        lon_is_dddmm_m = '.' in lon_part and len(lon_part) > 3 and lon_part[3] != '.'
+        lon_is_dddmmss = len(lon_part) >= 7 and '.' not in lon_part
+        lon_is_ddd_decimal = '.' in lon_part and (len(lon_part) <= 6 or lon_part[3] == '.')
+        
+        # 根据组合判断使用哪种解析器
+        if lat_is_ddmm_m and lon_is_dddmm_m:
+            return DDMMFormatParser()
+        elif lat_is_ddmmss and lon_is_dddmmss:
+            return DDMMSSFormatParser()
+        elif lat_is_d_decimal and lon_is_ddd_decimal:
+            return DDDecimalFormatParser()
+        
+        # 默认返回DDMM格式解析器
+        return DDMMFormatParser()
 
 
 # 省会城市数据
@@ -102,122 +275,156 @@ plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
 
+class DataLoader(ABC):
+    """数据加载器抽象基类，使用模板方法模式"""
+    
+    def load_data(self, file_path, sheet_name=0):
+        """
+        模板方法：定义数据加载的算法骨架
+        
+        参数:
+        file_path (str): 文件路径
+        sheet_name (str or int): 工作表名称或索引
+        
+        返回:
+        tuple: (waypoints, route_order)
+        """
+        if not self.check_file_exists(file_path):
+            self.create_template(file_path)
+        
+        return self.parse_data(file_path, sheet_name)
+    
+    def check_file_exists(self, file_path):
+        """检查文件是否存在"""
+        return os.path.exists(file_path)
+    
+    @abstractmethod
+    def create_template(self, file_path):
+        """创建模板文件"""
+        pass
+    
+    @abstractmethod
+    def parse_data(self, file_path, sheet_name):
+        """解析数据"""
+        pass
+
+
+class ExcelDataLoader(DataLoader):
+    """Excel数据加载器"""
+    
+    def create_template(self, file_path):
+        """
+        创建示例Excel文件，包含基本的航路点数据格式
+        
+        参数:
+        file_path (str): 要创建的Excel文件路径
+        """
+        # 创建一个新的工作簿
+        wb = Workbook()
+        
+        # 创建示例工作表
+        ws = wb.active
+        ws.title = "Sheet1"
+        
+        # 添加表头
+        headers = ['序号', '航路点', '频率', '坐标', '最低安全高度（M）', '距离（KM）']
+        for col_idx, header in enumerate(headers, start=1):
+            ws.cell(row=1, column=col_idx, value=header)
+        
+        # 添加示例行数据
+        sample_data = [
+            [1, '武汉机场', '110.50', 'N3045.100E11151.180', 1000, 0],
+            [2, '合肥VL', '112.70', 'N3185.100E11715.180', 1200, 200],
+            [3, '南京机场', '114.20', 'N3205.100E11895.180', 900, 400]
+        ]
+        
+        for row_idx, row_data in enumerate(sample_data, start=2):
+            for col_idx, cell_value in enumerate(row_data, start=1):
+                ws.cell(row=row_idx, column=col_idx, value=cell_value)
+        
+        # 保存文件
+        wb.save(file_path)
+        print(f"已创建示例Excel文件: {file_path}")
+    
+    def parse_data(self, file_path, sheet_name=0):
+        """
+        从Excel文件加载航路点数据
+        
+        参数:
+        file_path (str): Excel文件路径
+        sheet_name (str or int): 工作表名称或索引，默认为第一个工作表
+        
+        返回:
+        waypoints (dict): 航路点数据，格式为 {名称: {"lat": 纬度, "lon": 经度, "type": 类型}}
+        route_order (list): 航路点顺序列表
+        """
+        # 读取Excel文件的指定工作表
+        try:
+            df = pd.read_excel(file_path, sheet_name=sheet_name)
+        except Exception as e:
+            print(f"读取Excel文件失败: {e}")
+            return {}, []
+        
+        # 检查是否是空的工作表
+        if df.empty:
+            print(f"工作表 '{sheet_name}' 是空的")
+            return {}, []
+        
+        waypoints = {}
+        route_order = []
+        
+        # 定义点类型映射
+        def get_point_type(name):
+            if '机场' in name:
+                return 'airport'
+            elif any(x in name for x in ['VL', 'ML', 'LYA', 'GU', 'SQ', 'YIH', 'DRZ', 'HFE', 'WTM', 'WHA']):
+                return 'vor'
+            else:
+                return 'fix'
+        
+        # 统一处理所有工作表
+        # 确定正确的列名
+        if '航路点' in df.columns:
+            name_column = '航路点'
+            coord_column = '坐标'
+        else:
+            # 如果列名包含特殊字符或者没有正确识别，使用位置索引
+            name_column = df.columns[1]  # 第二列应该是航路点名称
+            coord_column = df.columns[3]  # 第四列应该是坐标
+            
+        # 删除航路点名称为空的行
+        df = df.dropna(subset=[name_column])
+        
+        for _, row in df.iterrows():
+            name = str(row[name_column]).strip()
+            coord = row[coord_column]
+            
+            # 解析坐标
+            lat, lon = parse_coordinates(coord)
+            
+            if lat is not None and lon is not None:
+                point_type = get_point_type(name)
+                waypoints[name] = {
+                    "lat": lat,
+                    "lon": lon,
+                    "type": point_type
+                }
+                route_order.append(name)
+            else:
+                print(f"警告: 无法解析航路点 {name} 的坐标: {coord}")
+        
+        return waypoints, route_order
+
+
 def parse_coordinates(coord_str):
     """
     解析坐标字符串，格式如：N305901E1120314 或 N304510E1115118
     返回 (纬度, 经度) 的十进制度数
     """
-    if not isinstance(coord_str, str):
-        return None, None
-    
-    # 移除空格
-    coord_str = coord_str.replace(' ', '')
-    
-    # 初始化返回值
-    latitude = None
-    longitude = None
-    
-    # 提取纬度和经度部分
-    if 'N' in coord_str and 'E' in coord_str:
-        parts = coord_str.split('E')
-        lat_part = parts[0].replace('N', '')
-        lon_part = parts[1]
-        
-        # 解析纬度 (格式为 DDMMSS 或 DDMM.M)
-        if '.' in lat_part and len(lat_part) <= 7:  # DDMM.M 格式
-            degrees = int(lat_part[:2])
-            minutes = float(lat_part[2:])
-            latitude = degrees + minutes / 60
-        elif len(lat_part) >= 6:  # DDMMSS 格式
-            degrees = int(lat_part[:2])
-            minutes = int(lat_part[2:4])
-            seconds = int(lat_part[4:6])
-            latitude = degrees + minutes/60 + seconds/3600
-            
-        # 解析经度 (格式为 DDDMMSS 或 DDDMM.M)
-        if '.' in lon_part and len(lon_part) <= 8:  # DDDMM.M 格式
-            degrees = int(lon_part[:3])
-            minutes = float(lon_part[3:])
-            longitude = degrees + minutes / 60
-        elif len(lon_part) >= 7:  # DDDMMSS 格式
-            degrees = int(lon_part[:3])
-            minutes = int(lon_part[3:5])
-            seconds = int(lon_part[5:7])
-            longitude = degrees + minutes/60 + seconds/3600
-            
-        return latitude, longitude
-    
+    parser = CoordinateParserFactory.create_parser(coord_str)
+    if parser:
+        return parser.parse(coord_str)
     return None, None
-
-
-def load_waypoints_from_excel(file_path, sheet_name=0):
-    """
-    从Excel文件加载航路点数据
-    
-    参数:
-    file_path (str): Excel文件路径
-    sheet_name (str or int): 工作表名称或索引，默认为第一个工作表
-    
-    返回:
-    waypoints (dict): 航路点数据，格式为 {名称: {"lat": 纬度, "lon": 经度, "type": 类型}}
-    route_order (list): 航路点顺序列表
-    """
-    # 读取Excel文件的指定工作表
-    try:
-        df = pd.read_excel(file_path, sheet_name=sheet_name)
-    except Exception as e:
-        print(f"读取Excel文件失败: {e}")
-        return {}, []
-    
-    # 检查是否是空的工作表
-    if df.empty:
-        print(f"工作表 '{sheet_name}' 是空的")
-        return {}, []
-    
-    waypoints = {}
-    route_order = []
-    
-    # 定义点类型映射
-    def get_point_type(name):
-        if '机场' in name:
-            return 'airport'
-        elif any(x in name for x in ['VL', 'ML', 'LYA', 'GU', 'SQ', 'YIH', 'DRZ', 'HFE', 'WTM', 'WHA']):
-            return 'vor'
-        else:
-            return 'fix'
-    
-    # 统一处理所有工作表
-    # 确定正确的列名
-    if '航路点' in df.columns:
-        name_column = '航路点'
-        coord_column = '坐标'
-    else:
-        # 如果列名包含特殊字符或者没有正确识别，使用位置索引
-        name_column = df.columns[1]  # 第二列应该是航路点名称
-        coord_column = df.columns[3]  # 第四列应该是坐标
-        
-    # 删除航路点名称为空的行
-    df = df.dropna(subset=[name_column])
-    
-    for _, row in df.iterrows():
-        name = str(row[name_column]).strip()
-        coord = row[coord_column]
-        
-        # 解析坐标
-        lat, lon = parse_coordinates(coord)
-        
-        if lat is not None and lon is not None:
-            point_type = get_point_type(name)
-            waypoints[name] = {
-                "lat": lat,
-                "lon": lon,
-                "type": point_type
-            }
-            route_order.append(name)
-        else:
-            print(f"警告: 无法解析航路点 {name} 的坐标: {coord}")
-    
-    return waypoints, route_order
 
 
 # 缓存shapefile reader以提高性能
@@ -239,7 +446,7 @@ def _get_shapefile_reader():
     return _shapefile_reader
 
 
-def draw_route_map(waypoints, route_order, title='航路图', save_path=None, figure_size=(12, 12), margins=None, show_all_provinces=True):
+def draw_route_map(waypoints, route_order, title='航路图', save_path=None, figure_size=(12, 9), margins=None, show_all_provinces=True):
     """
     绘制航路图
     
@@ -252,6 +459,10 @@ def draw_route_map(waypoints, route_order, title='航路图', save_path=None, fi
     margins (dict): 边距设置 {'left': 0.1, 'right': 0.9, 'top': 0.9, 'bottom': 0.1}
     show_all_provinces (bool): 保留参数，但当前实现中未使用
     """
+    # 创建matplotlib图形和轴，使用4:3的比例
+    fig = plt.figure(figsize=figure_size)
+    fig.set_tight_layout(True)  # 使用tight_layout确保内容填满图形
+    
     try:
         # 尝试使用系统中文字体，如果失败则使用默认字体
         try:
@@ -263,9 +474,6 @@ def draw_route_map(waypoints, route_order, title='航路图', save_path=None, fi
                 chinese_font = fm.FontProperties()  # Linux或其他系统
     except:
         chinese_font = fm.FontProperties()
-
-    # 创建地图，设置图像为正方形区域
-    fig = plt.figure(figsize=figure_size)
 
     # 设置边距
     if margins:
@@ -549,10 +757,134 @@ def draw_route_map(waypoints, route_order, title='航路图', save_path=None, fi
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     
-    plt.show()
+    # 使用wxPython显示图像
+    show_plot_in_wx_frame(fig)
+    
+    # 清理图形以释放内存
+    plt.close(fig)
 
 
-def draw_route_from_sheet(file_path, sheet_name, title=None, figure_size=(12, 12), margins=None, show_all_provinces=True):
+def show_plot_in_wx_frame(figure):
+    """
+    在wxPython框架中显示matplotlib图形
+    
+    参数:
+    figure: matplotlib图形对象
+    """
+    import threading
+    
+    # 创建事件处理函数，在主线程中执行GUI操作
+    def show_image():
+        # 检查是否已有wx.App实例在运行
+        app = wx.App.Get()
+        need_exit_app = False
+        
+        # 如果没有现有的app实例，则创建一个新的
+        if app is None:
+            app = wx.App(clearSigInt=True)
+            need_exit_app = True
+        
+        # 获取屏幕尺寸
+        screen_width, screen_height = wx.GetDisplaySize()
+        
+        # 设置窗口尺寸和位置，使其居中
+        window_width, window_height = 1200, 900
+        window_x = (screen_width - window_width) // 2
+        window_y = (screen_height - window_height) // 2
+        
+        # 创建合适大小的窗口
+        frame = wx.Frame(None, title="航线图", pos=(window_x, window_y), size=(window_width, window_height))
+        panel = wx.Panel(frame)
+        
+        # 创建matplotlib画布
+        canvas = FigureCanvas(panel, -1, figure)
+        
+        # 创建保存按钮
+        save_button = wx.Button(panel, label="保存图片")
+        
+        # 创建保存观察者
+        save_observer = SaveToFileObserver()
+        
+        # 按钮事件处理
+        def on_save(event):
+            # 使用观察者处理保存请求
+            save_observer.on_save_requested(figure, frame)
+        
+        save_button.Bind(wx.EVT_BUTTON, on_save)
+        
+        # 窗口关闭事件处理
+        def on_close(event):
+            frame.Destroy()
+            if need_exit_app:
+                app.ExitMainLoop()
+        
+        frame.Bind(wx.EVT_CLOSE, on_close)
+        
+        # 布局
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(canvas, 1, wx.EXPAND | wx.ALL, 10)  # 添加边距使图形不紧贴窗口边缘
+        sizer.Add(save_button, 0, wx.ALIGN_CENTER | wx.ALL, 10)  # 添加保存按钮
+        panel.SetSizer(sizer)
+        
+        # 绑定窗口大小调整事件
+        def on_size(event):
+            # 重新绘制图形以适应新大小
+            canvas.draw()
+            event.Skip()
+            
+        frame.Bind(wx.EVT_SIZE, on_size)
+        
+        frame.Show()
+        # 只有在创建了新的app时才进入MainLoop
+        if need_exit_app:
+            app.MainLoop()
+    
+    # 在主线程中运行GUI应用程序
+    if threading.current_thread() is threading.main_thread():
+        show_image()
+    else:
+        # 如果当前不在主线程，则使用CallAfter在主线程中执行
+        wx.CallAfter(show_image)
+
+
+class SaveObserver(ABC):
+    """保存操作观察者抽象类"""
+    
+    @abstractmethod
+    def on_save_requested(self, figure, parent_window=None):
+        """当保存请求发生时调用"""
+        pass
+
+
+class SaveToFileObserver(SaveObserver):
+    """保存到文件的观察者实现"""
+    
+    def on_save_requested(self, figure, parent_window=None):
+        """处理保存到文件的请求"""
+        if parent_window is None:
+            print("错误：需要提供父窗口")
+            return
+        
+        # 获取当前工作目录作为默认保存位置
+        default_dir = os.getcwd()
+        default_file = os.path.join(default_dir, "航线图.png")
+        
+        with wx.FileDialog(parent_window, "保存图片文件", 
+                          defaultDir=default_dir,
+                          defaultFile=default_file,
+                          wildcard="PNG files (*.png)|*.png|JPEG files (*.jpg)|*.jpg|PDF files (*.pdf)|*.pdf",
+                          style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+            pathname = fileDialog.GetPath()
+            try:
+                figure.savefig(pathname, dpi=300, bbox_inches='tight')
+                wx.MessageBox(f"图片已保存至: {pathname}", "保存成功", wx.OK | wx.ICON_INFORMATION)
+            except Exception as e:
+                wx.MessageBox(f"保存失败: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+
+
+def draw_route_from_sheet(file_path, sheet_name, title=None, figure_size=(12, 9), margins=None, show_all_provinces=True):
     """
     从指定的工作表绘制航线
     
@@ -569,7 +901,8 @@ def draw_route_from_sheet(file_path, sheet_name, title=None, figure_size=(12, 12
         title = f'航路图（基于Excel数据 - {sheet_name}）'
     
     print(f"正在从{sheet_name}加载航路点...")
-    waypoints, route_order = load_waypoints_from_excel(file_path, sheet_name)
+    loader = ExcelDataLoader()
+    waypoints, route_order = loader.load_data(file_path, sheet_name)
     
     if not waypoints:
         print(f"未找到{sheet_name}中的航路点数据")
@@ -583,22 +916,22 @@ def draw_route_from_sheet(file_path, sheet_name, title=None, figure_size=(12, 12
     print(f"\n{sheet_name}中的航路点顺序:")
     print(route_order)
     
-    # 调用函数绘制航路图
+    # 调用函数绘制航路图，使用4:3比例
     draw_route_map(waypoints, route_order, title, figure_size=figure_size, margins=margins, show_all_provinces=show_all_provinces)
 
 
-# 示例用法
+# 添加主函数保护，防止在模块导入时执行
 if __name__ == "__main__":
     # 绘制Sheet1中的航线，设置图像大小和边距
     margins_config = {
-        'left': 0.05,
-        'right': 0.95,
-        'top': 0.90,
-        'bottom': 0.10
+        'left': 0.30,
+        'right': 0.70,
+        'top': 0.70,
+        'bottom': 0.30
     }
 
     for sheet in ['Sheet6']:
         # 显示所有省份边界（默认）
         draw_route_from_sheet('航路点.xlsx', sheet, f'航路图',
-                             figure_size=(8, 6), margins=margins_config)
+                             figure_size=(10, 8), margins=margins_config)
         break  # 只运行一次，避免程序卡住

@@ -188,6 +188,13 @@ class AppFrame(wx.Frame):
         """创建右侧边栏区域"""
         try:
             self.right_sidebar_panel = RightSidebarPanel(self.panel)
+            
+            # 绑定航路点绘制按钮事件
+            self.right_sidebar_panel.route_visualization_button.Bind(
+                wx.EVT_BUTTON, 
+                self.event_handlers.on_route_visualization
+            )
+            
             self.right_sidebar_panel.Hide()  # 默认隐藏右侧边栏
         except Exception as e:
             logging.error(f"创建右侧边栏区域时出错: {str(e)}")

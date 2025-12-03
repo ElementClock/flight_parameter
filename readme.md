@@ -241,6 +241,8 @@ flight_parameter/
 │   ├── engine_analysis.py    # 发动机分析
 │   ├── fuel_analysis.py      # 燃油系统分析
 │   └── power_analysis.py     # 电源系统分析
+├── visualization/             # 可视化模块
+│   └── route_visualization.py # 航线可视化
 ├── oldfile/                  # 旧版本文件（历史版本，不再维护）
 │   ├── App_fparameter.py     # 旧版基于Tkinter的实现
 │   └── App_fparameter_wx.py  # 旧版基于wxPython的实现
