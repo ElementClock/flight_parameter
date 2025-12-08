@@ -21,11 +21,11 @@ import ctypes
 import logging
 import os
 import sys
+from abc import ABC, abstractmethod
 
 import wx
 
 # 项目模块导入
-from analysis.analysis_data import analysis_data
 from data_manager import DataManager
 from event_handlers import EventHandlers
 from ui_components import SidebarPanel, ContentPanel, RightSidebarPanel
@@ -41,18 +41,60 @@ logging.basicConfig(
 )
 
 
+class UIFactory(ABC):
+    """UI工厂抽象基类"""
+    
+    @abstractmethod
+    def create_sidebar(self, parent, event_handlers):
+        pass
+    
+    @abstractmethod
+    def create_content_area(self, parent):
+        pass
+    
+    @abstractmethod
+    def create_right_sidebar(self, parent):
+        pass
+
+
+class DefaultUIFactory(UIFactory):
+    """默认UI工厂实现"""
+    
+    def create_sidebar(self, parent, event_handlers):
+        """创建侧边栏区域"""
+        return SidebarPanel(
+            parent,
+            on_load_data=event_handlers.load_data,
+            on_save_data=event_handlers.save_current_data,
+            on_save_analysis=event_handlers.save_analysis,
+            on_clear_analysis=event_handlers.remove_analysis,
+            on_clear_data=event_handlers.remove_current_data,
+            on_quick_save=event_handlers.single_button_event_1,
+            on_separator=event_handlers.single_button_event_1
+        )
+    
+    def create_content_area(self, parent):
+        """创建主内容区域"""
+        return ContentPanel(parent)
+    
+    def create_right_sidebar(self, parent):
+        """创建右侧边栏区域"""
+        return RightSidebarPanel(parent)
+
+
 class AppFrame(wx.Frame):
     """应用程序主窗口类"""
 
     # 展开模式：0=向内展开(压缩内容区域)，1=向外展开(窗口扩展)
     EXPAND_MODE = 0
 
-    def __init__(self, parent=None, title="哈基元说：哈基米南北路多~阿西噶阿西~阿西噶哈雅酷奶农~哈基米哈基~哈基米南北路多~阿西哈雅酷奶农~哈基米曼波雅噗雅噗~有特有特哦吗哈基米曼波~哈基米南北路多~阿西噶哈雅酷奶农~马吉利哇哈亚曼波"):
+    def __init__(self, parent=None, title="飞行参数分析工具", ui_factory=None):
         """初始化应用程序窗口
         
         Args:
             parent: 父窗口，默认为None
             title: 窗口标题，默认为"飞行参数分析工具"
+            ui_factory: UI工厂实例，用于创建UI组件
         """
         try:
             # 启用高DPI支持，确保在高分辨率屏幕上正确显示
@@ -96,6 +138,9 @@ class AppFrame(wx.Frame):
 
             # 创建事件处理器
             self.event_handlers = EventHandlers(self)
+
+            # 设置UI工厂
+            self.ui_factory = ui_factory or DefaultUIFactory()
 
             # 创建UI界面
             self.create_ui()
@@ -151,17 +196,8 @@ class AppFrame(wx.Frame):
     def create_sidebar(self):
         """创建侧边栏区域"""
         try:
-            # 为侧边栏创建独立面板，便于管理和布局
-            self.sidebar_panel = SidebarPanel(
-                self.panel,
-                on_load_data=self.event_handlers.load_data,
-                on_save_data=self.event_handlers.save_current_data,
-                on_save_analysis=self.event_handlers.save_analysis,
-                on_clear_analysis=self.event_handlers.remove_analysis,
-                on_clear_data=self.event_handlers.remove_current_data,
-                on_quick_save=self.event_handlers.single_button_event_1,
-                on_separator=self.event_handlers.single_button_event_1
-            )
+            # 使用工厂创建侧边栏
+            self.sidebar_panel = self.ui_factory.create_sidebar(self.panel, self.event_handlers)
             
             # 绑定数据选择事件
             self.sidebar_panel.data_choice.Bind(wx.EVT_CHOICE, self.event_handlers.on_data_choice)
@@ -172,8 +208,8 @@ class AppFrame(wx.Frame):
     def create_content_area(self):
         """创建主内容区域"""
         try:
-            # 为主要内容区域创建独立面板
-            self.content_panel = ContentPanel(self.panel)
+            # 使用工厂创建内容区域
+            self.content_panel = self.ui_factory.create_content_area(self.panel)
             
             # 绑定切换按钮事件
             self.content_panel.toggle_button.Bind(wx.EVT_BUTTON, self.on_toggle_right_sidebar)
@@ -187,7 +223,8 @@ class AppFrame(wx.Frame):
     def create_right_sidebar(self):
         """创建右侧边栏区域"""
         try:
-            self.right_sidebar_panel = RightSidebarPanel(self.panel)
+            # 使用工厂创建右侧边栏
+            self.right_sidebar_panel = self.ui_factory.create_right_sidebar(self.panel)
             
             # 绑定航路点绘制按钮事件
             self.right_sidebar_panel.route_visualization_button.Bind(

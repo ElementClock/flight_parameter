@@ -5,15 +5,15 @@
 发动机分析模块
 ==============
 
-分析发动机数据：提取发动机转速和点火状态，计算转速变化。
-发动机启动成功: 发动机转速＞77.5%
-发动机关车: 发动机转速≤3%
+分析飞行数据中的发动机相关信息。
 """
 
 import logging
-import re
-
+from typing import Dict, Any, List
 import pandas as pd
+from datetime import datetime
+
+from analysis.analysis_interface import AnalysisInterface
 
 # 配置日志
 logging.basicConfig(
@@ -25,153 +25,203 @@ logging.basicConfig(
 )
 
 
-def analyze_engine(df):
-    """
-    分析发动机数据：提取发动机转速和点火状态，计算转速变化
-    发动机启动成功	发动机转速＞77.5%
-    发动机关车	发动机转速≤3%
+class EngineAnalysis(AnalysisInterface):
+    """发动机分析类"""
     
-    Args:
-        df (pandas.DataFrame): 包含发动机数据的DataFrame
+    def analyze(self, df, **kwargs) -> Dict[str, Any]:
+        """分析发动机数据
         
-    Returns:
-        dict: 发动机分析结果
-    """
-    try:
-        # 初始化返回数据
-        engine_result = {
-            'type': 'engine',
-            'has_takeoff_info': False,
-            'takeoff_info': [],
-            'takeoff_start_time': None,
-            'takeoff_end_time': None,
-            'start_time': None,
-            'end_time': None
-        }
-        
-        # 存储符合条件的发动机信息
-        takeoff_info = []
-        
-        # 新增初始化字段用于返回起飞时间
-        takeoff_start_time = None
-        takeoff_end_time = None
-        
-        # 新增：记录发动机重启信息
-        restart_info = {}
-
-        # 使用正则表达式匹配所有需要的列
-        rpm_pattern = re.compile(r'(\d)发发动机转速')
-        ignition_pattern = re.compile(r'(\d)发点火状态')
-
-        # 提取转速和点火状态列
-        rpm_columns = sorted([col for col in df.columns if rpm_pattern.search(col)],
-                             key=lambda x: int(rpm_pattern.search(x).group(1)))
-        ignition_columns = sorted([col for col in df.columns if ignition_pattern.search(col)],
-                                  key=lambda x: int(ignition_pattern.search(x).group(1)))
-
-        # 检查是否有数据
-        if not rpm_columns or not ignition_columns:
-            engine_result['errors'] = [
-                "未找到包含 '机电信息采集系统' 的列",
-                "未找到包含 '主飞控系统' 的列"
-            ]
-            return engine_result
-
-        # 优化内存使用：只选择需要的列进行处理
-        selected_columns = ['飞行时间'] + rpm_columns + ignition_columns
-        df_selected = df[selected_columns].copy()
-        
-        # 提取转速数据并计算转速变化
-        engine_rpm = pd.DataFrame({f"engine_{i}_rpm": df_selected[col] for i, col in enumerate(rpm_columns, 1)})
-        engine_rpm_diff = engine_rpm.diff()
-
-        # 提取点火状态数据
-        engine_ignition = pd.DataFrame({f"engine_{i}_ignition": df_selected[col] for i, col in enumerate(ignition_columns, 1)})
-
-        # 新增：存储所有发动机的启动和关车时间
-        all_engine_start_times = []
-        all_engine_end_times = []
-        
-        for i in range(1, len(rpm_columns) + 1):
-            rpm = engine_rpm[f"engine_{i}_rpm"]
-            ignition = engine_ignition[f"engine_{i}_ignition"]
-
-            # 找到点火状态为1的期间
-            ignition_on_periods = (ignition == 1).cumsum()
+        Args:
+            df (pandas.DataFrame): 飞行数据
+            **kwargs: 其他参数
             
-            # 新增：记录该发动机的所有启动和关车时间
-            engine_start_times = []
-            engine_end_times = []
-            engine_restart_times = []  # 记录该发动机的重启时间
+        Returns:
+            dict: 发动机分析结果
+        """
+        try:
+            result = {}
 
-            # 获取所有点火状态为1的期间
-            periods = ignition_on_periods[ignition_on_periods > 0].unique()
+            # 检查是否存在必要的列 - 使用更灵活的方式查找发动机转速列
+            time_columns = [col for col in df.columns if '飞行时间' in col]
+            engine_rpm_columns = [col for col in df.columns if '发动机' in col and '转速' in col]
             
-            for period in periods:
-                # 获取该期间的数据
-                period_data = rpm[ignition_on_periods == period]
-                if period_data.empty:  # 该期间没有数据
-                    continue  # 跳过该期间
+            if not time_columns:
+                result['errors'] = ["缺少时间列"]
+                return result
+                
+            if not engine_rpm_columns:
+                result['errors'] = ["缺少发动机转速列"]
+                return result
 
-                # 找到转速大于等于77.5%的时刻，认为发动机启动成功
-                rpm_start = period_data[period_data >= 77.5]
+            time_column = time_columns[0]  # 使用第一个找到的时间列
 
-                if not rpm_start.empty:
-                    start_time = df_selected.loc[rpm_start.index[0], '飞行时间']
-                    engine_start_times.append(start_time)
+            # 获取时间范围
+            result['start_time'] = df[time_column].min()
+            result['end_time'] = df[time_column].max()
+
+            # 查找发动机启动和关车时间
+            result['takeoff_info'] = self._find_engine_takeoff_info(df, time_column)
+            
+            # 检查是否有任何发动机启动信息
+            result['has_takeoff_info'] = any(len(info['start_times']) > 0 for info in result['takeoff_info'])
+            
+            # 如果有发动机启动信息，则获取第一次启动和最后一次关车时间
+            if result['has_takeoff_info']:
+                all_start_times = []
+                all_end_times = []
+                
+                for info in result['takeoff_info']:
+                    if info['start_times']:
+                        all_start_times.extend(info['start_times'])
+                    if info['end_times']:
+                        all_end_times.extend(info['end_times'])
+                
+                if all_start_times:
+                    result['takeoff_start_time'] = min(all_start_times)
+                if all_end_times:
+                    result['takeoff_end_time'] = max(all_end_times)
+
+            return result
+        except Exception as e:
+            logging.error(f"分析发动机数据时出错: {str(e)}")
+            return {'errors': [f"分析发动机数据时出错: {str(e)}"]}
+    
+    def _find_engine_takeoff_info(self, df, time_column) -> List[Dict[str, Any]]:
+        """查找发动机启动和关车时间信息
+        
+        Args:
+            df (pandas.DataFrame): 飞行数据
+            time_column (str): 时间列名
+            
+        Returns:
+            list: 发动机启动和关车时间信息列表
+        """
+        try:
+            engines_info = []
+            
+            # 查找所有发动机转速列
+            engine_rpm_columns = [col for col in df.columns if '发动机' in col and '转速' in col]
+            
+            # 遍历找到的发动机列
+            for i, rpm_column in enumerate(engine_rpm_columns):
+                # 从列名中提取发动机编号
+                if '1' in rpm_column:
+                    engine_id = 1
+                elif '2' in rpm_column:
+                    engine_id = 2
+                elif '3' in rpm_column:
+                    engine_id = 3
+                elif '4' in rpm_column:
+                    engine_id = 4
+                else:
+                    engine_id = i + 1  # 默认编号
+                
+                # 获取RPM数据
+                rpm_series = df[rpm_column]
+                time_series = df[time_column]
+                
+                # 查找发动机启动和关车时间点
+                start_times = []
+                end_times = []
+                restart_times = []
+                
+                # 判断发动机是否启动的阈值（假设RPM大于10表示启动）
+                threshold = 10
+                is_running = False
+                
+                # 遍历数据查找启动和关车时间点
+                for j in range(len(rpm_series)):
+                    rpm = rpm_series.iloc[j]
+                    time = time_series.iloc[j]
                     
-                    # 找到转速小于等于3%的时期，认为发动机关车
-                    rpm_shutdown = period_data[period_data <= 3.0]
-                    if not rpm_shutdown.empty:
-                        end_time = df_selected.loc[rpm_shutdown.index[-1], '飞行时间']
-                        engine_end_times.append(end_time)
-            
-            # 如果有多次启动，记录重启信息
-            if len(engine_start_times) > 1:
-                restart_info[i] = engine_start_times[1:]  # 除了第一次启动，其余都是重启
-            
-            # 记录该发动机的首次启动和最终关车时间
-            if engine_start_times:
-                all_engine_start_times.append(min(engine_start_times))
-                takeoff_info.append({
-                    'engine_id': i,
-                    'start_time': min(engine_start_times)
+                    # 检查是否为有效数值
+                    if pd.isna(rpm):
+                        continue
+                    
+                    # 如果发动机之前未启动且当前RPM超过阈值，则认为启动
+                    if not is_running and rpm > threshold:
+                        start_times.append(time)
+                        is_running = True
+                    # 如果发动机之前已启动且当前RPM低于阈值，则认为关车
+                    elif is_running and rpm <= threshold:
+                        end_times.append(time)
+                        is_running = False
+                
+                # 查找重启时间（在运行过程中短暂停止后再次启动）
+                if len(start_times) > 1:
+                    for k in range(1, len(start_times)):
+                        # 如果两次启动之间的时间间隔较短，认为是重启而不是完全关车
+                        if (start_times[k] - start_times[k-1]).total_seconds() < 300:  # 5分钟内
+                            restart_times.append(start_times[k])
+                
+                engines_info.append({
+                    'engine_id': engine_id,
+                    'start_times': start_times,
+                    'end_times': end_times,
+                    'restart_times': restart_times
                 })
-                # 如果有重启，添加重启信息
-                if i in restart_info:
-                    takeoff_info[-1]['restart_times'] = restart_info[i]
             
-            if engine_end_times:
-                all_engine_end_times.append(max(engine_end_times))
-
-        # 确定所有发动机首次启动时间（最早的一次）和最终关车时间（最晚的一次）
-        if all_engine_start_times:
-            takeoff_start_time = min(all_engine_start_times)
+            # 确保有4个发动机的信息（即使某些发动机没有数据）
+            existing_engines = {info['engine_id'] for info in engines_info}
+            for engine_id in range(1, 5):
+                if engine_id not in existing_engines:
+                    engines_info.append({
+                        'engine_id': engine_id,
+                        'start_times': [],
+                        'end_times': [],
+                        'restart_times': []
+                    })
+            
+            # 按发动机编号排序
+            engines_info.sort(key=lambda x: x['engine_id'])
+            
+            return engines_info
+        except Exception as e:
+            logging.error(f"查找发动机启动信息时出错: {str(e)}")
+            return []
+    
+    def generate_text(self, engine_data: Dict[str, Any]) -> str:
+        """生成带标识符的发动机分析文本输出
         
-        if all_engine_end_times:
-            takeoff_end_time = max(all_engine_end_times)
-
-        # 填充返回数据
-        engine_result['has_takeoff_info'] = bool(takeoff_info)
-        engine_result['takeoff_info'] = takeoff_info
-        engine_result['takeoff_start_time'] = takeoff_start_time
-        engine_result['takeoff_end_time'] = takeoff_end_time
-        engine_result['start_time'] = df_selected['飞行时间'].iloc[0] if not df_selected.empty and '飞行时间' in df_selected.columns else None
-        engine_result['end_time'] = df_selected['飞行时间'].iloc[-1] if not df_selected.empty and '飞行时间' in df_selected.columns else None
-        
-        # 清理临时数据以释放内存
-        del df_selected, engine_rpm, engine_rpm_diff, engine_ignition
-        
-        return engine_result
-    except Exception as e:
-        logging.error(f"分析发动机数据时出错: {str(e)}")
-        return {
-            'type': 'engine',
-            'errors': [f"分析发动机数据时出错: {str(e)}"],
-            'has_takeoff_info': False,
-            'takeoff_info': [],
-            'takeoff_start_time': None,
-            'takeoff_end_time': None,
-            'start_time': None,
-            'end_time': None
-        }
+        Args:
+            engine_data (dict): 包含发动机分析结果的字典，可能包含错误信息
+            
+        Returns:
+            str: 格式化的文本结果，包含错误信息或正常分析结果
+        """
+        try:
+            result = []
+            
+            # 检查是否有错误信息
+            if 'errors' in engine_data:
+                result.extend(engine_data['errors'])
+                return "\n".join(result)
+            
+            # 检查是否有发动机启动信息
+            if engine_data['has_takeoff_info']:
+                # 使用标识符标记标题行
+                title = "[[BOLD]]动力分析结果[[/BOLD]]"
+                formatted_title = title.center(100, '-')
+                result.append(formatted_title)
+                
+                if engine_data.get('takeoff_start_time') and engine_data.get('takeoff_end_time'):
+                    gap_time = engine_data['takeoff_end_time'] - engine_data['takeoff_start_time']
+                    result.append(f" 开关车时间为：{engine_data['takeoff_start_time']}-{engine_data['takeoff_end_time']}，耗时：{gap_time} ")
+                
+                # 添加发动机启动信息
+                for info in engine_data['takeoff_info']:
+                    if info['start_times']:
+                        result.append(f"{info['engine_id']}号发动机首次开车时间为 {info['start_times'][0]}")
+                        # 如果有重启，添加重启信息
+                        if 'restart_times' in info and info['restart_times']:
+                            restart_times_str = ", ".join([str(t) for t in info['restart_times']])
+                            result.append(f"{info['engine_id']}号发动机存在 {len(info['restart_times'])} 次重启，重启时间点为: {restart_times_str}")
+            # 新增逻辑：当所有发动机都未启动时，说明分析时间范围并提示无开车记录
+            else:
+                if engine_data.get('start_time') and engine_data.get('end_time'):
+                    result.append(f"本文件时间为： {engine_data['start_time']} 到 {engine_data['end_time']}\n 本次数据分析：飞机未启动发动机，请检查数据" )
+            
+            return "\n".join(result)
+        except Exception as e:
+            logging.error(f"生成发动机分析文本时出错: {str(e)}")
+            return f"生成发动机分析文本时出错: {str(e)}"

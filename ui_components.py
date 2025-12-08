@@ -9,6 +9,7 @@ UI组件模块
 """
 
 import logging
+from abc import ABC, abstractmethod
 
 import wx
 import wx.richtext as rt
@@ -21,6 +22,49 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+
+class UIComponent(ABC):
+    """UI组件抽象基类"""
+    
+    def __init__(self, parent):
+        self.parent = parent
+        self.panel = None
+    
+    @abstractmethod
+    def create(self):
+        """创建UI组件的抽象方法"""
+        pass
+
+
+class ButtonFactory:
+    """按钮工厂类"""
+    
+    @staticmethod
+    def create_buttons(parent, button_configs, basic_width, basic_height):
+        """创建按钮列表
+        
+        Args:
+            parent: 父窗口
+            button_configs: 按钮配置列表
+            basic_width: 基础宽度
+            basic_height: 基础高度
+            
+        Returns:
+            list: 按钮列表
+        """
+        buttons = []
+        for label, event_handler in button_configs:
+            button = wx.Button(parent, label=label)
+            button.SetMinSize((basic_width, basic_height * 1.5))
+            button.SetMaxSize((basic_width, basic_height * 1.5))
+
+            # 如果提供了事件处理函数，则绑定事件
+            if event_handler:
+                button.Bind(wx.EVT_BUTTON, event_handler)
+
+            buttons.append(button)
+        return buttons
 
 
 class SidebarPanel(wx.Panel):
@@ -45,6 +89,7 @@ class SidebarPanel(wx.Panel):
             self.data_choice = None
             self.progress_bar = None
             self.progress_text = None
+            self.button_factory = ButtonFactory()
             self.create_sidebar(on_load_data, on_save_data, on_save_analysis, 
                                on_clear_analysis, on_clear_data, on_quick_save, on_separator)
         except Exception as e:
@@ -106,17 +151,7 @@ class SidebarPanel(wx.Panel):
                 ("///", on_separator),
             ]
             
-            buttons = []
-            for label, event_handler in buttons_config:
-                button = wx.Button(self, label=label)
-                button.SetMinSize((basic_width, basic_height * 1.5))
-                button.SetMaxSize((basic_width, basic_height * 1.5))
-
-                # 如果提供了事件处理函数，则绑定事件
-                if event_handler:
-                    button.Bind(wx.EVT_BUTTON, event_handler)
-
-                buttons.append(button)
+            buttons = self.button_factory.create_buttons(self, buttons_config, basic_width, basic_height)
 
             # 添加按钮到布局，不伸缩，居中显示
             for button in buttons:

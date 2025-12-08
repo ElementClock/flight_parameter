@@ -13,6 +13,7 @@ import logging
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from abc import ABC, abstractmethod
 
 import pandas as pd
 import wx
@@ -31,25 +32,27 @@ logging.basicConfig(
 )
 
 
-class EventHandlers:
-    """事件处理类"""
+class BaseEventHandler(ABC):
+    """事件处理器基类"""
     
     def __init__(self, app_frame):
-        """初始化事件处理器
+        """初始化事件处理器基类
         
         Args:
             app_frame: 应用程序主窗口实例
         """
-        try:
-            self.app_frame = app_frame
-            self.current_progress = 0
-            # 创建线程池
-            self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-        except Exception as e:
-            logging.error(f"初始化事件处理器时出错: {str(e)}")
-            raise e
+        self.app_frame = app_frame
+
+    @abstractmethod
+    def handle(self, event):
+        """处理事件的抽象方法"""
+        pass
+
+
+class RouteVisualizationHandler(BaseEventHandler):
+    """航路点绘制事件处理器"""
     
-    def on_route_visualization(self, event):
+    def handle(self, event):
         """处理航路点绘制按钮点击事件"""
         try:
             # 导入航线可视化模块
@@ -97,8 +100,18 @@ class EventHandlers:
         except Exception as e:
             logging.error(f"处理航路点绘制时出错: {str(e)}")
             wx.MessageBox(f"航路点绘制时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+
+
+class DataLoaderHandler(BaseEventHandler):
+    """数据加载事件处理器"""
     
-    def load_data(self, event):
+    def __init__(self, app_frame):
+        super().__init__(app_frame)
+        self.current_progress = 0
+        # 创建线程池
+        self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        
+    def handle(self, event):
         """加载CSV数据文件"""
         try:
             with wx.FileDialog(
@@ -361,84 +374,12 @@ class EventHandlers:
             self.app_frame.sidebar_panel.show_progress(False)
         except Exception as e:
             logging.error(f"处理数据加载错误时出错: {str(e)}")
-    
-    def save_analysis(self, event):
-        """保存分析结果"""
-        try:
-            current_container = self.app_frame.data_manager.get_current_data()
-            if current_container:
-                # 确定文件标识符 (F: 飞行架次, D: 地面试车, N: 未开车)
-                identifier = "N"  # 默认为未开车
-                if (hasattr(current_container, 'engine_data') and 
-                    current_container.engine_data and 
-                    current_container.engine_data.get('has_takeoff_info')):
-                    # 检查是否有起飞信息来判断是飞行还是地面试验
-                    start_time = current_container.engine_data.get('takeoff_start_time')
-                    end_time = current_container.engine_data.get('takeoff_end_time')
-                    
-                    # 如果有明确的开关车时间，则认为是地面试验开车
-                    if start_time and end_time:
-                        identifier = "D"
-                        
-                        # 进一步检查是否是飞行架次（简单判断：持续时间超过一定阈值）
-                        try:
-                            duration = end_time - start_time
-                            # 如果发动机运行时间超过10分钟，认为是飞行架次
-                            if duration.total_seconds() > 600:
-                                identifier = "F"
-                        except:
-                            pass
-                
-                # 生成默认文件名
-                from datetime import datetime
-                import os
-                
-                # 使用当前时间作为文件时间部分
-                current_time = datetime.now().strftime("%Y%m%d")
-                default_filename_base = f"{identifier}{current_time}"
-                default_analysis_filename = f"{default_filename_base}_分析.txt"
-                
-                # 获取原始文件的目录，如果有的话
-                if hasattr(current_container, 'original_path') and current_container.original_path:
-                    save_directory = os.path.dirname(current_container.original_path)
-                else:
-                    # 如果没有原始路径信息，则保存到当前工作目录
-                    save_directory = os.getcwd()
-                
-                # 构建完整默认路径
-                default_analysis_path = os.path.join(save_directory, default_analysis_filename)
-                
-                with wx.FileDialog(
-                    self.app_frame,
-                    message="保存分析结果",
-                    defaultFile=default_analysis_path,  # 预填充默认文件名和路径
-                    wildcard="文本文件 (*.txt)|*.txt",
-                    style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
-                ) as fileDialog:
-                    if fileDialog.ShowModal() == wx.ID_CANCEL:
-                        return
 
-                    pathname = fileDialog.GetPath()
-                    if not pathname.endswith('.txt'):
-                        pathname += '.txt'
-                    # 确保目录存在
-                    os.makedirs(os.path.dirname(pathname) or '.', exist_ok=True)
-                    
-                    try:
-                        # 从当前数据容器中获取分析结果
-                        with open(pathname, 'w', encoding='utf-8') as f:
-                            f.write(current_container.analysis_result)
-                        self.app_frame.content_panel.set_formatted_text(f"分析结果已保存至: {pathname}")
-                    except Exception as e:
-                        logging.error(f"保存分析结果时出错: {str(e)}")
-                        wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
-            else:
-                wx.MessageBox("暂无分析数据可保存", "提示", wx.OK | wx.ICON_INFORMATION)
-        except Exception as e:
-            logging.error(f"保存分析结果时出错: {str(e)}")
-            wx.MessageBox(f"保存分析结果时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+
+class DataSaveHandler(BaseEventHandler):
+    """数据保存事件处理器"""
     
-    def save_current_data(self, event):
+    def handle(self, event):
         """保存当前选中的数据"""
         try:
             current_container = self.app_frame.data_manager.get_current_data()
@@ -511,15 +452,92 @@ class EventHandlers:
         except Exception as e:
             logging.error(f"保存当前数据时出错: {str(e)}")
             wx.MessageBox(f"保存当前数据时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+
+
+class AnalysisSaveHandler(BaseEventHandler):
+    """分析结果保存事件处理器"""
     
-    def remove_analysis(self, event):
-        """清除分析数据框信息"""
+    def handle(self, event):
+        """保存分析结果"""
         try:
-            self.app_frame.content_panel.set_formatted_text("")
+            current_container = self.app_frame.data_manager.get_current_data()
+            if current_container:
+                # 确定文件标识符 (F: 飞行架次, D: 地面试车, N: 未开车)
+                identifier = "N"  # 默认为未开车
+                if (hasattr(current_container, 'engine_data') and 
+                    current_container.engine_data and 
+                    current_container.engine_data.get('has_takeoff_info')):
+                    # 检查是否有起飞信息来判断是飞行还是地面试验
+                    start_time = current_container.engine_data.get('takeoff_start_time')
+                    end_time = current_container.engine_data.get('takeoff_end_time')
+                    
+                    # 如果有明确的开关车时间，则认为是地面试验开车
+                    if start_time and end_time:
+                        identifier = "D"
+                        
+                        # 进一步检查是否是飞行架次（简单判断：持续时间超过一定阈值）
+                        try:
+                            duration = end_time - start_time
+                            # 如果发动机运行时间超过10分钟，认为是飞行架次
+                            if duration.total_seconds() > 600:
+                                identifier = "F"
+                        except:
+                            pass
+                
+                # 生成默认文件名
+                from datetime import datetime
+                import os
+                
+                # 使用当前时间作为文件时间部分
+                current_time = datetime.now().strftime("%Y%m%d")
+                default_filename_base = f"{identifier}{current_time}"
+                default_analysis_filename = f"{default_filename_base}_分析.txt"
+                
+                # 获取原始文件的目录，如果有的话
+                if hasattr(current_container, 'original_path') and current_container.original_path:
+                    save_directory = os.path.dirname(current_container.original_path)
+                else:
+                    # 如果没有原始路径信息，则保存到当前工作目录
+                    save_directory = os.getcwd()
+                
+                # 构建完整默认路径
+                default_analysis_path = os.path.join(save_directory, default_analysis_filename)
+                
+                with wx.FileDialog(
+                    self.app_frame,
+                    message="保存分析结果",
+                    defaultFile=default_analysis_path,  # 预填充默认文件名和路径
+                    wildcard="文本文件 (*.txt)|*.txt",
+                    style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
+                ) as fileDialog:
+                    if fileDialog.ShowModal() == wx.ID_CANCEL:
+                        return
+
+                    pathname = fileDialog.GetPath()
+                    if not pathname.endswith('.txt'):
+                        pathname += '.txt'
+                    # 确保目录存在
+                    os.makedirs(os.path.dirname(pathname) or '.', exist_ok=True)
+                    
+                    try:
+                        # 从当前数据容器中获取分析结果
+                        with open(pathname, 'w', encoding='utf-8') as f:
+                            f.write(current_container.get_analysis_result())
+                        self.app_frame.content_panel.set_formatted_text(f"分析结果已保存至: {pathname}")
+                    except Exception as e:
+                        logging.error(f"保存分析结果时出错: {str(e)}")
+                        wx.MessageBox(f"保存文件时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+            else:
+                wx.MessageBox("暂无分析数据可保存", "提示", wx.OK | wx.ICON_INFORMATION)
         except Exception as e:
-            logging.error(f"清除分析时出错: {str(e)}")
+            logging.error(f"保存分析结果时出错: {str(e)}")
+            wx.MessageBox(f"保存分析结果时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+
+
+class DataClearHandler(BaseEventHandler):
+    """数据清除事件处理器"""
     
-    def remove_current_data(self, event):
+    def handle(self, event):
         """清除当前选中的数据"""
         try:
             current_key = self.app_frame.data_manager.current_data_key
@@ -555,26 +573,28 @@ class EventHandlers:
             if current_container:
                 text_content = (
                     f"文件名: {current_container.filename}\n"
-                    f"本次文件解析结果如下：\n{current_container.analysis_result}\n")
+                    f"本次文件解析结果如下：\n{current_container.get_analysis_result()}\n")
                 self.app_frame.content_panel.set_formatted_text(text_content)
         except Exception as e:
             logging.error(f"显示当前数据时出错: {str(e)}")
             self.app_frame.content_panel.set_formatted_text(f"显示当前数据时出错: {str(e)}")
+
+
+class AnalysisClearHandler(BaseEventHandler):
+    """分析清除事件处理器"""
     
-    def on_data_choice(self, event):
-        """处理数据选择变化事件"""
+    def handle(self, event):
+        """清除分析数据框信息"""
         try:
-            selection = self.app_frame.sidebar_panel.data_choice.GetSelection()
-            if selection != NOT_FOUND:
-                choices = self.app_frame.sidebar_panel.data_choice.GetItems()
-                key = choices[selection]
-                self.app_frame.data_manager.select_data(key)
-                self.display_current_data()
+            self.app_frame.content_panel.set_formatted_text("")
         except Exception as e:
-            logging.error(f"处理数据选择变化时出错: {str(e)}")
-            self.app_frame.content_panel.set_formatted_text(f"处理数据选择变化时出错: {str(e)}")
+            logging.error(f"清除分析时出错: {str(e)}")
+
+
+class QuickSaveHandler(BaseEventHandler):
+    """快捷保存事件处理器"""
     
-    def single_button_event_1(self, event):
+    def handle(self, event):
         """处理单个文件导出按钮点击事件"""
         try:
             # 获取当前选中的数据容器
@@ -635,7 +655,7 @@ class EventHandlers:
                 
                 # 保存分析结果文件
                 with open(default_analysis_path, 'w', encoding='utf-8') as f:
-                    f.write(current_container.analysis_result)
+                    f.write(current_container.get_analysis_result())
                 
                 # 显示保存结果
                 message = f"快捷保存完成！\n\n数据文件已保存至: {default_data_path}\n分析结果已保存至: {default_analysis_path}"
@@ -649,8 +669,46 @@ class EventHandlers:
         except Exception as e:
             logging.error(f"处理快捷保存按钮点击事件时出错: {str(e)}")
             wx.MessageBox(f"快捷保存时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+
+
+class DataChoiceHandler(BaseEventHandler):
+    """数据选择事件处理器"""
     
-    def on_close(self, event):
+    def handle(self, event):
+        """处理数据选择变化事件"""
+        try:
+            selection = self.app_frame.sidebar_panel.data_choice.GetSelection()
+            if selection != NOT_FOUND:
+                choices = self.app_frame.sidebar_panel.data_choice.GetItems()
+                key = choices[selection]
+                self.app_frame.data_manager.select_data(key)
+                self.display_current_data()
+        except Exception as e:
+            logging.error(f"处理数据选择变化时出错: {str(e)}")
+            self.app_frame.content_panel.set_formatted_text(f"处理数据选择变化时出错: {str(e)}")
+    
+    def display_current_data(self):
+        """显示当前选中数据的分析结果"""
+        try:
+            current_container = self.app_frame.data_manager.get_current_data()
+            if current_container:
+                text_content = (
+                    f"文件名: {current_container.filename}\n"
+                    f"本次文件解析结果如下：\n{current_container.get_analysis_result()}\n")
+                self.app_frame.content_panel.set_formatted_text(text_content)
+        except Exception as e:
+            logging.error(f"显示当前数据时出错: {str(e)}")
+            self.app_frame.content_panel.set_formatted_text(f"显示当前数据时出错: {str(e)}")
+
+
+class CloseHandler(BaseEventHandler):
+    """关闭事件处理器"""
+    
+    def __init__(self, app_frame):
+        super().__init__(app_frame)
+        self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        
+    def handle(self, event):
         """处理窗口关闭事件"""
         try:
             # 关闭线程池
@@ -659,3 +717,66 @@ class EventHandlers:
             self.app_frame.Destroy()
         except Exception as e:
             logging.error(f"处理窗口关闭事件时出错: {str(e)}")
+
+
+class EventHandlers:
+    """事件处理类"""
+    
+    def __init__(self, app_frame):
+        """初始化事件处理器
+        
+        Args:
+            app_frame: 应用程序主窗口实例
+        """
+        try:
+            self.app_frame = app_frame
+            
+            # 创建各类专门的事件处理器
+            self.route_visualization_handler = RouteVisualizationHandler(app_frame)
+            self.data_loader_handler = DataLoaderHandler(app_frame)
+            self.data_save_handler = DataSaveHandler(app_frame)
+            self.analysis_save_handler = AnalysisSaveHandler(app_frame)
+            self.data_clear_handler = DataClearHandler(app_frame)
+            self.analysis_clear_handler = AnalysisClearHandler(app_frame)
+            self.quick_save_handler = QuickSaveHandler(app_frame)
+            self.data_choice_handler = DataChoiceHandler(app_frame)
+            self.close_handler = CloseHandler(app_frame)
+        except Exception as e:
+            logging.error(f"初始化事件处理器时出错: {str(e)}")
+            raise e
+    
+    def on_route_visualization(self, event):
+        """处理航路点绘制按钮点击事件"""
+        self.route_visualization_handler.handle(event)
+    
+    def load_data(self, event):
+        """加载CSV数据文件"""
+        self.data_loader_handler.handle(event)
+    
+    def save_current_data(self, event):
+        """保存当前选中的数据"""
+        self.data_save_handler.handle(event)
+    
+    def save_analysis(self, event):
+        """保存分析结果"""
+        self.analysis_save_handler.handle(event)
+    
+    def remove_current_data(self, event):
+        """清除当前选中的数据"""
+        self.data_clear_handler.handle(event)
+    
+    def remove_analysis(self, event):
+        """清除分析数据框信息"""
+        self.analysis_clear_handler.handle(event)
+    
+    def single_button_event_1(self, event):
+        """处理单个文件导出按钮点击事件"""
+        self.quick_save_handler.handle(event)
+    
+    def on_data_choice(self, event):
+        """处理数据选择变化事件"""
+        self.data_choice_handler.handle(event)
+    
+    def on_close(self, event):
+        """处理窗口关闭事件"""
+        self.close_handler.handle(event)

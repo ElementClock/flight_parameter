@@ -11,7 +11,7 @@
 import logging
 
 # 项目模块导入
-from analysis.analysis_data import analysis_data, AnalysisResult as BaseAnalysisResult
+from analysis.data_analyzer import DataAnalyzer
 
 # 配置日志
 logging.basicConfig(
@@ -35,15 +35,9 @@ class DataContainer:
             original_path (str): 原始文件路径
         """
         try:
-            # 使用更灵活的方式处理对象属性，避免手动维护属性对应关系
             self.filename = filename
-            self.original_path = original_path  # 保存原始文件路径
+            self.original_path = original_path
             self.analysis_result_obj = analysis_result
-            
-            # 动态获取analysis_result的所有属性
-            for attr in dir(analysis_result):
-                if not attr.startswith('_'):  # 忽略私有属性
-                    setattr(self, attr, getattr(analysis_result, attr))
             
             # 合并文本分析结果
             text_parts = []
@@ -59,9 +53,26 @@ class DataContainer:
                 text_parts.append(analysis_result.text_cas)
             
             self.analysis_result = "\n".join(text_parts) if text_parts else ""
+            
+            # 保存特定的分析数据
+            self.df = getattr(analysis_result, 'df', None)
+            self.engine_data = getattr(analysis_result, 'engine_data', None)
+            self.fuel_data = getattr(analysis_result, 'fuel_data', None)
+            self.power_data = getattr(analysis_result, 'power_data', None)
+            self.cas_data = getattr(analysis_result, 'cas_data', None)
+            self.engine_start_time = getattr(analysis_result, 'engine_start_time', None)
+            self.engine_end_time = getattr(analysis_result, 'engine_end_time', None)
         except Exception as e:
             logging.error(f"初始化数据容器时出错: {str(e)}")
             raise e
+
+    def get_analysis_result(self):
+        """获取分析结果文本"""
+        return self.analysis_result
+        
+    def get_attribute(self, name, default=None):
+        """获取指定属性值"""
+        return getattr(self.analysis_result_obj, name, default)
 
 
 class DataManager:
@@ -72,6 +83,8 @@ class DataManager:
         try:
             self.data_containers = {}
             self.current_data_key = None
+            # 创建数据分析器实例
+            self.data_analyzer = DataAnalyzer()
         except Exception as e:
             logging.error(f"初始化数据管理器时出错: {str(e)}")
             raise e
@@ -90,7 +103,7 @@ class DataManager:
         """
         try:
             # 分析数据
-            analysis_result = analysis_data(df, progress_callback)
+            analysis_result = self.data_analyzer.analyze(df, progress_callback)
             
             # 创建数据容器
             data_container = DataContainer(analysis_result, filename, original_path)
