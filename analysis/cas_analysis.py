@@ -6,6 +6,24 @@ CAS告警分析模块
 ===============
 
 分析CAS告警数据，识别告警时间段、类型及持续时间统计。
+
+功能特性：
+---------
+1. 识别CAS告警时间段
+2. 分析不同告警类型的发生时间
+3. 提供告警持续时间统计
+4. 按照警告级、戒备级、提示级、状态级对告警分类
+
+使用方法：
+--------
+>>> analyzer = CasAnalysis()
+>>> result = analyzer.analyze(dataframe)
+>>> text_report = analyzer.generate_text(result)
+
+注意事项：
+--------
+- 输入数据必须包含飞行时间和CAS告警相关列
+- 需要cas_level.csv文件支持告警级别分类
 """
 
 import logging
