@@ -111,9 +111,6 @@ class DataAnalyzer:
             if progress_callback:
                 progress_callback(100, "分析完成")
                 
-            # 清理临时变量以释放内存
-            del engine_data, fuel_data, power_data, cas_data, text_engine, text_fuel, text_power, text_cas
-            
             return result
         except Exception as e:
             logging.error(f"分析飞行数据时出错: {str(e)}")
@@ -243,7 +240,8 @@ class DataAnalyzer:
             # 将"飞行时间"列移动到第一列
             if '飞行时间' in df_filtered.columns:
                 flight_time_col = df_filtered.pop('飞行时间')
-                df_filtered.insert(0, '飞行时间', flight_time_col)
+                # 使用pd.concat替代insert以避免DataFrame碎片化警告
+                df_filtered = pd.concat([flight_time_col, df_filtered], axis=1)
             
             return df_filtered
         except Exception as e:

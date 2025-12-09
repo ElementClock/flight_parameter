@@ -101,9 +101,6 @@ class CasAnalysis(AnalysisInterface):
 
             cas_result['alarms'] = alarms
             
-            # 清理临时数据以释放内存
-            del df_cas
-            
             return cas_result
         except Exception as e:
             logging.error(f"CAS分析过程中出错: {e}")

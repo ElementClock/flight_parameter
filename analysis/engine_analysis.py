@@ -84,7 +84,16 @@ class EngineAnalysis(AnalysisInterface):
             return result
         except Exception as e:
             logging.error(f"分析发动机数据时出错: {str(e)}")
-            return {'errors': [f"分析发动机数据时出错: {str(e)}"]}
+            return {
+                'type': 'engine',
+                'has_takeoff_info': False,
+                'takeoff_info': [],
+                'start_time': None,
+                'end_time': None,
+                'takeoff_start_time': None,
+                'takeoff_end_time': None,
+                'errors': [f"分析发动机数据时出错: {str(e)}"]
+            }
     
     def _find_engine_takeoff_info(self, df, time_column) -> List[Dict[str, Any]]:
         """查找发动机启动和关车时间信息

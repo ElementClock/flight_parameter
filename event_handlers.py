@@ -637,8 +637,24 @@ class QuickSaveHandler(BaseEventHandler):
                 # 如果没有原始路径信息，则保存到当前工作目录
                 save_directory = os.getcwd()
             
-            # 使用当前时间作为文件时间部分
-            current_time = datetime.now().strftime("%Y%m%d")
+            # 使用飞行数据中的时间作为文件时间部分，而不是系统当前时间
+            flight_time = None
+            # 尝试从发动机数据获取时间
+            if (hasattr(current_container, 'engine_data') and 
+                current_container.engine_data):
+                flight_time = current_container.engine_data.get('takeoff_start_time')
+            
+            # 如果发动机数据中没有时间，尝试从数据帧获取
+            if flight_time is None and hasattr(current_container, 'df') and current_container.df is not None:
+                if '飞行时间' in current_container.df.columns and len(current_container.df) > 0:
+                    flight_time = current_container.df['飞行时间'].iloc[0]
+            
+            # 如果仍然没有时间数据，则使用当前时间
+            if flight_time is not None:
+                current_time = flight_time.strftime("%Y%m%d")
+            else:
+                current_time = datetime.now().strftime("%Y%m%d")
+                
             default_filename_base = f"{identifier}{current_time}"
             
             # 创建保存数据和分析结果的默认路径
