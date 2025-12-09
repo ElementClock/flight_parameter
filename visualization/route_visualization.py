@@ -16,6 +16,20 @@ from matplotlib.figure import Figure
 import os
 from abc import ABC, abstractmethod
 from openpyxl import Workbook
+import logging
+import os
+from typing import Dict, List, Tuple, Any
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+import numpy as np
+from shapely.geometry import Point
+import rtree as index
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class CoordinateParser(ABC):
@@ -362,12 +376,12 @@ class ExcelDataLoader(DataLoader):
         try:
             df = pd.read_excel(file_path, sheet_name=sheet_name)
         except Exception as e:
-            print(f"读取Excel文件失败: {e}")
+            logger.error(f"读取Excel文件失败: {e}")
             return {}, []
         
         # 检查是否是空的工作表
         if df.empty:
-            print(f"工作表 '{sheet_name}' 是空的")
+            logger.warning(f"工作表 '{sheet_name}' 是空的")
             return {}, []
         
         waypoints = {}
@@ -411,7 +425,7 @@ class ExcelDataLoader(DataLoader):
                 }
                 route_order.append(name)
             else:
-                print(f"警告: 无法解析航路点 {name} 的坐标: {coord}")
+                logger.warning(f"警告: 无法解析航路点 {name} 的坐标: {coord}", exc_info=coord_error)
         
         return waypoints, route_order
 

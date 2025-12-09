@@ -5,7 +5,27 @@
 发动机分析模块
 ==============
 
-分析飞行数据中的发动机相关信息。
+分析飞行数据中的发动机相关信息，包括发动机启动和关车时间、转速变化、点火状态等。
+
+功能特性：
+---------
+1. 自动识别发动机启动和关车时间点
+2. 检测发动机转速变化情况
+3. 分析发动机点火状态
+4. 识别发动机起飞状态时间段
+5. 检测发动机重启事件
+
+使用方法：
+--------
+>>> analyzer = EngineAnalysis()
+>>> result = analyzer.analyze(dataframe)
+>>> text_report = analyzer.generate_text(result)
+
+注意事项：
+--------
+- 输入数据必须包含飞行时间和发动机转速列
+- 发动机转速单位为百分比（0-100）
+- 发动机启动阈值为10%，关车阈值为10%
 """
 
 import logging
@@ -26,7 +46,23 @@ logging.basicConfig(
 
 
 class EngineAnalysis(AnalysisInterface):
-    """发动机分析类"""
+    """发动机分析类
+    
+    该类提供了完整的发动机数据分析功能，包括数据解析、特征提取和报告生成。
+    
+    属性：
+    ------
+    无
+    
+    方法：
+    -----
+    analyze(df, **kwargs) -> Dict[str, Any]
+        分析发动机数据
+    _find_engine_takeoff_info(df, time_column) -> List[Dict[str, Any]]
+        查找发动机启动和关车时间信息
+    generate_text(engine_data: Dict[str, Any]) -> str
+        生成带标识符的发动机分析文本输出
+    """
     
     def analyze(self, df, **kwargs) -> Dict[str, Any]:
         """分析发动机数据
@@ -139,10 +175,7 @@ class EngineAnalysis(AnalysisInterface):
                 is_running = False
                 
                 # 遍历数据查找启动和关车时间点
-                for j in range(len(rpm_series)):
-                    rpm = rpm_series.iloc[j]
-                    time = time_series.iloc[j]
-                    
+                for rpm, time in zip(rpm_series, time_series):
                     # 检查是否为有效数值
                     if pd.isna(rpm):
                         continue

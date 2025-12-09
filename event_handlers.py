@@ -416,11 +416,12 @@ class DataSaveHandler(BaseEventHandler):
                 default_data_filename = f"{default_filename_base}.csv"
                 
                 # 获取原始文件的目录，如果有的话
+                save_directory = os.getcwd()  # 默认为当前工作目录
                 if hasattr(current_container, 'original_path') and current_container.original_path:
-                    save_directory = os.path.dirname(current_container.original_path)
-                else:
-                    # 如果没有原始路径信息，则保存到当前工作目录
-                    save_directory = os.getcwd()
+                    original_dir = os.path.dirname(current_container.original_path)
+                    # 确保目录路径是安全的
+                    if os.path.isdir(original_dir):
+                        save_directory = original_dir
                 
                 # 构建完整默认路径
                 default_data_path = os.path.join(save_directory, default_data_filename)

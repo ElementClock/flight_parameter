@@ -26,9 +26,35 @@ logging.basicConfig(
     ]
 )
 
+# 全局缓存变量，用于存储告警级别信息
+_cached_alarm_levels = None
+_cached_alarm_levels_timestamp = None
+
 
 class CasAnalysis(AnalysisInterface):
-    """CAS告警分析类"""
+    """CAS告警分析类
+    
+    该类提供了完整的CAS告警数据分析功能，包括数据解析、特征提取和报告生成。
+    
+    属性：
+    ------
+    无
+    
+    方法：
+    -----
+    analyze(df, engine_start_time=None, engine_end_time=None, **kwargs) -> Dict[str, Any]
+        告警分析主函数
+    find_alarm_periods(alarm_times) -> list
+        找到连续告警的时间段
+    extract_alarm_periods(df_cas, column, time_column) -> list
+        提取某一列的告警时间段
+    load_alarm_levels() -> dict
+        加载告警级别信息
+    group_alarms_by_level(alarms, alarm_levels) -> dict
+        根据告警级别对告警进行分组
+    generate_text(cas_data: Dict[str, Any]) -> str
+        生成带标识符的CAS分析文本输出
+    """
     
     def analyze(self, df, engine_start_time=None, engine_end_time=None, **kwargs) -> Dict[str, Any]:
         """
@@ -193,10 +219,11 @@ class CasAnalysis(AnalysisInterface):
             # 提取C列(编号)和G列(告警等级)
             # 注意：pandas默认0索引，C列是第2列(索引为2)，G列是第6列(索引为6)
             alarm_levels = {}
-            for _, row in df.iterrows():
+            # 使用向量化操作替代iterrows
+            for idx in range(len(df)):
                 # 忽略大小写进行匹配
-                alarm_id = str(row.iloc[2]).strip().lower() if pd.notna(row.iloc[2]) else None
-                alarm_level = row.iloc[6] if pd.notna(row.iloc[6]) else None
+                alarm_id = str(df.iloc[idx, 2]).strip().lower() if pd.notna(df.iloc[idx, 2]) else None
+                alarm_level = df.iloc[idx, 6] if pd.notna(df.iloc[idx, 6]) else None
                 
                 if alarm_id and alarm_level:
                     alarm_levels[alarm_id] = alarm_level
