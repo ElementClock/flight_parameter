@@ -64,6 +64,14 @@ class EngineAnalysis(AnalysisInterface):
         生成带标识符的发动机分析文本输出
     """
     
+    def get_name(self) -> str:
+        """获取分析器名称
+        
+        Returns:
+            str: 分析器名称
+        """
+        return "engine"
+    
     def analyze(self, df, **kwargs) -> Dict[str, Any]:
         """分析发动机数据
         

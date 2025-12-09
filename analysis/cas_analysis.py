@@ -74,6 +74,14 @@ class CasAnalysis(AnalysisInterface):
         生成带标识符的CAS分析文本输出
     """
     
+    def get_name(self) -> str:
+        """获取分析器名称
+        
+        Returns:
+            str: 分析器名称
+        """
+        return "cas"
+    
     def analyze(self, df, engine_start_time=None, engine_end_time=None, **kwargs) -> Dict[str, Any]:
         """
         告警分析主函数

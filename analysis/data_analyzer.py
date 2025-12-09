@@ -16,7 +16,8 @@ from typing import Callable, Optional
 import pandas as pd
 
 # 项目模块导入
-from analysis.analysis_interface import AnalysisInterface, AnalysisResult
+from analysis.analysis_interface import AnalysisResult
+from analysis.plugin_manager import PluginManager, PluginConfig
 from analysis.engine_analysis import EngineAnalysis
 from analysis.fuel_analysis import FuelAnalysis
 from analysis.power_analysis import PowerAnalysis
@@ -37,10 +38,19 @@ class DataAnalyzer:
     
     def __init__(self):
         """初始化数据分析师"""
-        self.engine_analysis = EngineAnalysis()
-        self.fuel_analysis = FuelAnalysis()
-        self.power_analysis = PowerAnalysis()
-        self.cas_analysis = CasAnalysis()
+        # 创建插件管理器
+        self.plugin_manager = PluginManager()
+        
+        # 注册插件及配置
+        engine_config = PluginConfig("engine", priority=40)
+        fuel_config = PluginConfig("fuel", priority=30)
+        power_config = PluginConfig("power", priority=20)
+        cas_config = PluginConfig("cas", priority=10, dependencies=["engine"])
+        
+        self.plugin_manager.register_plugin("engine", EngineAnalysis(), engine_config)
+        self.plugin_manager.register_plugin("fuel", FuelAnalysis(), fuel_config)
+        self.plugin_manager.register_plugin("power", PowerAnalysis(), power_config)
+        self.plugin_manager.register_plugin("cas", CasAnalysis(), cas_config)
     
     def analyze(self, df, progress_callback: Optional[Callable] = None):
         """分析飞行数据主函数
@@ -61,51 +71,29 @@ class DataAnalyzer:
                 progress_callback(30, "正在转换列名...")
             df = self.convert_flight_name(df)
             
-            # 动力专业汇报
+            # 使用插件管理器执行所有分析
             if progress_callback:
-                progress_callback(50, "正在分析发动机数据...")
-            engine_data = self.engine_analysis.analyze(df)
+                progress_callback(50, "正在分析数据...")
+            analysis_results = self.plugin_manager.execute_analysis(df)
             
-            # 燃油系统分析
-            if progress_callback:
-                progress_callback(60, "正在分析燃油系统数据...")
-            fuel_data = self.fuel_analysis.analyze(df)
-            
-            # 电源系统分析
-            if progress_callback:
-                progress_callback(65, "正在分析电源系统数据...")
-            power_data = self.power_analysis.analyze(df)
-            
-            # CAS汇报
-            if progress_callback:
-                progress_callback(70, "正在分析CAS告警...")
-            cas_data = self.cas_analysis.analyze(
-                df, 
-                engine_data.get('takeoff_start_time'), 
-                engine_data.get('takeoff_end_time')
-            )
-
             # 生成带标识符的文本输出
             if progress_callback:
                 progress_callback(90, "正在生成分析报告...")
-            text_engine = self.engine_analysis.generate_text(engine_data)
-            text_fuel = self.fuel_analysis.generate_text(fuel_data)
-            text_power = self.power_analysis.generate_text(power_data)
-            text_cas = self.cas_analysis.generate_text(cas_data)
-
+            reports = self.plugin_manager.generate_reports(analysis_results)
+            
             # 将所有结果封装到AnalysisResult对象中
             result = AnalysisResult(
-                text_engine=text_engine,
-                text_fuel=text_fuel,
-                text_power=text_power,
-                text_cas=text_cas,
-                engine_start_time=engine_data.get('takeoff_start_time'),
-                engine_end_time=engine_data.get('takeoff_end_time'),
+                text_engine=reports.get('engine', ''),
+                text_fuel=reports.get('fuel', ''),
+                text_power=reports.get('power', ''),
+                text_cas=reports.get('cas', ''),
+                engine_start_time=analysis_results.get('engine', {}).get('takeoff_start_time'),
+                engine_end_time=analysis_results.get('engine', {}).get('takeoff_end_time'),
                 df=df,
-                engine_data=engine_data,
-                fuel_data=fuel_data,
-                power_data=power_data,
-                cas_data=cas_data
+                engine_data=analysis_results.get('engine', {}),
+                fuel_data=analysis_results.get('fuel', {}),
+                power_data=analysis_results.get('power', {}),
+                cas_data=analysis_results.get('cas', {})
             )
             
             if progress_callback:

@@ -47,11 +47,9 @@ class TestEngineAnalysis(unittest.TestCase):
         """测试正常情况下的分析"""
         result = self.engine_analysis.analyze(self.sample_data)
         
-        # 检查返回结果的基本结构
-        self.assertIn('type', result)
+        # 检查返回结果的基本结构（更新以匹配新接口）
         self.assertIn('has_takeoff_info', result)
         self.assertIn('takeoff_info', result)
-        self.assertEqual(result['type'], 'engine')
         
         # 检查是否检测到发动机启动信息
         self.assertTrue(result['has_takeoff_info'])

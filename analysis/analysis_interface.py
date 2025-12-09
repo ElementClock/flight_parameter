@@ -50,6 +50,14 @@ class AnalysisResult:
 class AnalysisInterface(ABC):
     """分析接口基类"""
     
+    def get_name(self) -> str:
+        """获取分析器名称
+        
+        Returns:
+            str: 分析器名称
+        """
+        return self.__class__.__name__
+    
     @abstractmethod
     def analyze(self, df, **kwargs) -> Dict[str, Any]:
         """分析数据的抽象方法
