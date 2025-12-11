@@ -58,16 +58,32 @@ class AppTitleManager:
         
         # 彩蛋标题及其出现概率 (标题, 概率)
         # 概率为0-1之间的浮点数，例如0.1表示10%的概率
-        self.easter_egg_title = None
-        self.easter_egg_probability = 0.0
+        self.easter_egg_title = "哈基元说：我的歌单里没有慢歌，毕竟可爱是不能减速的！"
+        self.easter_egg_base_probability = 0.03  # 初始概率
+        self.easter_egg_current_probability = self.easter_egg_base_probability  # 当前概率
+        self.easter_egg_consecutive_misses = 0  # 连续未出现次数
     
     def get_random_title(self):
         """获取随机标题"""
-        # 如果设置了彩蛋标题并且随机数落在彩蛋概率范围内，则返回彩蛋标题
-        if self.easter_egg_title and random.random() < self.easter_egg_probability:
+        # 检查是否触发彩蛋标题
+        if self.easter_egg_title and random.random() < self.easter_egg_current_probability:
+            # 彩蛋标题被选中，重置连续未出现次数和当前概率
+            self.easter_egg_consecutive_misses = 0
+            self.easter_egg_current_probability = self.easter_egg_base_probability
             return self.easter_egg_title
-        
-        # 否则从普通标题中随机选择
+        else:
+            # 只有在彩蛋未被选中的情况下才增加连续未出现次数并调整概率
+            if self.easter_egg_title:
+                # 彩蛋未被选中，增加连续未出现次数，并提高下次出现概率
+                self.easter_egg_consecutive_misses += 1
+                # 每次未出现，概率增加初始概率的值，但不超过0.5
+                self.easter_egg_current_probability = min(
+                    self.easter_egg_base_probability + 
+                    self.easter_egg_consecutive_misses * self.easter_egg_base_probability,
+                    0.5
+                )
+            
+        # 返回普通标题
         return random.choice(self.title_options)
     
     def add_title_option(self, title):
@@ -87,7 +103,9 @@ class AppTitleManager:
             probability (float): 出现概率，0-1之间，例如0.1表示10%
         """
         self.easter_egg_title = title
-        self.easter_egg_probability = max(0.0, min(1.0, probability))  # 限制在0-1之间
+        self.easter_egg_base_probability = max(0.0, min(1.0, probability))  # 限制在0-1之间
+        self.easter_egg_current_probability = self.easter_egg_base_probability  # 重置当前概率
+        self.easter_egg_consecutive_misses = 0  # 重置连续未出现次数
     
     def get_all_titles(self):
         """获取所有标题选项"""
@@ -162,10 +180,6 @@ class AppFrame(wx.Frame):
 
             # 创建标题管理器
             self.title_manager = AppTitleManager()
-            
-            # 设置彩蛋标题示例（您可以根据需要修改）
-            # 这里设置为10%的概率出现
-            self.title_manager.set_easter_egg("哈基元说：我的歌单里没有慢歌，毕竟可爱是不能减速的！", 0.05)
             
             # 如果没有提供标题，则随机生成一个
             if title is None:
