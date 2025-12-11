@@ -21,6 +21,7 @@ import ctypes
 import logging
 import os
 import sys
+import random
 from abc import ABC, abstractmethod
 
 import wx
@@ -39,6 +40,58 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+
+class AppTitleManager:
+    """应用程序标题管理器"""
+    
+    def __init__(self):
+        """初始化标题管理器"""
+        # 定义标题选项列表，便于添加新内容
+        self.title_options = [
+            "哈基元说：曼波波波，哈基米沃南北绿豆，阿西嘎呀压库乃龙，哈，呵哈，呵哈，呵哈，呵哈，哈基米起床，呵哈，呵啊，呵，呵啊，呵啊，呵哈，嘿，叮咚咚，曼波波波，哈基米沃南北绿豆，阿西嘎呀压库乃龙",
+            "哈基元说：哈基米南北路多~阿西噶阿西~阿西噶哈雅酷奶农~哈基米哈基~哈基米南北路多~阿西哈雅酷奶农~哈基米曼波雅噗雅噗~有特有特哦吗哈基米曼波~哈基米南北路多~阿西噶哈雅酷奶农~马吉利哇哈亚曼波",
+            "哈基元说：别问我兜里有什么，不是南北绿豆，就是没唱完的曼波小调～",
+            "哈基元说：别催我别催我，再唱一遍 “南北绿豆”，脚步自然就快起来啦！",
+            "哈基元说：我立志当曼波节奏大师，天天在家练打节拍，结果把楼下的大爷吵得上来投诉，还非要跟我讨教 “哈基 哈基” 的唱法～"
+        ]
+        
+        # 彩蛋标题及其出现概率 (标题, 概率)
+        # 概率为0-1之间的浮点数，例如0.1表示10%的概率
+        self.easter_egg_title = None
+        self.easter_egg_probability = 0.0
+    
+    def get_random_title(self):
+        """获取随机标题"""
+        # 如果设置了彩蛋标题并且随机数落在彩蛋概率范围内，则返回彩蛋标题
+        if self.easter_egg_title and random.random() < self.easter_egg_probability:
+            return self.easter_egg_title
+        
+        # 否则从普通标题中随机选择
+        return random.choice(self.title_options)
+    
+    def add_title_option(self, title):
+        """添加新的标题选项
+        
+        Args:
+            title (str): 要添加的标题
+        """
+        if title not in self.title_options:
+            self.title_options.append(title)
+    
+    def set_easter_egg(self, title, probability):
+        """设置彩蛋标题和出现概率
+        
+        Args:
+            title (str): 彩蛋标题
+            probability (float): 出现概率，0-1之间，例如0.1表示10%
+        """
+        self.easter_egg_title = title
+        self.easter_egg_probability = max(0.0, min(1.0, probability))  # 限制在0-1之间
+    
+    def get_all_titles(self):
+        """获取所有标题选项"""
+        return self.title_options.copy()
 
 
 class UIFactory(ABC):
@@ -88,12 +141,12 @@ class AppFrame(wx.Frame):
     # 展开模式：0=向内展开(压缩内容区域)，1=向外展开(窗口扩展)
     EXPAND_MODE = 0
 
-    def __init__(self, parent=None, title="飞行参数分析工具", ui_factory=None):
+    def __init__(self, parent=None, title=None, ui_factory=None):
         """初始化应用程序窗口
         
         Args:
             parent: 父窗口，默认为None
-            title: 窗口标题，默认为"飞行参数分析工具"
+            title: 窗口标题，如果为None则随机生成
             ui_factory: UI工厂实例，用于创建UI组件
         """
         try:
@@ -106,6 +159,17 @@ class AppFrame(wx.Frame):
             except (AttributeError, OSError) as e:
                 # 在不支持PerMonitorV2的系统上降级处理
                 logging.warning(f"设置高DPI感知失败: {e}")
+
+            # 创建标题管理器
+            self.title_manager = AppTitleManager()
+            
+            # 设置彩蛋标题示例（您可以根据需要修改）
+            # 这里设置为10%的概率出现
+            self.title_manager.set_easter_egg("哈基元说：我的歌单里没有慢歌，毕竟可爱是不能减速的！", 0.05)
+            
+            # 如果没有提供标题，则随机生成一个
+            if title is None:
+                title = self.title_manager.get_random_title()
 
             # 自动按比例获取窗口大小
             width, height, app_init_x, app_init_y = calculate_window_geometry()
