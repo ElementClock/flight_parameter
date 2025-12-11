@@ -742,6 +742,7 @@ class BatchProcessHandler(BaseEventHandler):
     def __init__(self, app_frame):
         super().__init__(app_frame)
         self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        self.encoding_cache = {}  # 添加编码缓存以提高性能
         
     def handle(self, event):
         """处理批量处理按钮点击事件"""
@@ -783,29 +784,40 @@ class BatchProcessHandler(BaseEventHandler):
             if total_files == 0:
                 return "未找到需要处理的文件", [], 0, 0
                 
-            processed_count = 0
-            error_files = []
-            
             # 创建data_deal文件夹
             output_folder = os.path.join(folder_path, "data_deal")
             os.makedirs(output_folder, exist_ok=True)
             
-            # 处理每个文件
-            for i, file_path in enumerate(unmatched_files):
-                try:
+            # 使用线程池并行处理文件以提高I/O性能
+            processed_count = 0
+            error_files = []
+            
+            # 动态调整线程数：文件越多，使用的线程越多（但不超过系统限制）
+            optimal_workers = min(MAX_WORKERS, max(1, total_files // 2))
+            
+            # 使用线程池并行处理文件
+            futures = []
+            with ThreadPoolExecutor(max_workers=optimal_workers) as executor:
+                for i, file_path in enumerate(unmatched_files):
+                    future = executor.submit(self._process_single_file, file_path, output_folder, i, total_files)
+                    futures.append((future, file_path, i))
+                
+                # 收集结果
+                for future, file_path, index in futures:
+                    try:
+                        future.result()  # 等待任务完成
+                        processed_count += 1
+                    except Exception as e:
+                        logging.error(f"处理文件 {file_path} 时出错: {str(e)}")
+                        error_files.append((file_path, str(e)))
+                    
                     # 更新进度
-                    progress = int((i / total_files) * 100)
-                    self.app_frame.sidebar_panel.update_progress(progress, f"正在处理: {os.path.basename(file_path)}")
-                    
-                    # 处理单个文件
-                    self._process_single_file(file_path, output_folder)
-                    processed_count += 1
-                except Exception as e:
-                    logging.error(f"处理文件 {file_path} 时出错: {str(e)}")
-                    error_files.append((file_path, str(e)))
-                    
+                    progress = int(((processed_count + len(error_files)) / total_files) * 100)
+                    wx.CallAfter(self.app_frame.sidebar_panel.update_progress, progress, 
+                                 f"已完成: {processed_count}/{total_files}")
+            
             # 完成处理
-            self.app_frame.sidebar_panel.update_progress(100, "处理完成")
+            wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 100, "处理完成")
             return "批量处理完成", error_files, total_files, processed_count
         except Exception as e:
             logging.error(f"批量处理过程中出错: {str(e)}")
@@ -833,16 +845,22 @@ class BatchProcessHandler(BaseEventHandler):
                 unmatched_files.append(file_path)
         return unmatched_files
         
-    def _process_single_file(self, file_path, output_folder):
+    def _process_single_file(self, file_path, output_folder, index, total_files):
         """处理单个CSV文件"""
         try:
-            # 检测文件编码
-            encoding = self._detect_file_encoding(file_path)
+            # 更新进度
+            filename = os.path.basename(file_path)
+            wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
+                         int((index / total_files) * 5), 
+                         f"正在处理: {filename}")
+            
+            # 检测文件编码（使用缓存）
+            encoding = self._detect_file_encoding_cached(file_path)
             
             # 读取CSV文件
             df = pd.read_csv(file_path, encoding=encoding)
             
-            # 分析数据
+            # 分析数据（复用DataManager实例）
             data_manager = self.app_frame.data_manager
             analysis_result = data_manager.data_analyzer.analyze(df)
             
@@ -862,13 +880,18 @@ class BatchProcessHandler(BaseEventHandler):
             logging.error(f"处理单个文件 {file_path} 时出错: {str(e)}")
             raise e
             
-    def _detect_file_encoding(self, filepath, encodings=['utf-8', 'gbk', 'gb2312', 'latin1']):
-        """检测文件编码"""
+    def _detect_file_encoding_cached(self, filepath, encodings=['utf-8', 'gbk', 'gb2312', 'latin1']):
+        """检测文件编码（带缓存）"""
+        # 检查缓存
+        if filepath in self.encoding_cache:
+            return self.encoding_cache[filepath]
+            
         for encoding in encodings:
             try:
                 with open(filepath, 'r', encoding=encoding) as f:
                     f.read(1024)  # 读取前1024个字符
                 logging.info(f"使用 {encoding} 编码成功读取文件头部")
+                self.encoding_cache[filepath] = encoding  # 缓存结果
                 return encoding
             except UnicodeDecodeError:
                 logging.warning(f"使用 {encoding} 编码读取文件失败")
