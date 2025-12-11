@@ -148,7 +148,7 @@ class SidebarPanel(wx.Panel):
                 ("清除分析", on_clear_analysis),
                 ("清除数据", on_clear_data),
                 ("快捷保存", on_quick_save),
-                ("///", on_separator),
+                ("批量处理", on_separator),  # 将"///"改为"批量处理"
             ]
             
             buttons = self.button_factory.create_buttons(self, buttons_config, basic_width, basic_height)

@@ -87,7 +87,8 @@
    - 跟踪原始文件路径
 
 5. **分析模块** ([analysis/](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis))
-   - [analysis_data.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/analysis_data.py)：主分析流程，协调各专业分析模块
+   - [data_analyzer.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/data_analyzer.py)：主分析流程，协调各专业分析模块
+   - [plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/plugin_manager.py)：插件管理器，负责管理分析插件的生命周期
    - [engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/engine_analysis.py)：发动机参数分析
    - [cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/cas_analysis.py)：CAS告警分析
    - [fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/fuel_analysis.py)：燃油系统分析
@@ -95,6 +96,46 @@
 
 6. **工具函数** ([utils.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/utils.py))
    - 提供辅助函数，如窗口尺寸计算等
+
+## 插件化架构
+
+### 架构概述
+
+本项目采用插件化架构设计，通过插件管理器([plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/plugin_manager.py))来管理各个分析模块。这种设计具有以下优点：
+
+1. **模块解耦**：各分析模块相互独立，降低模块间的耦合度
+2. **易于扩展**：可以方便地添加新的分析模块
+3. **灵活配置**：支持插件的启用/禁用、优先级设置和依赖关系管理
+4. **统一接口**：所有插件都遵循统一的接口规范
+
+### 插件接口
+
+所有分析插件都实现`AnalysisInterface`接口：
+
+```python
+class AnalysisInterface(ABC):
+    def get_name(self) -> str:
+        """获取分析器名称"""
+        pass
+    
+    @abstractmethod
+    def analyze(self, df, **kwargs) -> Dict[str, Any]:
+        """分析数据的抽象方法"""
+        pass
+    
+    @abstractmethod
+    def generate_text(self, analysis_data: Dict[str, Any]) -> str:
+        """生成分析结果文本的抽象方法"""
+        pass
+```
+
+### 插件管理
+
+插件管理器支持以下功能：
+- 插件注册与注销
+- 插件配置（启用/禁用、优先级设置）
+- 插件依赖关系管理
+- 插件执行顺序控制
 
 ## 分析功能详解
 
@@ -115,7 +156,7 @@
 - 发动机重启事件
 
 #### 调用函数
-- `analyze_engine(df)`：主分析函数
+- `analyze(df)`：主分析函数
 
 ### CAS告警分析 ([cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/cas_analysis.py))
 
@@ -133,7 +174,7 @@
 - 告警级别分类（警告级、戒备级、提示级、状态级）
 
 #### 调用函数
-- `analyze_cas(df, engine_start_time, engine_end_time)`：主分析函数
+- `analyze(df, engine_start_time, engine_end_time)`：主分析函数
 - `find_alarm_periods(alarm_times)`：查找连续告警时间段
 - `extract_alarm_periods(df_cas, column)`：提取某一列的告警时间段
 - `load_alarm_levels()`：加载告警级别信息
@@ -157,8 +198,8 @@
 - 传感器数据差异检测
 
 #### 调用函数
-- `analyze_fuel(df)`：主分析函数
-- `generate_fuel_text_with_markers(fuel_data)`：生成格式化文本输出
+- `analyze(df)`：主分析函数
+- `generate_text(fuel_data)`：生成格式化文本输出
 
 ### 电源系统分析 ([power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/power_analysis.py))
 
@@ -176,8 +217,8 @@
 - 发电机负载状态
 
 #### 调用函数
-- `analyze_power(df)`：主分析函数
-- `generate_power_text_with_markers(power_data)`：生成格式化文本输出
+- `analyze(df)`：主分析函数
+- `generate_text(power_data)`：生成格式化文本输出
 
 ### 标识符识别规则
 
@@ -235,23 +276,34 @@ pyinstaller --onefile --windowed app.py
 
 ```
 flight_parameter/
-├── analysis/                 # 分析模块
-│   ├── analysis_data.py      # 主分析流程
-│   ├── cas_analysis.py       # CAS告警分析
-│   ├── engine_analysis.py    # 发动机分析
-│   ├── fuel_analysis.py      # 燃油系统分析
-│   └── power_analysis.py     # 电源系统分析
+├── analysis/                  # 分析模块
+│   ├── __init__.py
+│   ├── analysis_interface.py  # 分析接口定义
+│   ├── plugin_manager.py      # 插件管理器
+│   ├── data_analyzer.py       # 主分析流程
+│   ├── cas_analysis.py        # CAS告警分析
+│   ├── engine_analysis.py     # 发动机分析
+│   ├── fuel_analysis.py       # 燃油系统分析
+│   └── power_analysis.py      # 电源系统分析
+├── tests/                     # 测试用例
+│   ├── __init__.py
+│   ├── test_data/             # 测试数据
+│   ├── test_engine_analysis.py
+│   ├── test_data_analyzer.py
+│   ├── test_plugin_manager.py
+│   └── test_integration.py
 ├── visualization/             # 可视化模块
 │   └── route_visualization.py # 航线可视化
 ├── oldfile/                  # 旧版本文件（历史版本，不再维护）
-│   ├── App_fparameter.py     # 旧版基于Tkinter的实现
-│   └── App_fparameter_wx.py  # 旧版基于wxPython的实现
+│   ├── App_fparameter.py      # 旧版基于Tkinter的实现
+│   └── App_fparameter_wx.py   # 旧版基于wxPython的实现
 ├── app.py                    # 主程序（当前版本）
 ├── data_manager.py           # 数据管理器
 ├── event_handlers.py         # 事件处理器
 ├── ui_components.py          # UI组件
 ├── utils.py                  # 工具函数
 ├── requirements.txt          # 项目依赖
+├── DEVELOPING.md             # 开发者文档
 └── readme.md                 # 项目说明文档
 ```
 
@@ -260,6 +312,7 @@ flight_parameter/
 - 采用模块化设计，各功能模块职责分离
 - UI与业务逻辑分离，便于维护和扩展
 - 遵循Python编码规范
+- 使用插件化架构提高可扩展性
 
 ## 版本说明
 
@@ -273,11 +326,11 @@ flight_parameter/
 
 ## 待办事项
 
-- [ ] 分离专业分析的子函数功能
 - [ ] 增强错误处理机制
 - [ ] 优化用户界面体验
 - [ ] 增加更多分析模块（如液压、环控等系统）
 - [ ] 完善README中的功能说明和使用指南
+- [ ] 增加更多测试用例，提高代码覆盖率
 
 ## 许可证
 
@@ -288,3 +341,4 @@ flight_parameter/
 - **v1.0**：初始版本，包含基本的飞行参数分析功能
 - **v1.1**：重构代码结构，分离UI组件和业务逻辑
 - **v2.0**：重新设计架构，以 [app.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/app.py) 作为主程序，实现更清晰的模块化结构
+- **v3.0**：引入插件化架构，增强系统的可扩展性和可维护性

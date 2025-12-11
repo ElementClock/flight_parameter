@@ -70,7 +70,7 @@ class DefaultUIFactory(UIFactory):
             on_clear_analysis=event_handlers.remove_analysis,
             on_clear_data=event_handlers.remove_current_data,
             on_quick_save=event_handlers.single_button_event_1,
-            on_separator=event_handlers.single_button_event_1
+            on_separator=event_handlers.batch_process  # 将"///"按钮绑定到批量处理功能
         )
     
     def create_content_area(self, parent):
