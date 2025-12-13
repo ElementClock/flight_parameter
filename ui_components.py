@@ -12,7 +12,7 @@ import logging
 from abc import ABC, abstractmethod
 
 import wx
-import wx.richtext as rt
+import wx.html as html
 
 # 配置日志
 logging.basicConfig(
@@ -295,7 +295,7 @@ class ContentPanel(wx.Panel):
         """
         try:
             super().__init__(parent)
-            self.textbox = None
+            self.html_window = None
             self.toggle_button = None
             self.create_content_area()
         except Exception as e:
@@ -334,10 +334,10 @@ class ContentPanel(wx.Panel):
             # 添加标题布局到内容布局
             content_sizer.Add(title_sizer, 0, wx.ALL | wx.EXPAND, 10)
 
-            # 创建富文本显示框，用于显示导出结果
-            self.textbox = rt.RichTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
+            # 创建HTML显示窗口，用于显示导出结果
+            self.html_window = html.HtmlWindow(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_WORDWRAP)
             # 文本框占据剩余空间
-            content_sizer.Add(self.textbox, 1, wx.ALL | wx.EXPAND, 5)
+            content_sizer.Add(self.html_window, 1, wx.ALL | wx.EXPAND, 5)
             # 设置内容区域最小尺寸
             content_sizer.SetMinSize((3 * basic_width, 10 * basic_height))
 
@@ -354,62 +354,91 @@ class ContentPanel(wx.Panel):
             text (str): 要显示的文本内容
         """
         try:
-            # 清空现有内容
-            self.textbox.Clear()
-            
-            # 按行处理文本
-            lines = text.split('\n')
-            for line in lines:
-                # 检查是否为需要红色渲染的文本
-                if '[[RED]]' in line and '[/RED]]' in line:
-                    # 提取纯文本（去除标记）
-                    clean_line = line.replace('[[RED]]', '').replace('[[/RED]]', '')
-                    # 应用红色格式
-                    self.textbox.BeginTextColour(wx.RED)
-                    self.textbox.WriteText(clean_line + '\n')
-                    self.textbox.EndTextColour()
-                # 检查是否为需要黄色渲染的文本
-                elif '[[YELLOW]]' in line and '[[/YELLOW]]' in line:
-                    # 提取纯文本（去除标记）
-                    clean_line = line.replace('[[YELLOW]]', '').replace('[[/YELLOW]]', '')
-                    # 应用黄色格式
-                    self.textbox.BeginTextColour(wx.YELLOW)
-                    self.textbox.WriteText(clean_line + '\n')
-                    self.textbox.EndTextColour()
-                # 检查是否为需要琥珀色渲染的文本
-                elif '[[AMBER]]' in line and '[[/AMBER]]' in line:
-                    # 提取纯文本（去除标记）
-                    clean_line = line.replace('[[AMBER]]', '').replace('[[/AMBER]]', '')
-                    # 应用深橙色格式 (RGB: 255, 140, 0)
-                    amber_color = wx.Colour(255, 140, 0)
-                    self.textbox.BeginTextColour(amber_color)
-                    self.textbox.BeginBold()
-                    self.textbox.WriteText(clean_line + '\n')
-                    self.textbox.EndBold()
-                    self.textbox.EndTextColour()
-                # 检查是否为需要蓝色渲染的文本
-                elif '[[BLUE]]' in line and '[[/BLUE]]' in line:
-                    # 提取纯文本（去除标记）
-                    clean_line = line.replace('[[BLUE]]', '').replace('[[/BLUE]]', '')
-                    # 应用蓝色格式
-                    self.textbox.BeginTextColour(wx.BLUE)
-                    self.textbox.BeginBold()
-                    self.textbox.WriteText(clean_line + '\n')
-                    self.textbox.EndBold()
-                    self.textbox.EndTextColour()
-                # 检查是否为需要加粗的标题行
-                elif '[[BOLD]]' in line and '[[/BOLD]]' in line:
-                    # 提取纯文本标题（去除标记）
-                    clean_line = line.replace('[[BOLD]]', '').replace('[[/BOLD]]', '')
-                    # 应用加粗格式
-                    self.textbox.BeginBold()
-                    self.textbox.WriteText(clean_line + '\n')
-                    self.textbox.EndBold()
-                else:
-                    # 普通文本
-                    self.textbox.WriteText(line + '\n')
+            # 将自定义标记转换为HTML标记
+            html_text = self.convert_custom_markup_to_html(text)
+            # 在HTML窗口中显示内容
+            self.html_window.SetPage(html_text)
         except Exception as e:
             # 出现异常时显示原始文本
             logging.error(f"设置格式化文本时出错: {str(e)}")
-            self.textbox.Clear()
-            self.textbox.WriteText(f"显示文本时出错: {str(e)}\n原始文本:\n{text}")
+            self.html_window.SetPage(f"<html>显示文本时出错: {str(e)}<br>原始文本:<br>{text}</html>")
+            
+    def convert_custom_markup_to_html(self, text):
+        """将自定义标记转换为HTML标记
+        
+        Args:
+            text (str): 包含自定义标记的文本
+            
+        Returns:
+            str: 转换为HTML格式的文本
+        """
+        try:
+            # 直接将文本包装在<pre>标签中以保持所有格式
+            html_content = text
+            
+            # 逐一处理各种颜色标记，确保只替换一对标记
+            # 检查是否包含需要红色渲染的文本
+            while '[[RED]]' in html_content and '[/RED]]' in html_content:
+                # 应用红色格式
+                html_content = html_content.replace('[[RED]]', '<span style="color:red;">', 1)
+                html_content = html_content.replace('[[/RED]]', '</span>', 1)
+                
+            # 检查是否包含需要黄色渲染的文本
+            while '[[YELLOW]]' in html_content and '[[/YELLOW]]' in html_content:
+                # 应用黄色格式
+                html_content = html_content.replace('[[YELLOW]]', '<span style="color:yellow;">', 1)
+                html_content = html_content.replace('[[/YELLOW]]', '</span>', 1)
+                
+            # 检查是否包含需要琥珀色渲染的文本
+            while '[[AMBER]]' in html_content and '[[/AMBER]]' in html_content:
+                # 应用琥珀色格式
+                html_content = html_content.replace('[[AMBER]]', '<span style="color:#FFBF00; font-weight:bold;">', 1)
+                html_content = html_content.replace('[[/AMBER]]', '</span>', 1)
+                
+            # 检查是否包含需要蓝色渲染的文本
+            while '[[BLUE]]' in html_content and '[[/BLUE]]' in html_content:
+                # 应用蓝色格式
+                html_content = html_content.replace('[[BLUE]]', '<span style="color:blue; font-weight:bold;">', 1)
+                html_content = html_content.replace('[[/BLUE]]', '</span>', 1)
+                
+            # 检查是否包含需要加粗的标题行
+            while '[[BOLD]]' in html_content and '[[/BOLD]]' in html_content:
+                # 应用加粗格式
+                html_content = html_content.replace('[[BOLD]]', '<span style="font-weight:bold;">', 1)
+                html_content = html_content.replace('[[/BOLD]]', '</span>', 1)
+
+            # 使用<pre>标签包装内容以保留所有空白字符和换行符
+            return f'<html><body style="font-family: Consolas, \'Courier New\', monospace;"><pre>{html_content}</pre></body></html>'
+        except Exception as e:
+            logging.error(f"转换自定义标记为HTML时出错: {str(e)}")
+            return f'<html><body style="font-family: Consolas, \'Courier New\', monospace;"><pre>{text}</pre></body></html>'
+
+    def get_plain_text(self):
+        """获取纯文本内容（去除所有格式标记）
+        
+        Returns:
+            str: 纯文本内容
+        """
+        try:
+            # 获取当前显示的文本内容
+            text = self.html_window.ToText()
+            return text if text else ""
+        except Exception as e:
+            logging.error(f"获取纯文本时出错: {str(e)}")
+            return ""
+            
+    def GetValue(self):
+        """兼容旧接口的方法，用于获取文本内容
+        
+        Returns:
+            str: 纯文本内容
+        """
+        return self.get_plain_text()
+
+    def SetValue(self, text):
+        """兼容旧接口的方法，用于设置文本内容
+        
+        Args:
+            text (str): 要显示的文本内容
+        """
+        self.set_formatted_text(text)

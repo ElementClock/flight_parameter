@@ -256,7 +256,7 @@ class AppFrame(wx.Frame):
             self.main_sizer.Fit(self.panel)
             
             # 绑定鼠标滚轮事件以自定义滚动速度
-            self.content_panel.textbox.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
+            self.content_panel.html_window.Bind(wx.EVT_MOUSEWHEEL, self.on_mouse_wheel)
 
             # 计算右侧边栏的宽度
             self.right_sidebar_panel.Show()  # 临时显示以计算尺寸
@@ -389,7 +389,7 @@ class AppFrame(wx.Frame):
             # 只有当需要滚动时才执行
             if scroll_lines != 0:
                 # 使用ScrollLines进行行数滚动
-                self.content_panel.textbox.ScrollLines(-scroll_lines)
+                self.content_panel.html_window.ScrollLines(-scroll_lines)
             
             # 跳过事件以便其他处理器也能处理
             event.Skip()

@@ -125,7 +125,7 @@ class DataLoaderHandler(BaseEventHandler):
 
                 pathnames = fileDialog.GetPaths()
                 # 显示正在加载的消息
-                self.app_frame.content_panel.textbox.SetValue("正在加载和分析数据，请稍候...\n")
+                self.app_frame.content_panel.set_formatted_text("正在加载和分析数据，请稍候...")
                 # 显示进度条
                 self.app_frame.sidebar_panel.show_progress(True)
 
@@ -521,9 +521,10 @@ class AnalysisSaveHandler(BaseEventHandler):
                     os.makedirs(os.path.dirname(pathname) or '.', exist_ok=True)
                     
                     try:
-                        # 从当前数据容器中获取分析结果
+                        # 从当前数据容器中获取分析结果，并去除格式标记
+                        plain_text = self.remove_format_markers(current_container.get_analysis_result())
                         with open(pathname, 'w', encoding='utf-8') as f:
-                            f.write(current_container.get_analysis_result())
+                            f.write(plain_text)
                         self.app_frame.content_panel.set_formatted_text(f"分析结果已保存至: {pathname}")
                     except Exception as e:
                         logging.error(f"保存分析结果时出错: {str(e)}")
@@ -533,6 +534,27 @@ class AnalysisSaveHandler(BaseEventHandler):
         except Exception as e:
             logging.error(f"保存分析结果时出错: {str(e)}")
             wx.MessageBox(f"保存分析结果时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+            
+    def remove_format_markers(self, text):
+        """移除文本中的格式标记
+        
+        Args:
+            text (str): 包含格式标记的文本
+            
+        Returns:
+            str: 移除格式标记后的纯文本
+        """
+        try:
+            import re
+            # 移除所有格式标记，如 [[RED]]、[[/RED]] 等
+            clean_text = re.sub(r'\[\[(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', text)
+            clean_text = re.sub(r'\[\[\/(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', clean_text)
+            # 移除居中对齐产生的多余连字符
+            clean_text = re.sub(r'-+\s*(.*?)\s*-+', r'\1', clean_text)
+            return clean_text
+        except Exception as e:
+            logging.error(f"移除格式标记时出错: {str(e)}")
+            return text
 
 
 class DataClearHandler(BaseEventHandler):
@@ -670,9 +692,10 @@ class QuickSaveHandler(BaseEventHandler):
                 # 保存数据文件
                 current_container.df.to_csv(default_data_path, encoding='utf-8-sig', index=False)
                 
-                # 保存分析结果文件
+                # 保存分析结果文件（去除格式标记）
+                plain_text = self.remove_format_markers(current_container.get_analysis_result())
                 with open(default_analysis_path, 'w', encoding='utf-8') as f:
-                    f.write(current_container.get_analysis_result())
+                    f.write(plain_text)
                 
                 # 显示保存结果
                 message = f"快捷保存完成！\n\n数据文件已保存至: {default_data_path}\n分析结果已保存至: {default_analysis_path}"
@@ -686,6 +709,27 @@ class QuickSaveHandler(BaseEventHandler):
         except Exception as e:
             logging.error(f"处理快捷保存按钮点击事件时出错: {str(e)}")
             wx.MessageBox(f"快捷保存时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+            
+    def remove_format_markers(self, text):
+        """移除文本中的格式标记
+        
+        Args:
+            text (str): 包含格式标记的文本
+            
+        Returns:
+            str: 移除格式标记后的纯文本
+        """
+        try:
+            import re
+            # 移除所有格式标记，如 [[RED]]、[[/RED]] 等
+            clean_text = re.sub(r'\[\[(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', text)
+            clean_text = re.sub(r'\[\[\/(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', clean_text)
+            # 移除居中对齐产生的多余连字符
+            clean_text = re.sub(r'-+\s*(.*?)\s*-+', r'\1', clean_text)
+            return clean_text
+        except Exception as e:
+            logging.error(f"移除格式标记时出错: {str(e)}")
+            return text
 
 
 class DataChoiceHandler(BaseEventHandler):
@@ -759,7 +803,7 @@ class BatchProcessHandler(BaseEventHandler):
                 folder_path = dirDialog.GetPath()
                 
             # 显示正在处理的消息
-            self.app_frame.content_panel.textbox.SetValue("正在扫描文件，请稍候...\n")
+            self.app_frame.content_panel.set_formatted_text("正在扫描文件，请稍候...")
             self.app_frame.sidebar_panel.show_progress(True)
             self.app_frame.sidebar_panel.update_progress(0, "正在扫描文件...")
             
