@@ -396,14 +396,14 @@ class ContentPanel(wx.Panel):
                         else:
                             # 结束表格
                             in_table = False
-                            # 生成HTML表格
+                            # 生成HTML表格，设置宽度100%并使用fixed布局使列宽相等
                             if table_rows:
-                                html_lines.append('<table border="1" cellspacing="0" cellpadding="3">')
+                                html_lines.append('<table style="width: 100%; table-layout: fixed;" border="1" cellspacing="0" cellpadding="3">')
                                 # 表头
                                 if len(table_rows) > 0:
                                     html_lines.append('<tr>')
                                     for cell in table_rows[0]:
-                                        html_lines.append(f'<th>{cell.strip()}</th>')
+                                        html_lines.append(f'<th style="word-wrap: break-word;">{cell.strip()}</th>')
                                     html_lines.append('</tr>')
                                 # 数据行
                                 for row in table_rows[1:]:
@@ -417,9 +417,11 @@ class ContentPanel(wx.Panel):
                                         formatted_cell = formatted_cell.replace('[[/AMBER]]', '</span>')
                                         formatted_cell = formatted_cell.replace('[[BOLD]]', '<span style="font-weight:bold;">')
                                         formatted_cell = formatted_cell.replace('[[/BOLD]]', '</span>')
-                                        html_lines.append(f'<td>{formatted_cell}</td>')
+                                        html_lines.append(f'<td style="word-wrap: break-word;">{formatted_cell}</td>')
                                     html_lines.append('</tr>')
                                 html_lines.append('</table>')
+                                # 在表格后添加一行空白行
+                                html_lines.append('<div style="height: 1em;"></div>')
                     elif in_table:
                         # 表格中的行
                         row_data = line.strip().split('|')
@@ -440,11 +442,11 @@ class ContentPanel(wx.Panel):
             html_content = html_content.replace('[[/PARA_MARGIN]]', '</p>')
             
             # 处理专业标题标记 - 只保留段前1行间距，取消段后1行间距
-            html_content = html_content.replace('[[TITLE]]', '<br><h3 style="margin: 0; text-align: center; font-weight: bold;">')
+            html_content = html_content.replace('[[TITLE]]', '<br><h3 style="margin: 1em 0 0 0; text-align: center; font-weight: bold;">')
             html_content = html_content.replace('[[/TITLE]]', '</h3><br>')
             
             # 处理告警级别标题标记 - 只保留段前1行间距，取消段后1行间距
-            html_content = html_content.replace('[[LEVEL_TITLE]]', '<br><h5 style="margin: 0; text-align: center; font-weight: bold;">')
+            html_content = html_content.replace('[[LEVEL_TITLE]]', '<br><h5 style="margin: 1em 0 0 0; text-align: center; font-weight: bold;">')
             html_content = html_content.replace('[[/LEVEL_TITLE]]', '</h5><br>')
             
             # 处理居中对齐标记

@@ -379,7 +379,7 @@ class PowerAnalysis(AnalysisInterface):
                     result.append(f"|{gen_num}号|{avg_v}|{max_v}|{avg_a}|{max_a}|{load_status}|")
                 result.append("|-|--|--|--|--|--|-|")
             else:
-                result.append(" 未找到直流发电机电压电流数据 ")
+                result.append("未找到直流发电机电压电流数据")
             
             # 添加交流发电机电压和电流信息
             if power_data['ac_generators']:
@@ -409,7 +409,7 @@ class PowerAnalysis(AnalysisInterface):
                     result.append(f"|{gen_num}号|{avg_v}|{max_v}|{avg_a}|{max_a}|{load_status}|")
                 result.append("|-|--|--|--|--|--|-|")
             else:
-                result.append(" 未找到交流发电机电压电流数据 ")
+                result.append("未找到交流发电机电压电流数据")
             
             # 添加汇流条电压和电流信息
             if power_data['bus_bars']:
@@ -430,7 +430,7 @@ class PowerAnalysis(AnalysisInterface):
                     result.append(f"|{bus_name}|{avg_v}|{max_v}|{avg_a}|{max_a}|")
                 result.append("|-|--|--|--|--|-|")
             else:
-                result.append(" 未找到汇流条电压电流数据 ")
+                result.append("未找到汇流条电压电流数据")
             
             return "\n".join(result)
         except Exception as e:
