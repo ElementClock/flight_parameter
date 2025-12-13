@@ -258,14 +258,27 @@ class EngineAnalysis(AnalysisInterface):
                     gap_time = engine_data['takeoff_end_time'] - engine_data['takeoff_start_time']
                     result.append(f" 开关车时间为：{engine_data['takeoff_start_time']}-{engine_data['takeoff_end_time']}，耗时：{gap_time} ")
                 
-                # 添加发动机启动信息
+                # 添加发动机启动信息表格
+                result.append("|-发动机编号|首次开车时间|关车时间|重启次数|重启时间点-|")
                 for info in engine_data['takeoff_info']:
                     if info['start_times']:
-                        result.append(f"{info['engine_id']}号发动机首次开车时间为 {info['start_times'][0]}")
-                        # 如果有重启，添加重启信息
-                        if 'restart_times' in info and info['restart_times']:
+                        # 获取首次开车时间
+                        start_time = info['start_times'][0]
+                        
+                        # 获取最后一次关车时间（如果有）
+                        end_time = "无"
+                        if info['end_times']:
+                            end_time = info['end_times'][-1]
+                        
+                        # 获取重启信息
+                        restart_count = len(info.get('restart_times', []))
+                        restart_times_str = "无"
+                        if info.get('restart_times'):
                             restart_times_str = ", ".join([str(t) for t in info['restart_times']])
-                            result.append(f"{info['engine_id']}号发动机存在 {len(info['restart_times'])} 次重启，重启时间点为: {restart_times_str}")
+                        
+                        # 添加表格行
+                        result.append(f"|{info['engine_id']}|{start_time}|{end_time}|{restart_count}|{restart_times_str}|")
+                result.append("|-|--|--|--|--|-|")
             # 新增逻辑：当所有发动机都未启动时，说明分析时间范围并提示无开车记录
             else:
                 if engine_data.get('start_time') and engine_data.get('end_time'):

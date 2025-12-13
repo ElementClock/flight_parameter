@@ -352,10 +352,7 @@ class CasAnalysis(AnalysisInterface):
             # 按指定顺序排列告警级别
             level_order = ['警告级', '戒备级', '提示级', '状态级']
             
-            # 初始化当前告警变量为None，用于后续判断是否为同一个告警
-            current_alarm = None
-
-            # 按级别顺序输出告警
+            # 按级别顺序输出告警表格
             for level in level_order:
                 if level in grouped_alarms and grouped_alarms[level]:
                     # 根据不同级别添加不同颜色标识符
@@ -371,6 +368,9 @@ class CasAnalysis(AnalysisInterface):
                     else:
                         result.append(level_line)
                         
+                    # 添加表格标记
+                    result.append("|-告警名称|时间|持续时间-|")
+                    
                     # 遍历该级别的告警数据
                     for alarm in grouped_alarms[level]:
                         # 提取当前行的告警信息
@@ -378,21 +378,12 @@ class CasAnalysis(AnalysisInterface):
                         start_time = alarm['start_time']
                         end_time = alarm['end_time']
                         duration = alarm['duration']
-
-                        time_info = (
-                            f"{' '.ljust(30, ' ')}"
-                            f" 时间：{start_time}-{end_time.ljust(15)}"
-                            f" 持续时间：{duration}"
-                        )
-                        # 判断当前告警与上一条告警是否相同
-                        if alarm_name != current_alarm:
-                            # 如果不相同，先输出告警名称
-                            result.append(f"{alarm_name}")
-                            result.append(time_info)
-                            # 更新当前告警变量
-                            current_alarm = alarm_name
-                        else:
-                            result.append(time_info)
+                        
+                        # 添加表格行
+                        time_range = f"{start_time}-{end_time}"
+                        result.append(f"|{alarm_name}|{time_range}|{duration}|")
+                        
+                    result.append("|-|--|--|-|")
 
             return "\n".join(result)
         except Exception as e:

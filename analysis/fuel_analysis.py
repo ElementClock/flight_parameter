@@ -354,24 +354,29 @@ class FuelAnalysis(AnalysisInterface):
             # 添加燃油消耗信息
             result.append(f" 总燃油消耗: {fuel_data['total_fuel_consumption']:.2f} kg")
             
-            # 添加各油箱信息
+            # 添加各油箱信息表格
             if fuel_data['fuel_tanks']:
-                result.append(" 各油箱燃油状态: ")
+                result.append("")
+                result.append("|-油箱编号|初始燃油(kg)|最终燃油(kg)|消耗燃油(kg)|温度变化(°C)-|")
                 for tank in fuel_data['fuel_tanks']:
-                    result.append(f"  {tank['tank_name']}油箱 - 初始燃油: {tank['start_fuel']:.2f} kg, "
-                                 f"最终燃油: {tank['end_fuel']:.2f} kg, 消耗燃油: {tank['consumption']:.2f} kg")
-                    
                     # 如果有温度数据，显示温度信息
+                    temp_change = "无温度数据"
                     if tank['temperature_data'] is not None:
                         start_temp = tank['temperature_data'].iloc[0] if len(tank['temperature_data']) > 0 else 0
                         end_temp = tank['temperature_data'].iloc[-1] if len(tank['temperature_data']) > 0 else 0
-                        result.append(f"    温度变化: {start_temp:.2f} °C -> {end_temp:.2f} °C")
+                        temp_change = f"{start_temp:.2f} -> {end_temp:.2f}"
+                    
+                    # 添加表格行
+                    result.append(f"|{tank['tank_name']}|{tank['start_fuel']:.2f}|{tank['end_fuel']:.2f}|{tank['consumption']:.2f}|{temp_change}|")
+                result.append("|-|--|--|--|--|-|")
             
-            # 添加发动机耗油量信息
+            # 添加发动机耗油量信息表格
             if fuel_data['engine_fuel_consumptions']:
-                result.append(" 各发动机耗油量: ")
+                result.append("")
+                result.append("|-发动机编号|总耗油量(kg)-|")
                 for engine in fuel_data['engine_fuel_consumptions']:
-                    result.append(f"  {engine['engine_name']} - 总耗油量: {engine['total_consumption']:.2f} kg")
+                    result.append(f"|{engine['engine_name']}|{engine['total_consumption']:.2f}|")
+                result.append("|-|--|-|")
             
             return "\n".join(result)
         except Exception as e:
