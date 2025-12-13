@@ -829,36 +829,10 @@ class BatchProcessHandler(BaseEventHandler):
                 return "未找到需要处理的文件", [], 0, 0
                 
             # 创建data_deal文件夹
-            output_folder = os.path.join(folder_path, "data_deal")
-            os.makedirs(output_folder, exist_ok=True)
+            output_folder = self._create_output_folder(folder_path)
             
             # 使用线程池并行处理文件以提高I/O性能
-            processed_count = 0
-            error_files = []
-            
-            # 动态调整线程数：文件越多，使用的线程越多（但不超过系统限制）
-            optimal_workers = min(MAX_WORKERS, max(1, total_files // 2))
-            
-            # 使用线程池并行处理文件
-            futures = []
-            with ThreadPoolExecutor(max_workers=optimal_workers) as executor:
-                for i, file_path in enumerate(unmatched_files):
-                    future = executor.submit(self._process_single_file, file_path, output_folder, i, total_files)
-                    futures.append((future, file_path, i))
-                
-                # 收集结果
-                for future, file_path, index in futures:
-                    try:
-                        future.result()  # 等待任务完成
-                        processed_count += 1
-                    except Exception as e:
-                        logging.error(f"处理文件 {file_path} 时出错: {str(e)}")
-                        error_files.append((file_path, str(e)))
-                    
-                    # 更新进度
-                    progress = int(((processed_count + len(error_files)) / total_files) * 100)
-                    wx.CallAfter(self.app_frame.sidebar_panel.update_progress, progress, 
-                                 f"已完成: {processed_count}/{total_files}")
+            processed_count, error_files = self._process_files_in_parallel(unmatched_files, output_folder, total_files)
             
             # 完成处理
             wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 100, "处理完成")
@@ -866,6 +840,59 @@ class BatchProcessHandler(BaseEventHandler):
         except Exception as e:
             logging.error(f"批量处理过程中出错: {str(e)}")
             raise e
+    
+    def _create_output_folder(self, folder_path):
+        """创建输出文件夹
+        
+        Args:
+            folder_path (str): 输入文件夹路径
+            
+        Returns:
+            str: 输出文件夹路径
+        """
+        output_folder = os.path.join(folder_path, "data_deal")
+        os.makedirs(output_folder, exist_ok=True)
+        return output_folder
+    
+    def _process_files_in_parallel(self, unmatched_files, output_folder, total_files):
+        """并行处理文件
+        
+        Args:
+            unmatched_files (list): 需要处理的文件列表
+            output_folder (str): 输出文件夹路径
+            total_files (int): 总文件数
+            
+        Returns:
+            tuple: (processed_count, error_files) 处理成功的文件数和错误文件列表
+        """
+        processed_count = 0
+        error_files = []
+        
+        # 动态调整线程数：文件越多，使用的线程越多（但不超过系统限制）
+        optimal_workers = min(MAX_WORKERS, max(1, total_files // 2))
+        
+        # 使用线程池并行处理文件
+        futures = []
+        with ThreadPoolExecutor(max_workers=optimal_workers) as executor:
+            for i, file_path in enumerate(unmatched_files):
+                future = executor.submit(self._process_single_file, file_path, output_folder, i, total_files)
+                futures.append((future, file_path, i))
+            
+            # 收集结果
+            for future, file_path, index in futures:
+                try:
+                    future.result()  # 等待任务完成
+                    processed_count += 1
+                except Exception as e:
+                    logging.error(f"处理文件 {file_path} 时出错: {str(e)}")
+                    error_files.append((file_path, str(e)))
+                
+                # 更新进度
+                progress = int(((processed_count + len(error_files)) / total_files) * 100)
+                wx.CallAfter(self.app_frame.sidebar_panel.update_progress, progress, 
+                             f"已完成: {processed_count}/{total_files}")
+        
+        return processed_count, error_files
             
     def _find_csv_files(self, folder_path):
         """递归查找文件夹中的所有CSV文件"""

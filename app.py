@@ -66,24 +66,52 @@ class AppTitleManager:
     def get_random_title(self):
         """获取随机标题"""
         # 检查是否触发彩蛋标题
-        if self.easter_egg_title and random.random() < self.easter_egg_current_probability:
-            # 彩蛋标题被选中，重置连续未出现次数和当前概率
-            self.easter_egg_consecutive_misses = 0
-            self.easter_egg_current_probability = self.easter_egg_base_probability
-            return self.easter_egg_title
+        if self._should_show_easter_egg():
+            return self._get_easter_egg_title()
         else:
-            # 只有在彩蛋未被选中的情况下才增加连续未出现次数并调整概率
-            if self.easter_egg_title:
-                # 彩蛋未被选中，增加连续未出现次数，并提高下次出现概率
-                self.easter_egg_consecutive_misses += 1
-                # 每次未出现，概率增加初始概率的值，但不超过0.5
-                self.easter_egg_current_probability = min(
-                    self.easter_egg_base_probability + 
-                    self.easter_egg_consecutive_misses * self.easter_egg_base_probability,
-                    0.5
-                )
+            self._update_easter_egg_probability()
             
         # 返回普通标题
+        return self._get_random_regular_title()
+    
+    def _should_show_easter_egg(self):
+        """检查是否应该显示彩蛋标题
+        
+        Returns:
+            bool: 如果应该显示彩蛋标题返回True，否则返回False
+        """
+        return self.easter_egg_title and random.random() < self.easter_egg_current_probability
+    
+    def _get_easter_egg_title(self):
+        """获取彩蛋标题并重置相关计数器
+        
+        Returns:
+            str: 彩蛋标题
+        """
+        # 彩蛋标题被选中，重置连续未出现次数和当前概率
+        self.easter_egg_consecutive_misses = 0
+        self.easter_egg_current_probability = self.easter_egg_base_probability
+        return self.easter_egg_title
+    
+    def _update_easter_egg_probability(self):
+        """更新彩蛋标题出现概率"""
+        # 只有在彩蛋未被选中的情况下才增加连续未出现次数并调整概率
+        if self.easter_egg_title:
+            # 彩蛋未被选中，增加连续未出现次数，并提高下次出现概率
+            self.easter_egg_consecutive_misses += 1
+            # 每次未出现，概率增加初始概率的值，但不超过0.5
+            self.easter_egg_current_probability = min(
+                self.easter_egg_base_probability + 
+                self.easter_egg_consecutive_misses * self.easter_egg_base_probability,
+                0.5
+            )
+    
+    def _get_random_regular_title(self):
+        """获取随机的常规标题
+        
+        Returns:
+            str: 随机选择的常规标题
+        """
         return random.choice(self.title_options)
     
     def add_title_option(self, title):
