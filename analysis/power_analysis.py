@@ -342,10 +342,8 @@ class PowerAnalysis(AnalysisInterface):
                 result.append("未找到电源系统相关信息")
                 return "\n".join(result)
             
-            # 使用标识符标记标题行
-            title = "[[BOLD]]电源系统分析结果[[/BOLD]]"
-            formatted_title = title.center(100, '-')
-            result.append(formatted_title)
+            # 添加标题标记
+            result.append("[[TITLE]]电源系统分析结果[[/TITLE]]")
             
             # 添加警告信息
             if 'warnings' in power_data and power_data['warnings']:

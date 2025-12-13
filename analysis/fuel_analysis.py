@@ -346,13 +346,11 @@ class FuelAnalysis(AnalysisInterface):
                 result.append("未找到燃油系统相关信息")
                 return "\n".join(result)
             
-            # 添加标题
-            title = "[[BOLD]]燃油系统分析结果[[/BOLD]]"
-            formatted_title = title.center(100, '-')
-            result.append(formatted_title)
+            # 添加标题标记
+            result.append("[[TITLE]]燃油系统分析结果[[/TITLE]]")
             
-            # 添加燃油消耗信息
-            result.append(f" 总燃油消耗: {fuel_data['total_fuel_consumption']:.2f} kg")
+            # 添加燃油消耗信息（注意：这行不应该被居中显示）
+            result.append(f"总燃油消耗: {fuel_data['total_fuel_consumption']:.2f} kg")
             
             # 添加各油箱信息表格
             if fuel_data['fuel_tanks']:

@@ -435,6 +435,22 @@ class ContentPanel(wx.Panel):
                 
                 html_content = '\n'.join(html_lines)
             
+            # 处理段前段后间距标记
+            html_content = html_content.replace('[[PARA_MARGIN]]', '<p style="margin: 1em 0;">')
+            html_content = html_content.replace('[[/PARA_MARGIN]]', '</p>')
+            
+            # 处理专业标题标记 - 只保留段前1行间距，取消段后1行间距
+            html_content = html_content.replace('[[TITLE]]', '<br><h3 style="margin: 0; text-align: center; font-weight: bold;">')
+            html_content = html_content.replace('[[/TITLE]]', '</h3><br>')
+            
+            # 处理告警级别标题标记 - 只保留段前1行间距，取消段后1行间距
+            html_content = html_content.replace('[[LEVEL_TITLE]]', '<br><h5 style="margin: 0; text-align: center; font-weight: bold;">')
+            html_content = html_content.replace('[[/LEVEL_TITLE]]', '</h5><br>')
+            
+            # 处理居中对齐标记
+            html_content = html_content.replace('[[CENTER]]', '<p style="text-align: center;">')
+            html_content = html_content.replace('[[/CENTER]]', '</p>')
+            
             # 处理非表格中的颜色标记
             # 逐一处理各种颜色标记，确保只替换一对标记
             # 检查是否包含需要红色渲染的文本
@@ -467,13 +483,9 @@ class ContentPanel(wx.Panel):
                 html_content = html_content.replace('[[BOLD]]', '<span style="font-weight:bold;">', 1)
                 html_content = html_content.replace('[[/BOLD]]', '</span>', 1)
 
-            # 使用<pre>标签包装内容以保留所有空白字符和换行符（仅对非表格内容）
-            if '<table' in html_content:
-                # 如果包含表格，则不使用<pre>标签
-                return f'<html><body style="font-family: Consolas, \'Courier New\', monospace;">{html_content}</body></html>'
-            else:
-                # 如果不包含表格，则使用<pre>标签保持格式
-                return f'<html><body style="font-family: Consolas, \'Courier New\', monospace;"><pre>{html_content}</pre></body></html>'
+            # 总是返回完整的HTML结构，确保正确渲染
+            # 添加默认的正文样式，确保正文内容左对齐且与其他内容区分
+            return f'<html><body style="font-family: Consolas, \'Courier New\', monospace; text-align: left;">{html_content}</body></html>'
         except Exception as e:
             logging.error(f"转换自定义标记为HTML时出错: {str(e)}")
             return f'<html><body style="font-family: Consolas, \'Courier New\', monospace;"><pre>{text}</pre></body></html>'

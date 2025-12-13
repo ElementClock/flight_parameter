@@ -249,10 +249,8 @@ class EngineAnalysis(AnalysisInterface):
             
             # 检查是否有发动机启动信息
             if engine_data['has_takeoff_info']:
-                # 使用标识符标记标题行
-                title = "[[BOLD]]动力分析结果[[/BOLD]]"
-                formatted_title = title.center(100, '-')
-                result.append(formatted_title)
+                # 添加标题标记
+                result.append("[[TITLE]]动力分析结果[[/TITLE]]")
                 
                 if engine_data.get('takeoff_start_time') and engine_data.get('takeoff_end_time'):
                     gap_time = engine_data['takeoff_end_time'] - engine_data['takeoff_start_time']
