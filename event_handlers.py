@@ -22,6 +22,11 @@ from wx import ID_CANCEL, NOT_FOUND
 # 设置最大工作线程数为4，避免过多线程竞争资源
 MAX_WORKERS = 4
 
+# 文件处理常量
+CHUNK_SIZE = 10000              # CSV文件分块读取大小
+MIN_PROCESSING_TIME_THRESHOLD = 600  # 最小处理时间阈值（秒），用于区分地面试车和飞行架次
+FILE_READ_BUFFER_SIZE = 1024    # 文件读取缓冲区大小
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -163,6 +168,7 @@ class DataLoaderHandler(BaseEventHandler):
             str: 检测到的编码，如果无法检测则返回None
         """
         # 读取文件的前几行进行测试
+        # 逐个尝试不同的编码方式，一旦成功读取就返回该编码
         for encoding in encodings:
             try:
                 with open(filepath, 'r', encoding=encoding) as f:
@@ -177,7 +183,7 @@ class DataLoaderHandler(BaseEventHandler):
                 continue
         return None
     
-    def _read_large_csv_in_chunks(self, pathname, encoding, chunksize=10000):
+    def _read_large_csv_in_chunks(self, pathname, encoding, chunksize=CHUNK_SIZE):
         """分块读取大型CSV文件以优化内存使用
         
         Args:
@@ -190,6 +196,7 @@ class DataLoaderHandler(BaseEventHandler):
         """
         try:
             # 先读取列名以确定数据结构，指定日期列为字符串类型
+            # nrows=5表示只读取前5行，dtype={3: str}表示将第4列（索引为3）强制作为字符串处理
             df_sample = pd.read_csv(pathname, encoding=encoding, nrows=5, dtype={3: str})
             columns = df_sample.columns.tolist()
             
@@ -201,6 +208,7 @@ class DataLoaderHandler(BaseEventHandler):
                 total_rows = sum(1 for _ in f) - 1  # 减去标题行
             
             rows_read = 0
+            # 分块读取文件，每块chunksize行
             for chunk in pd.read_csv(pathname, encoding=encoding, chunksize=chunksize, dtype={3: str}):
                 chunks.append(chunk)
                 rows_read += len(chunk)
@@ -211,6 +219,7 @@ class DataLoaderHandler(BaseEventHandler):
                              int((rows_read / total_rows) * 20), progress_msg)
             
             # 合并所有块
+            # ignore_index=True表示重新生成连续的索引，不保留各块原有的索引
             df = pd.concat(chunks, ignore_index=True)
             
             # 清理临时数据以释放内存
@@ -906,12 +915,15 @@ class BatchProcessHandler(BaseEventHandler):
     def _filter_unmatched_files(self, csv_files):
         """过滤出不符合项目命名规则的文件"""
         # 项目命名规则: [F|D|N][8位数字].csv
+        # F表示飞行架次文件，D表示地面试车文件，N表示未开车文件
+        # 8位数字表示日期，格式为YYYYMMDD
         import re
         pattern = re.compile(r'^[FDN]\d{8}\.csv$')
         
         unmatched_files = []
         for file_path in csv_files:
             filename = os.path.basename(file_path)
+            # 如果文件名不匹配命名规则，则加入待处理列表
             if not pattern.match(filename):
                 unmatched_files.append(file_path)
         return unmatched_files
@@ -960,7 +972,7 @@ class BatchProcessHandler(BaseEventHandler):
         for encoding in encodings:
             try:
                 with open(filepath, 'r', encoding=encoding) as f:
-                    f.read(1024)  # 读取前1024个字符
+                    f.read(FILE_READ_BUFFER_SIZE)  # 读取前FILE_READ_BUFFER_SIZE个字符
                 logging.info(f"使用 {encoding} 编码成功读取文件头部")
                 self.encoding_cache[filepath] = encoding  # 缓存结果
                 return encoding
@@ -988,8 +1000,9 @@ class BatchProcessHandler(BaseEventHandler):
                     # 进一步检查是否是飞行架次（简单判断：持续时间超过一定阈值）
                     try:
                         duration = end_time - start_time
-                        # 如果发动机运行时间超过10分钟，认为是飞行架次
-                        if duration.total_seconds() > 600:
+                        # 如果发动机运行时间超过10分钟(600秒)，认为是飞行架次
+                        # 这是一个经验阈值，用于区分短时间的地面试车和实际飞行
+                        if duration.total_seconds() > MIN_PROCESSING_TIME_THRESHOLD:
                             identifier = "F"
                     except:
                         pass
@@ -1009,8 +1022,10 @@ class BatchProcessHandler(BaseEventHandler):
             # 如果仍然没有时间数据，则使用当前时间
             from datetime import datetime
             if flight_time is not None:
+                # 使用飞行数据中的时间戳
                 current_time = flight_time.strftime("%Y%m%d")
             else:
+                # 如果没有可用的飞行时间数据，则使用当前系统时间
                 current_time = datetime.now().strftime("%Y%m%d")
                 
             return f"{identifier}{current_time}"

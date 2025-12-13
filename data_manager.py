@@ -45,6 +45,7 @@ class DataContainer:
             text_parts = []
             
             # 添加各个分析模块的结果
+            # 检查分析结果对象是否包含特定模块的结果，并将其添加到文本部分列表中
             if hasattr(analysis_result, 'text_engine') and analysis_result.text_engine:
                 text_parts.append(analysis_result.text_engine)
             if hasattr(analysis_result, 'text_fuel') and analysis_result.text_fuel:
@@ -54,9 +55,11 @@ class DataContainer:
             if hasattr(analysis_result, 'text_cas') and analysis_result.text_cas:
                 text_parts.append(analysis_result.text_cas)
             
+            # 将所有文本部分用换行符连接，如果没有文本部分则设为空字符串
             self.analysis_result = "\n".join(text_parts) if text_parts else ""
             
             # 保存特定的分析数据
+            # 使用getattr安全地从分析结果对象中提取数据，如果不存在则返回默认值
             self.df = getattr(analysis_result, 'df', None)
             self.engine_data = getattr(analysis_result, 'engine_data', None)
             self.fuel_data = getattr(analysis_result, 'fuel_data', None)

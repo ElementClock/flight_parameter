@@ -153,21 +153,32 @@ class EngineAnalysis(AnalysisInterface):
             engines_info = []
             
             # 查找所有发动机转速列
-            engine_rpm_columns = [col for col in df.columns if '发动机' in col and '转速' in col]
+            engine_rpm_columns = [col for col in df.columns if '发发动机' in col and '转速' in col]
             
             # 遍历找到的发动机列
             for i, rpm_column in enumerate(engine_rpm_columns):
                 # 从列名中提取发动机编号
-                if '1' in rpm_column:
-                    engine_id = 1
-                elif '2' in rpm_column:
-                    engine_id = 2
-                elif '3' in rpm_column:
-                    engine_id = 3
-                elif '4' in rpm_column:
-                    engine_id = 4
-                else:
-                    engine_id = i + 1  # 默认编号
+                # 使用正则表达式更精确地提取发动机编号，参考燃油专业的做法
+                import re
+                engine_id = None
+                
+                # 查找类似"发动机1"、"#1"、"1号发动机"这样的模式
+                patterns = [
+                    r'发动机[#\s]*([1-4])(?!\d)',  # 匹配"发动机1"、"发动机 1"、"发动机#1"，但不匹配"发动机11"
+                    r'([1-4])[#\s]*发动机(?!\d)',   # 匹配"1#发动机"、"1 发动机"，但不匹配"11发动机"
+                    r'#([1-4])(?!\d)',              # 匹配"#1"，但不匹配"#11"
+                    r'(?<![0-9])([1-4])号(?!\d)',   # 匹配"1号"，但不匹配"11号"
+                ]
+                
+                for pattern in patterns:
+                    match = re.search(pattern, rpm_column)
+                    if match:
+                        engine_id = int(match.group(1))
+                        break
+                
+                # 如果没有找到明确的编号模式，则使用索引作为备用方案
+                if engine_id is None:
+                    engine_id = i + 1  # 使用索引作为默认编号，确保不会重复
                 
                 # 获取RPM数据
                 rpm_series = df[rpm_column]
@@ -212,9 +223,12 @@ class EngineAnalysis(AnalysisInterface):
                 })
             
             # 确保有4个发动机的信息（即使某些发动机没有数据）
-            existing_engines = {info['engine_id'] for info in engines_info}
+            # 先收集已存在的发动机ID
+            existing_engine_ids = {info['engine_id'] for info in engines_info}
+            
+            # 补充缺失的发动机信息
             for engine_id in range(1, 5):
-                if engine_id not in existing_engines:
+                if engine_id not in existing_engine_ids:
                     engines_info.append({
                         'engine_id': engine_id,
                         'start_times': [],
@@ -223,6 +237,21 @@ class EngineAnalysis(AnalysisInterface):
                     })
             
             # 按发动机编号排序
+            engines_info.sort(key=lambda x: x['engine_id'])
+            
+            # 确保发动机编号唯一性，如果有重复则重新分配编号
+            seen_ids = set()
+            for info in engines_info:
+                original_id = info['engine_id']
+                if original_id in seen_ids:
+                    # 如果编号重复，寻找下一个可用编号
+                    new_id = 1
+                    while new_id in seen_ids:
+                        new_id += 1
+                    info['engine_id'] = new_id
+                seen_ids.add(info['engine_id'])
+            
+            # 再次按发动机编号排序
             engines_info.sort(key=lambda x: x['engine_id'])
             
             return engines_info
