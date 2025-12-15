@@ -352,11 +352,27 @@ class FuelAnalysis(AnalysisInterface):
             # 添加燃油消耗信息（注意：这行不应该被居中显示）
             result.append(f"总燃油消耗: {fuel_data['total_fuel_consumption']:.2f} kg")
             
-            # 添加各油箱信息表格 (使用Markdown表格格式)
+            # 添加合并后的油箱和发动机耗油量信息表格 (使用Markdown表格格式)
             if fuel_data['fuel_tanks']:
                 result.append("")
-                result.append("| 油箱编号 | 初始燃油(kg) | 最终燃油(kg) | 消耗燃油(kg) | 温度变化(°C) |")
-                result.append("|----------|--------------|--------------|--------------|--------------|")
+                # 创建一个映射，将发动机编号映射到其总耗油量
+                engine_fuel_map = {}
+                if fuel_data['engine_fuel_consumptions']:
+                    for engine in fuel_data['engine_fuel_consumptions']:
+                        engine_fuel_map[engine['engine_name']] = engine['total_consumption']
+                
+                # 表头包含油箱信息和对应的发动机耗油量
+                result.append("| 油箱编号 | 初始燃油(kg) | 最终燃油(kg) | 消耗燃油(kg) | 温度变化(°C) | 发动机编号 | 发动机耗油量(kg) |")
+                result.append("|----------|--------------|--------------|--------------|--------------|------------|------------------|")
+                
+                # 定义油箱到发动机的映射关系
+                tank_to_engine_map = {
+                    "Ⅰ号": "1发",
+                    "Ⅱ号": "2发",
+                    "Ⅲ号": "3发",
+                    "Ⅳ号": "4发"
+                }
+                
                 for tank in fuel_data['fuel_tanks']:
                     # 如果有温度数据，显示温度信息
                     temp_change = "无温度数据"
@@ -365,11 +381,22 @@ class FuelAnalysis(AnalysisInterface):
                         end_temp = tank['temperature_data'].iloc[-1] if len(tank['temperature_data']) > 0 else 0
                         temp_change = f"{start_temp:.2f} -> {end_temp:.2f}"
                     
+                    # 尝试关联对应的发动机编号和耗油量
+                    engine_id = "无"
+                    engine_consumption = "无"
+                    
+                    # 根据油箱编号查找对应的发动机
+                    if tank['tank_name'] in tank_to_engine_map:
+                        engine_name = tank_to_engine_map[tank['tank_name']]
+                        if engine_name in engine_fuel_map:
+                            engine_id = engine_name
+                            engine_consumption = f"{engine_fuel_map[engine_name]:.2f}"
+                    
                     # 添加表格行
-                    result.append(f"| {tank['tank_name']} | {tank['start_fuel']:.2f} | {tank['end_fuel']:.2f} | {tank['consumption']:.2f} | {temp_change} |")
+                    result.append(f"| {tank['tank_name']} | {tank['start_fuel']:.2f} | {tank['end_fuel']:.2f} | {tank['consumption']:.2f} | {temp_change} | {engine_id} | {engine_consumption} |")
             
-            # 添加发动机耗油量信息表格 (使用Markdown表格格式)
-            if fuel_data['engine_fuel_consumptions']:
+            # 如果没有油箱信息但是有发动机耗油量信息，单独显示发动机信息
+            elif fuel_data['engine_fuel_consumptions']:
                 result.append("")
                 result.append("| 发动机编号 | 总耗油量(kg) |")
                 result.append("|------------|--------------|")
