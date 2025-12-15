@@ -342,19 +342,20 @@ class PowerAnalysis(AnalysisInterface):
                 result.append("未找到电源系统相关信息")
                 return "\n".join(result)
             
-            # 添加标题标记
-            result.append("[[TITLE]]电源系统分析结果[[/TITLE]]")
+            # 添加标题标记 (使用Markdown标题格式)
+            result.append("### 电源系统分析结果")
             
             # 添加警告信息
             if 'warnings' in power_data and power_data['warnings']:
                 for warning in power_data['warnings']:
-                    result.append(f"[[AMBER]]警告: {warning}[[/AMBER]]")
+                    result.append(f"**警告: {warning}**")
             
-            # 添加直流发电机电压和电流信息
+            # 添加直流发电机电压和电流信息 (使用Markdown表格格式)
             if power_data['dc_generators']:
                 # 创建表格形式的输出
                 result.append("")
-                result.append("|-直流发电机|电压平均值(V)|电压最大值(V)|电流平均值(A)|电流最大值(A)|负载状态(≤3200A)-|")
+                result.append("| 直流发电机 | 电压平均值(V) | 电压最大值(V) | 电流平均值(A) | 电流最大值(A) | 负载状态(≤3200A) |")
+                result.append("|------------|---------------|---------------|---------------|---------------|------------------|")
                 
                 for generator in power_data['dc_generators']:
                     # 电压信息
@@ -369,22 +370,22 @@ class PowerAnalysis(AnalysisInterface):
                     load_status = "N/A"
                     if generator['max_current'] is not None:
                         if generator['max_current'] > 3200:
-                            load_status = "[[RED]]False(超限)[[/RED]]"
+                            load_status = "**False(超限)**"
                         else:
                             load_status = "True"
                     
                     # 提取编号
                     gen_num = generator['generator_id'].replace("号直流发电机", "")
                     
-                    result.append(f"|{gen_num}号|{avg_v}|{max_v}|{avg_a}|{max_a}|{load_status}|")
-                result.append("|-|--|--|--|--|--|-|")
+                    result.append(f"| {gen_num}号 | {avg_v} | {max_v} | {avg_a} | {max_a} | {load_status} |")
             else:
                 result.append("未找到直流发电机电压电流数据")
             
-            # 添加交流发电机电压和电流信息
+            # 添加交流发电机电压和电流信息 (使用Markdown表格格式)
             if power_data['ac_generators']:
                 result.append("")
-                result.append("|-交流发电机|电压平均值(V)|电压最大值(V)|电流平均值(A)|电流最大值(A)|负载状态(≤400A)-|")
+                result.append("| 交流发电机 | 电压平均值(V) | 电压最大值(V) | 电流平均值(A) | 电流最大值(A) | 负载状态(≤400A) |")
+                result.append("|------------|---------------|---------------|---------------|---------------|-----------------|")
                 
                 for generator in power_data['ac_generators']:
                     # 电压信息
@@ -399,22 +400,22 @@ class PowerAnalysis(AnalysisInterface):
                     load_status = "N/A"
                     if generator['max_current'] is not None:
                         if generator['max_current'] > 400:
-                            load_status = "[[RED]]False(超限)[[/RED]]"
+                            load_status = "**False(超限)**"
                         else:
                             load_status = "True"
                     
                     # 提取编号
                     gen_num = generator['generator_id'].replace("号交流发电机", "")
                     
-                    result.append(f"|{gen_num}号|{avg_v}|{max_v}|{avg_a}|{max_a}|{load_status}|")
-                result.append("|-|--|--|--|--|--|-|")
+                    result.append(f"| {gen_num}号 | {avg_v} | {max_v} | {avg_a} | {max_a} | {load_status} |")
             else:
                 result.append("未找到交流发电机电压电流数据")
             
-            # 添加汇流条电压和电流信息
+            # 添加汇流条电压和电流信息 (使用Markdown表格格式)
             if power_data['bus_bars']:
                 result.append("")
-                result.append("|-汇流条|电压平均值(V)|电压最大值(V)|电流平均值(A)|电流最大值(A)-|")
+                result.append("| 汇流条 | 电压平均值(V) | 电压最大值(V) | 电流平均值(A) | 电流最大值(A) |")
+                result.append("|--------|---------------|---------------|---------------|---------------|")
                 
                 for bus in power_data['bus_bars']:
                     # 电压信息
@@ -427,8 +428,7 @@ class PowerAnalysis(AnalysisInterface):
                     
                     bus_name = bus['bus_name'].replace("汇流条", "")
                     
-                    result.append(f"|{bus_name}|{avg_v}|{max_v}|{avg_a}|{max_a}|")
-                result.append("|-|--|--|--|--|-|")
+                    result.append(f"| {bus_name} | {avg_v} | {max_v} | {avg_a} | {max_a} |")
             else:
                 result.append("未找到汇流条电压电流数据")
             

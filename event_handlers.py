@@ -501,7 +501,7 @@ class AnalysisSaveHandler(BaseEventHandler):
                 # 使用当前时间作为文件时间部分
                 current_time = datetime.now().strftime("%Y%m%d")
                 default_filename_base = f"{identifier}{current_time}"
-                default_analysis_filename = f"{default_filename_base}_分析.txt"
+                default_analysis_filename = f"{default_filename_base}_分析.pdf"  # 更改为PDF扩展名
                 
                 # 获取原始文件的目录，如果有的话
                 if hasattr(current_container, 'original_path') and current_container.original_path:
@@ -517,23 +517,33 @@ class AnalysisSaveHandler(BaseEventHandler):
                     self.app_frame,
                     message="保存分析结果",
                     defaultFile=default_analysis_path,  # 预填充默认文件名和路径
-                    wildcard="文本文件 (*.txt)|*.txt",
+                    wildcard="PDF文件 (*.pdf)|*.pdf|Markdown文件 (*.md)|*.md|文本文件 (*.txt)|*.txt",
                     style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
                 ) as fileDialog:
                     if fileDialog.ShowModal() == wx.ID_CANCEL:
                         return
 
                     pathname = fileDialog.GetPath()
-                    if not pathname.endswith('.txt'):
-                        pathname += '.txt'
                     # 确保目录存在
                     os.makedirs(os.path.dirname(pathname) or '.', exist_ok=True)
                     
                     try:
-                        # 从当前数据容器中获取分析结果，并去除格式标记
-                        plain_text = self.remove_format_markers(current_container.get_analysis_result())
-                        with open(pathname, 'w', encoding='utf-8') as f:
-                            f.write(plain_text)
+                        # 获取当前数据容器中的分析结果
+                        analysis_result = current_container.get_analysis_result()
+                        
+                        # 根据文件扩展名决定保存格式
+                        if pathname.endswith('.pdf'):
+                            self._save_as_pdf(pathname, analysis_result)
+                        elif pathname.endswith('.md'):
+                            self._save_as_markdown(pathname, analysis_result)
+                        else:  # 默认为文本格式
+                            if not pathname.endswith('.txt'):
+                                pathname += '.txt'
+                            # 从当前数据容器中获取分析结果，并去除格式标记
+                            plain_text = self.remove_format_markers(analysis_result)
+                            with open(pathname, 'w', encoding='utf-8') as f:
+                                f.write(plain_text)
+                        
                         self.app_frame.content_panel.set_formatted_text(f"分析结果已保存至: {pathname}")
                     except Exception as e:
                         logging.error(f"保存分析结果时出错: {str(e)}")
@@ -544,6 +554,180 @@ class AnalysisSaveHandler(BaseEventHandler):
             logging.error(f"保存分析结果时出错: {str(e)}")
             wx.MessageBox(f"保存分析结果时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
             
+    def _save_as_pdf(self, pathname, analysis_result):
+        """将分析结果保存为PDF文件
+        
+        Args:
+            pathname (str): 保存路径
+            analysis_result (str): 分析结果文本
+        """
+        try:
+            import markdown
+            from weasyprint import HTML, CSS
+            
+            # 将自定义标记转换为HTML
+            html_text = self._convert_custom_markup_to_html_for_export(analysis_result)
+            
+            # 使用markdown转换为HTML
+            html = markdown.markdown(html_text)
+            
+            # 添加基本样式
+            css = CSS(string='''
+                body { font-family: "Microsoft YaHei", sans-serif; }
+                h3 { text-align: center; margin: 1em 0; }
+                table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                .red { color: red; }
+                .amber { color: #FFBF00; font-weight: bold; }
+                .bold { font-weight: bold; }
+            ''')
+            
+            # 生成PDF
+            HTML(string=html).write_pdf(pathname, stylesheets=[css])
+        except ImportError as e:
+            # 如果缺少依赖库，则回退到文本格式
+            logging.warning(f"缺少PDF生成库: {str(e)}，回退到文本格式")
+            plain_text = self.remove_format_markers(analysis_result)
+            with open(pathname.replace('.pdf', '.txt'), 'w', encoding='utf-8') as f:
+                f.write(plain_text)
+        except Exception as e:
+            logging.error(f"保存PDF时出错: {str(e)}")
+            raise e
+            
+    def _save_as_markdown(self, pathname, analysis_result):
+        """将分析结果保存为Markdown文件
+        
+        Args:
+            pathname (str): 保存路径
+            analysis_result (str): 分析结果文本
+        """
+        try:
+            # 将自定义标记转换为Markdown
+            markdown_text = self._convert_custom_markup_to_markdown(analysis_result)
+            
+            with open(pathname, 'w', encoding='utf-8') as f:
+                f.write(markdown_text)
+        except Exception as e:
+            logging.error(f"保存Markdown时出错: {str(e)}")
+            raise e
+            
+    def _convert_custom_markup_to_html_for_export(self, text):
+        """将自定义标记转换为HTML标记用于导出
+        
+        Args:
+            text (str): 包含自定义标记的文本
+            
+        Returns:
+            str: 转换为HTML格式的文本
+        """
+        try:
+            html_content = text
+            
+            # 处理表格标记
+            lines = text.split('\n')
+            html_lines = []
+            i = 0
+            while i < len(lines):
+                line = lines[i]
+                # 处理表格
+                if line.startswith('|') and line.endswith('|') and line.count('|') >= 3:
+                    # 开始处理表格
+                    table_lines = []
+                    # 收集连续的表格行
+                    while i < len(lines) and lines[i].startswith('|') and lines[i].endswith('|') and lines[i].count('|') >= 3:
+                        table_lines.append(lines[i])
+                        i += 1
+                    i -= 1  # 回退一步，因为主循环还会增加i
+                    
+                    # 解析表格
+                    if len(table_lines) >= 2:  # 至少要有表头和分隔行
+                        # 使用固定布局确保列宽相等
+                        html_lines.append('<table style="width: 100%; table-layout: fixed; border-collapse: collapse;" border="1" cellspacing="0" cellpadding="3">')
+                        
+                        # 处理表头
+                        header_cells = [cell.strip() for cell in table_lines[0].split('|')]
+                        # 移除首尾的空字符串
+                        if header_cells[0] == '':
+                            header_cells = header_cells[1:]
+                        if header_cells and header_cells[-1] == '':
+                            header_cells = header_cells[:-1]
+                        
+                        html_lines.append('<thead>')
+                        html_lines.append('<tr>')
+                        for cell in header_cells:
+                            # 处理单元格中的加粗标记
+                            formatted_cell = cell.replace('**', '<strong>')
+                            formatted_cell = formatted_cell.replace('</strong><strong>', '')
+                            html_lines.append(f'<th style="word-wrap: break-word; background-color: #f2f2f2;">{formatted_cell}</th>')
+                        html_lines.append('</tr>')
+                        html_lines.append('</thead>')
+                        
+                        # 处理数据行 (跳过分隔行)
+                        html_lines.append('<tbody>')
+                        for row_idx, row_line in enumerate(table_lines[2:]):
+                            row_cells = [cell.strip() for cell in row_line.split('|')]
+                            # 移除首尾的空字符串
+                            if row_cells[0] == '':
+                                row_cells = row_cells[1:]
+                            if row_cells and row_cells[-1] == '':
+                                row_cells = row_cells[:-1]
+                            
+                            html_lines.append('<tr>')
+                            for cell in row_cells:
+                                # 处理单元格中的加粗标记
+                                formatted_cell = cell.replace('**', '<strong>')
+                                formatted_cell = formatted_cell.replace('</strong><strong>', '')
+                                html_lines.append(f'<td style="word-wrap: break-word;">{formatted_cell}</td>')
+                            html_lines.append('</tr>')
+                        html_lines.append('</tbody>')
+                        
+                        html_lines.append('</table>')
+                    else:
+                        # 不符合表格格式，当作普通文本处理
+                        html_lines.append(line)
+                # 处理标题
+                elif line.startswith('### '):
+                    html_lines.append(f'<h3>{line[4:]}</h3>')
+                elif line.startswith('##### '):
+                    html_lines.append(f'<h5>{line[6:]}</h5>')
+                # 处理加粗文本
+                elif '**' in line:
+                    parts = line.split('**')
+                    new_line = ''
+                    for j, part in enumerate(parts):
+                        if j % 2 == 1:  # 加粗部分
+                            new_line += f'<strong>{part}</strong>'
+                        else:
+                            new_line += part
+                    html_lines.append(new_line)
+                else:
+                    html_lines.append(line)
+                i += 1
+            
+            html_content = '\n'.join(html_lines)
+            
+            return html_content
+        except Exception as e:
+            logging.error(f"转换自定义标记为HTML时出错: {str(e)}")
+            return text
+            
+    def _convert_custom_markup_to_markdown(self, text):
+        """将自定义标记转换为Markdown标记
+        
+        Args:
+            text (str): 包含自定义标记的文本
+            
+        Returns:
+            str: 转换为Markdown格式的文本
+        """
+        try:
+            # 对于已经是Markdown格式的文本，直接返回
+            return text
+        except Exception as e:
+            logging.error(f"转换自定义标记为Markdown时出错: {str(e)}")
+            return text
+
     def remove_format_markers(self, text):
         """移除文本中的格式标记
         
@@ -555,11 +739,10 @@ class AnalysisSaveHandler(BaseEventHandler):
         """
         try:
             import re
-            # 移除所有格式标记，如 [[RED]]、[[/RED]] 等
-            clean_text = re.sub(r'\[\[(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', text)
-            clean_text = re.sub(r'\[\[\/(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', clean_text)
-            # 移除居中对齐产生的多余连字符
-            clean_text = re.sub(r'-+\s*(.*?)\s*-+', r'\1', clean_text)
+            # 移除所有格式标记，如 **文本**
+            clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+            # 移除标题标记
+            clean_text = clean_text.replace('### ', '').replace('##### ', '')
             return clean_text
         except Exception as e:
             logging.error(f"移除格式标记时出错: {str(e)}")
@@ -730,11 +913,10 @@ class QuickSaveHandler(BaseEventHandler):
         """
         try:
             import re
-            # 移除所有格式标记，如 [[RED]]、[[/RED]] 等
-            clean_text = re.sub(r'\[\[(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', text)
-            clean_text = re.sub(r'\[\[\/(?:RED|YELLOW|AMBER|BLUE|BOLD)\]\]', '', clean_text)
-            # 移除居中对齐产生的多余连字符
-            clean_text = re.sub(r'-+\s*(.*?)\s*-+', r'\1', clean_text)
+            # 移除所有格式标记，如 **文本**
+            clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+            # 移除标题标记
+            clean_text = clean_text.replace('### ', '').replace('##### ', '')
             return clean_text
         except Exception as e:
             logging.error(f"移除格式标记时出错: {str(e)}")
@@ -1049,7 +1231,7 @@ class BatchProcessHandler(BaseEventHandler):
             if hasattr(analysis_result, 'text_cas') and analysis_result.text_cas:
                 text_parts.append(analysis_result.text_cas)
                 
-            return "\n".join(text_parts) if text_parts else "无分析结果"
+            return "\n\n".join(text_parts) if text_parts else "无分析结果"
         except Exception as e:
             logging.error(f"格式化分析结果时出错: {str(e)}")
             return "分析结果格式化失败"

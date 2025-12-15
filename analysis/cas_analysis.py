@@ -338,8 +338,8 @@ class CasAnalysis(AnalysisInterface):
                 result.append("没有发现告警")
                 return "\n".join(result)
 
-            # 添加标题标记
-            result.append("[[TITLE]]CAS告警分析结果[[/TITLE]]")
+            # 添加标题标记 (使用Markdown标题格式)
+            result.append("### CAS告警分析结果")
 
             # 读取告警等级信息
             alarm_levels = self.load_alarm_levels()
@@ -353,11 +353,12 @@ class CasAnalysis(AnalysisInterface):
             # 按级别顺序输出告警表格
             for level in level_order:
                 if level in grouped_alarms and grouped_alarms[level]:
-                    # 添加告警级别标题
-                    result.append("[[LEVEL_TITLE]]" + level + "[[/LEVEL_TITLE]]")
+                    # 添加告警级别标题 (使用Markdown标题格式)
+                    result.append(f"##### {level}")
                         
-                    # 添加表格标记
-                    result.append("|-告警名称|时间|持续时间-|")
+                    # 添加表格标记 (使用Markdown表格格式)
+                    result.append("| 告警名称 | 时间 | 持续时间 |")
+                    result.append("|----------|------|----------|")
                     
                     # 遍历该级别的告警数据
                     for alarm in grouped_alarms[level]:
@@ -369,9 +370,7 @@ class CasAnalysis(AnalysisInterface):
                         
                         # 添加表格行
                         time_range = f"{start_time}-{end_time}"
-                        result.append(f"|{alarm_name}|{time_range}|{duration}|")
-                        
-                    result.append("|-|--|--|-|")
+                        result.append(f"| {alarm_name} | {time_range} | {duration} |")
 
             return "\n".join(result)
         except Exception as e:

@@ -278,15 +278,16 @@ class EngineAnalysis(AnalysisInterface):
             
             # 检查是否有发动机启动信息
             if engine_data['has_takeoff_info']:
-                # 添加标题标记
-                result.append("[[TITLE]]动力分析结果[[/TITLE]]")
+                # 添加标题标记 (使用Markdown标题格式)
+                result.append("### 动力分析结果")
                 
                 if engine_data.get('takeoff_start_time') and engine_data.get('takeoff_end_time'):
                     gap_time = engine_data['takeoff_end_time'] - engine_data['takeoff_start_time']
                     result.append(f"开关车时间为：{engine_data['takeoff_start_time']}-{engine_data['takeoff_end_time']}，耗时：{gap_time}")
                 
-                # 添加发动机启动信息表格
-                result.append("|-发动机编号|首次开车时间|关车时间|重启次数|重启时间点-|")
+                # 添加发动机启动信息表格 (使用Markdown表格格式)
+                result.append("| 发动机编号 | 首次开车时间 | 关车时间 | 重启次数 | 重启时间点 |")
+                result.append("|------------|--------------|----------|----------|------------|")
                 for info in engine_data['takeoff_info']:
                     if info['start_times']:
                         # 获取首次开车时间
@@ -304,12 +305,12 @@ class EngineAnalysis(AnalysisInterface):
                             restart_times_str = ", ".join([str(t) for t in info['restart_times']])
                         
                         # 添加表格行
-                        result.append(f"|{info['engine_id']}|{start_time}|{end_time}|{restart_count}|{restart_times_str}|")
-                result.append("|-|--|--|--|--|-|")
+                        result.append(f"| {info['engine_id']} | {start_time} | {end_time} | {restart_count} | {restart_times_str} |")
             # 新增逻辑：当所有发动机都未启动时，说明分析时间范围并提示无开车记录
             else:
                 if engine_data.get('start_time') and engine_data.get('end_time'):
-                    result.append(f"本文件时间为： {engine_data['start_time']} 到 {engine_data['end_time']}\n本次数据分析：飞机未启动发动机，请检查数据" )
+                    result.append(f"本文件时间为： {engine_data['start_time']} 到 {engine_data['end_time']}")
+                    result.append("本次数据分析：飞机未启动发动机，请检查数据")
             
             return "\n".join(result)
         except Exception as e:

@@ -346,16 +346,17 @@ class FuelAnalysis(AnalysisInterface):
                 result.append("未找到燃油系统相关信息")
                 return "\n".join(result)
             
-            # 添加标题标记
-            result.append("[[TITLE]]燃油系统分析结果[[/TITLE]]")
+            # 添加标题标记 (使用Markdown标题格式)
+            result.append("### 燃油系统分析结果")
             
             # 添加燃油消耗信息（注意：这行不应该被居中显示）
             result.append(f"总燃油消耗: {fuel_data['total_fuel_consumption']:.2f} kg")
             
-            # 添加各油箱信息表格
+            # 添加各油箱信息表格 (使用Markdown表格格式)
             if fuel_data['fuel_tanks']:
                 result.append("")
-                result.append("|-油箱编号|初始燃油(kg)|最终燃油(kg)|消耗燃油(kg)|温度变化(°C)-|")
+                result.append("| 油箱编号 | 初始燃油(kg) | 最终燃油(kg) | 消耗燃油(kg) | 温度变化(°C) |")
+                result.append("|----------|--------------|--------------|--------------|--------------|")
                 for tank in fuel_data['fuel_tanks']:
                     # 如果有温度数据，显示温度信息
                     temp_change = "无温度数据"
@@ -365,16 +366,15 @@ class FuelAnalysis(AnalysisInterface):
                         temp_change = f"{start_temp:.2f} -> {end_temp:.2f}"
                     
                     # 添加表格行
-                    result.append(f"|{tank['tank_name']}|{tank['start_fuel']:.2f}|{tank['end_fuel']:.2f}|{tank['consumption']:.2f}|{temp_change}|")
-                result.append("|-|--|--|--|--|-|")
+                    result.append(f"| {tank['tank_name']} | {tank['start_fuel']:.2f} | {tank['end_fuel']:.2f} | {tank['consumption']:.2f} | {temp_change} |")
             
-            # 添加发动机耗油量信息表格
+            # 添加发动机耗油量信息表格 (使用Markdown表格格式)
             if fuel_data['engine_fuel_consumptions']:
                 result.append("")
-                result.append("|-发动机编号|总耗油量(kg)-|")
+                result.append("| 发动机编号 | 总耗油量(kg) |")
+                result.append("|------------|--------------|")
                 for engine in fuel_data['engine_fuel_consumptions']:
-                    result.append(f"|{engine['engine_name']}|{engine['total_consumption']:.2f}|")
-                result.append("|-|--|-|")
+                    result.append(f"| {engine['engine_name']} | {engine['total_consumption']:.2f} |")
             
             return "\n".join(result)
         except Exception as e:

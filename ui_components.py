@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 
 import wx
 import wx.html as html
+import markdown
 
 # 配置日志
 logging.basicConfig(
@@ -375,116 +376,91 @@ class ContentPanel(wx.Panel):
         try:
             html_content = text
             
-            # 处理表格标记
-            if '|-' in html_content and '-|' in html_content:
-                lines = html_content.split('\n')
-                html_lines = []
-                in_table = False
-                table_rows = []
-                
-                for line in lines:
-                    if '|-' in line and '-|' in line:
-                        # 表格开始或结束标记
-                        if not in_table:
-                            # 开始表格
-                            in_table = True
-                            table_rows = []
-                            # 提取表头
-                            header_line = line.replace('|-', '').replace('-|', '').strip()
-                            if header_line:
-                                table_rows.append(header_line.split('|'))
+            # 处理Markdown标题 (# 标题)
+            lines = html_content.split('\n')
+            html_lines = []
+            i = 0
+            while i < len(lines):
+                line = lines[i]
+                # 处理Markdown一级标题 (### 标题)
+                if line.startswith('### '):
+                    html_lines.append(f'<h3 style="margin: 1em 0; text-align: center; font-weight: bold;">{line[4:]}</h3>')
+                # 处理Markdown五级标题 (##### 标题)
+                elif line.startswith('##### '):
+                    html_lines.append(f'<h5 style="margin: 1em 0; text-align: center; font-weight: bold;">{line[6:]}</h5>')
+                # 处理加粗文本 (**文本**)
+                elif '**' in line and not '|' in line:
+                    parts = line.split('**')
+                    new_line = ''
+                    for j, part in enumerate(parts):
+                        if j % 2 == 1:  # 加粗部分
+                            new_line += f'<strong>{part}</strong>'
                         else:
-                            # 结束表格
-                            in_table = False
-                            # 生成HTML表格，设置宽度100%并使用fixed布局使列宽相等
-                            if table_rows:
-                                html_lines.append('<table style="width: 100%; table-layout: fixed;" border="1" cellspacing="0" cellpadding="3">')
-                                # 表头
-                                if len(table_rows) > 0:
-                                    html_lines.append('<tr>')
-                                    for cell in table_rows[0]:
-                                        html_lines.append(f'<th style="word-wrap: break-word;">{cell.strip()}</th>')
-                                    html_lines.append('</tr>')
-                                # 数据行
-                                for row in table_rows[1:]:
-                                    html_lines.append('<tr>')
-                                    for cell in row:
-                                        # 处理单元格内的颜色标记
-                                        formatted_cell = cell.strip()
-                                        formatted_cell = formatted_cell.replace('[[RED]]', '<span style="color:red;">')
-                                        formatted_cell = formatted_cell.replace('[[/RED]]', '</span>')
-                                        formatted_cell = formatted_cell.replace('[[AMBER]]', '<span style="color:#FFBF00; font-weight:bold;">')
-                                        formatted_cell = formatted_cell.replace('[[/AMBER]]', '</span>')
-                                        formatted_cell = formatted_cell.replace('[[BOLD]]', '<span style="font-weight:bold;">')
-                                        formatted_cell = formatted_cell.replace('[[/BOLD]]', '</span>')
-                                        html_lines.append(f'<td style="word-wrap: break-word;">{formatted_cell}</td>')
-                                    html_lines.append('</tr>')
-                                html_lines.append('</table>')
-                                # 在表格后添加一行空白行
-                                html_lines.append('<div style="height: 1em;"></div>')
-                    elif in_table:
-                        # 表格中的行
-                        row_data = line.strip().split('|')
-                        # 移除首尾的空字符串（由于分割造成的）
-                        if row_data[0] == '':
-                            row_data = row_data[1:]
-                        if row_data and row_data[-1] == '':
-                            row_data = row_data[:-1]
-                        table_rows.append(row_data)
+                            new_line += part
+                    html_lines.append(new_line)
+                # 处理表格
+                elif '|' in line and line.count('|') >= 3 and not line.startswith('#'):
+                    # 开始处理表格
+                    table_lines = []
+                    # 收集连续的表格行
+                    while i < len(lines) and '|' in lines[i] and lines[i].count('|') >= 3 and not lines[i].startswith('#'):
+                        table_lines.append(lines[i])
+                        i += 1
+                    i -= 1  # 回退一步，因为主循环还会增加i
+                    
+                    # 解析表格
+                    if len(table_lines) >= 2:  # 至少要有表头和分隔行
+                        html_lines.append('<table style="width: 100%; table-layout: fixed; border-collapse: collapse;" border="1" cellspacing="0" cellpadding="3">')
+                        
+                        # 处理表头
+                        header_cells = [cell.strip() for cell in table_lines[0].split('|')]
+                        # 移除首尾的空字符串
+                        if header_cells[0] == '':
+                            header_cells = header_cells[1:]
+                        if header_cells and header_cells[-1] == '':
+                            header_cells = header_cells[:-1]
+                        
+                        html_lines.append('<thead>')
+                        html_lines.append('<tr>')
+                        for cell in header_cells:
+                            # 处理单元格中的加粗标记
+                            formatted_cell = cell.replace('**', '<strong>')
+                            formatted_cell = formatted_cell.replace('</strong><strong>', '')
+                            html_lines.append(f'<th style="word-wrap: break-word; background-color: #f2f2f2;">{formatted_cell}</th>')
+                        html_lines.append('</tr>')
+                        html_lines.append('</thead>')
+                        
+                        # 处理数据行 (跳过分隔行)
+                        html_lines.append('<tbody>')
+                        for row_idx, row_line in enumerate(table_lines[2:]):
+                            row_cells = [cell.strip() for cell in row_line.split('|')]
+                            # 移除首尾的空字符串
+                            if row_cells[0] == '':
+                                row_cells = row_cells[1:]
+                            if row_cells and row_cells[-1] == '':
+                                row_cells = row_cells[:-1]
+                            
+                            html_lines.append('<tr>')
+                            for cell in row_cells:
+                                # 处理单元格中的加粗标记
+                                formatted_cell = cell.replace('**', '<strong>')
+                                formatted_cell = formatted_cell.replace('</strong><strong>', '')
+                                html_lines.append(f'<td style="word-wrap: break-word;">{formatted_cell}</td>')
+                            html_lines.append('</tr>')
+                        html_lines.append('</tbody>')
+                        
+                        html_lines.append('</table>')
+                        # 在表格后添加一行空白行
+                        html_lines.append('<div style="height: 1em;"></div>')
                     else:
-                        # 非表格行
+                        # 不符合表格格式，当作普通文本处理
                         html_lines.append(line)
-                
-                html_content = '\n'.join(html_lines)
+                else:
+                    html_lines.append(line)
+                i += 1
             
-            # 处理段前段后间距标记
-            html_content = html_content.replace('[[PARA_MARGIN]]', '<p style="margin: 1em 0;">')
-            html_content = html_content.replace('[[/PARA_MARGIN]]', '</p>')
+            html_content = '\n'.join(html_lines)
             
-            # 处理专业标题标记 - 只保留段前1行间距，取消段后1行间距
-            html_content = html_content.replace('[[TITLE]]', '<br><h3 style="margin: 1em 0 0 0; text-align: center; font-weight: bold;">')
-            html_content = html_content.replace('[[/TITLE]]', '</h3><br>')
-            
-            # 处理告警级别标题标记 - 只保留段前1行间距，取消段后1行间距
-            html_content = html_content.replace('[[LEVEL_TITLE]]', '<br><h5 style="margin: 1em 0 0 0; text-align: center; font-weight: bold;">')
-            html_content = html_content.replace('[[/LEVEL_TITLE]]', '</h5><br>')
-            
-            # 处理居中对齐标记
-            html_content = html_content.replace('[[CENTER]]', '<p style="text-align: center;">')
-            html_content = html_content.replace('[[/CENTER]]', '</p>')
-            
-            # 处理非表格中的颜色标记
-            # 逐一处理各种颜色标记，确保只替换一对标记
-            # 检查是否包含需要红色渲染的文本
-            while '[[RED]]' in html_content and '[/RED]]' in html_content:
-                # 应用红色格式
-                html_content = html_content.replace('[[RED]]', '<span style="color:red;">', 1)
-                html_content = html_content.replace('[[/RED]]', '</span>', 1)
-                
-            # 检查是否包含需要黄色渲染的文本
-            while '[[YELLOW]]' in html_content and '[[/YELLOW]]' in html_content:
-                # 应用黄色格式
-                html_content = html_content.replace('[[YELLOW]]', '<span style="color:yellow;">', 1)
-                html_content = html_content.replace('[[/YELLOW]]', '</span>', 1)
-                
-            # 检查是否包含需要琥珀色渲染的文本
-            while '[[AMBER]]' in html_content and '[[/AMBER]]' in html_content:
-                # 应用琥珀色格式
-                html_content = html_content.replace('[[AMBER]]', '<span style="color:#FFBF00; font-weight:bold;">', 1)
-                html_content = html_content.replace('[[/AMBER]]', '</span>', 1)
-                
-            # 检查是否包含需要蓝色渲染的文本
-            while '[[BLUE]]' in html_content and '[[/BLUE]]' in html_content:
-                # 应用蓝色格式
-                html_content = html_content.replace('[[BLUE]]', '<span style="color:blue; font-weight:bold;">', 1)
-                html_content = html_content.replace('[[/BLUE]]', '</span>', 1)
-                
-            # 检查是否包含需要加粗的标题行
-            while '[[BOLD]]' in html_content and '[[/BOLD]]' in html_content:
-                # 应用加粗格式
-                html_content = html_content.replace('[[BOLD]]', '<span style="font-weight:bold;">', 1)
-                html_content = html_content.replace('[[/BOLD]]', '</span>', 1)
-
             # 总是返回完整的HTML结构，确保正确渲染
             # 添加默认的正文样式，确保正文内容左对齐且与其他内容区分
             return f'<html><body style="font-family: Consolas, \'Courier New\', monospace; text-align: left;">{html_content}</body></html>'
