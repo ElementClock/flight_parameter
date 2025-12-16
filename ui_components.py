@@ -410,7 +410,32 @@ class ContentPanel(wx.Panel):
                     
                     # 解析表格
                     if len(table_lines) >= 2:  # 至少要有表头和分隔行
-                        html_lines.append('<table style="width: 100%; table-layout: fixed; border-collapse: collapse;" border="1" cellspacing="0" cellpadding="3">')
+                        # 检查是否有自定义列宽设置
+                        has_custom_widths = ':::' in table_lines[1]
+                        if has_custom_widths:
+                            # 解析自定义列宽
+                            width_line = table_lines[1]
+                            widths = []
+                            for part in width_line.split('|'):
+                                part = part.strip()
+                                if part.startswith(':::') and part.endswith(':::'):
+                                    try:
+                                        width_percent = float(part[3:-3])
+                                        widths.append(width_percent)
+                                    except ValueError:
+                                        widths.append(None)
+                                else:
+                                    widths.append(None)
+                            
+                            # 移除宽度定义行
+                            table_lines.pop(1)
+                            
+                            # 构造带有自定义列宽的表格
+                            table_style = 'width: 100%; border-collapse: collapse;'
+                            html_lines.append(f'<table style="{table_style}" border="1" cellspacing="0" cellpadding="3">')
+                        else:
+                            # 使用默认的固定布局表格
+                            html_lines.append('<table style="width: 100%; table-layout: fixed; border-collapse: collapse;" border="1" cellspacing="0" cellpadding="3">')
                         
                         # 处理表头
                         header_cells = [cell.strip() for cell in table_lines[0].split('|')]
@@ -422,17 +447,47 @@ class ContentPanel(wx.Panel):
                         
                         html_lines.append('<thead>')
                         html_lines.append('<tr>')
-                        for cell in header_cells:
+                        for idx, cell in enumerate(header_cells):
                             # 处理单元格中的加粗标记
                             formatted_cell = cell.replace('**', '<strong>')
                             formatted_cell = formatted_cell.replace('</strong><strong>', '')
-                            html_lines.append(f'<th style="word-wrap: break-word; background-color: #f2f2f2;">{formatted_cell}</th>')
+                            
+                            # 如果有自定义宽度设置，则应用宽度
+                            if has_custom_widths and idx < len(widths) and widths[idx] is not None:
+                                style = f'word-wrap: break-word; background-color: #f2f2f2; width: {widths[idx]}%;'
+                                html_lines.append(f'<th style="{style}">{formatted_cell}</th>')
+                            else:
+                                html_lines.append(f'<th style="word-wrap: break-word; background-color: #f2f2f2;">{formatted_cell}</th>')
                         html_lines.append('</tr>')
                         html_lines.append('</thead>')
                         
                         # 处理数据行 (跳过分隔行)
                         html_lines.append('<tbody>')
-                        for row_idx, row_line in enumerate(table_lines[2:]):
+                        # 修复：正确处理数据行索引
+                        # table_lines现在的结构：
+                        # [0] 表头行
+                        # [1] 分隔行或宽度定义行
+                        # [2] 及以后 数据行
+                        
+                        # 确定数据起始索引
+                        data_start_index = 1  # 默认从索引1开始（跳过表头）
+                        
+                        # 检查第二行是否为分隔行（只包含-和|字符）
+                        if len(table_lines) > 1:
+                            separator_line = table_lines[1].strip()
+                            if all(c in '|-' for c in separator_line):
+                                # 这是一个分隔行，需要跳过
+                                data_start_index = 2
+                            elif has_custom_widths:
+                                # 这是宽度定义行，已经在前面移除了，所以数据从索引1开始
+                                data_start_index = 1
+                            else:
+                                # 这是数据行，数据从索引1开始
+                                data_start_index = 1
+                        
+                        # 处理数据行
+                        for row_idx in range(data_start_index, len(table_lines)):
+                            row_line = table_lines[row_idx]
                             row_cells = [cell.strip() for cell in row_line.split('|')]
                             # 移除首尾的空字符串
                             if row_cells[0] == '':
@@ -441,11 +496,17 @@ class ContentPanel(wx.Panel):
                                 row_cells = row_cells[:-1]
                             
                             html_lines.append('<tr>')
-                            for cell in row_cells:
+                            for idx, cell in enumerate(row_cells):
                                 # 处理单元格中的加粗标记
                                 formatted_cell = cell.replace('**', '<strong>')
                                 formatted_cell = formatted_cell.replace('</strong><strong>', '')
-                                html_lines.append(f'<td style="word-wrap: break-word;">{formatted_cell}</td>')
+                                
+                                # 如果有自定义宽度设置，则应用宽度
+                                if has_custom_widths and idx < len(widths) and widths[idx] is not None:
+                                    style = f'word-wrap: break-word; width: {widths[idx]}%; text-align: center;'
+                                    html_lines.append(f'<td style="{style}">{formatted_cell}</td>')
+                                else:
+                                    html_lines.append(f'<td style="word-wrap: break-word; text-align: center;">{formatted_cell}</td>')
                             html_lines.append('</tr>')
                         html_lines.append('</tbody>')
                         
@@ -456,7 +517,12 @@ class ContentPanel(wx.Panel):
                         # 不符合表格格式，当作普通文本处理
                         html_lines.append(line)
                 else:
-                    html_lines.append(line)
+                    # 处理普通文本行
+                    if line.strip():  # 只有非空行才添加
+                        html_lines.append(f'<div>{line}</div>')
+                    else:
+                        # 空行添加空白div
+                        html_lines.append('<div style="height: 0.5em;"></div>')
                 i += 1
             
             html_content = '\n'.join(html_lines)

@@ -355,7 +355,8 @@ class PowerAnalysis(AnalysisInterface):
                 # 创建表格形式的输出
                 result.append("")
                 result.append("| 直流发电机 | 电压平均值(V) | 电压最大值(V) | 电流平均值(A) | 电流最大值(A) | 负载状态(≤3200A) |")
-                result.append("|------------|---------------|---------------|---------------|---------------|------------------|")
+                # 添加列宽定义行，使所有列等宽
+                result.append("| :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: |")
                 
                 for generator in power_data['dc_generators']:
                     # 电压信息
@@ -385,7 +386,8 @@ class PowerAnalysis(AnalysisInterface):
             if power_data['ac_generators']:
                 result.append("")
                 result.append("| 交流发电机 | 电压平均值(V) | 电压最大值(V) | 电流平均值(A) | 电流最大值(A) | 负载状态(≤400A) |")
-                result.append("|------------|---------------|---------------|---------------|---------------|-----------------|")
+                # 添加列宽定义行，使所有列等宽
+                result.append("| :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: |")
                 
                 for generator in power_data['ac_generators']:
                     # 电压信息
@@ -415,7 +417,7 @@ class PowerAnalysis(AnalysisInterface):
             if power_data['bus_bars']:
                 result.append("")
                 result.append("| 汇流条 | 电压平均值(V) | 电压最大值(V) | 电流平均值(A) | 电流最大值(A) |")
-                result.append("|--------|---------------|---------------|---------------|---------------|")
+                result.append("| :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: | :::16.7::: |")
                 
                 for bus in power_data['bus_bars']:
                     # 电压信息

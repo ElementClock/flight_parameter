@@ -363,15 +363,26 @@ class FuelAnalysis(AnalysisInterface):
                 
                 # 表头包含油箱信息和对应的发动机耗油量
                 result.append("| 油箱编号 | 初始燃油(kg) | 最终燃油(kg) | 消耗燃油(kg) | 温度变化(°C) | 发动机编号 | 发动机耗油量(kg) |")
-                result.append("|----------|--------------|--------------|--------------|--------------|------------|------------------|")
+                # 添加列宽定义行，使所有列等宽
+                result.append("| :::14.3::: | :::14.3::: | :::14.3::: | :::14.3::: | :::14.3::: | :::14.3::: | :::14.3::: |")
                 
                 # 定义油箱到发动机的映射关系
                 tank_to_engine_map = {
                     "Ⅰ号": "1发",
                     "Ⅱ号": "2发",
                     "Ⅲ号": "3发",
-                    "Ⅳ号": "4发"
+                    "Ⅳ号": "4发",
+                    "1号": "1发",
+                    "2号": "2发",
+                    "3号": "3发",
+                    "4号": "4发"
                 }
+                
+                # 计算总消耗燃油量、初始燃油总量和最终燃油总量
+                total_consumption = 0.0
+                total_start_fuel = 0.0
+                total_end_fuel = 0.0
+                total_engine_consumption = 0.0
                 
                 for tank in fuel_data['fuel_tanks']:
                     # 如果有温度数据，显示温度信息
@@ -383,26 +394,42 @@ class FuelAnalysis(AnalysisInterface):
                     
                     # 尝试关联对应的发动机编号和耗油量
                     engine_id = "无"
-                    engine_consumption = "无"
+                    engine_consumption = 0.0
                     
                     # 根据油箱编号查找对应的发动机
                     if tank['tank_name'] in tank_to_engine_map:
                         engine_name = tank_to_engine_map[tank['tank_name']]
                         if engine_name in engine_fuel_map:
                             engine_id = engine_name
-                            engine_consumption = f"{engine_fuel_map[engine_name]:.2f}"
+                            engine_consumption = engine_fuel_map[engine_name]
+                    
+                    # 累加各项数据
+                    total_consumption += tank['consumption']
+                    total_start_fuel += tank['start_fuel']
+                    total_end_fuel += tank['end_fuel']
+                    total_engine_consumption += engine_consumption
                     
                     # 添加表格行
-                    result.append(f"| {tank['tank_name']} | {tank['start_fuel']:.2f} | {tank['end_fuel']:.2f} | {tank['consumption']:.2f} | {temp_change} | {engine_id} | {engine_consumption} |")
-            
+                    engine_consumption_str = f"{engine_consumption:.2f}" if engine_consumption > 0 else "无"
+                    result.append(f"| {tank['tank_name']} | {tank['start_fuel']:.2f} | {tank['end_fuel']:.2f} | {tank['consumption']:.2f} | {temp_change} | {engine_id} | {engine_consumption_str} |")
+                
+                # 添加求和行
+                result.append(f"| **合计** | **{total_start_fuel:.2f}** | **{total_end_fuel:.2f}** | **{total_consumption:.2f}** | - | - | **{total_engine_consumption:.2f}** |")
             # 如果没有油箱信息但是有发动机耗油量信息，单独显示发动机信息
             elif fuel_data['engine_fuel_consumptions']:
                 result.append("")
                 result.append("| 发动机编号 | 总耗油量(kg) |")
-                result.append("|------------|--------------|")
+                # 添加列宽定义行，使所有列等宽
+                result.append("| :::50::: | :::50::: |")
+                
+                # 计算总消耗燃油量
+                total_engine_consumption = 0.0
                 for engine in fuel_data['engine_fuel_consumptions']:
                     result.append(f"| {engine['engine_name']} | {engine['total_consumption']:.2f} |")
-            
+                    total_engine_consumption += engine['total_consumption']
+                
+                # 添加求和行
+                result.append(f"| **合计** | **{total_engine_consumption:.2f}** |")
             return "\n".join(result)
         except Exception as e:
             logging.error(f"生成燃油系统分析文本时出错: {str(e)}")
