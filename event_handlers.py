@@ -19,6 +19,24 @@ import pandas as pd
 import wx
 from wx import ID_CANCEL, NOT_FOUND
 
+from html_generator import HTMLGenerator
+from styles import (
+    GLOBAL_CSS,
+    TABLE_CELL_BASE_STYLE,
+    TABLE_HEADER_BASE_STYLE,
+    ALIGN_LEFT,
+    ALIGN_CENTER,
+    ALIGN_RIGHT,
+    ALIGN_LEFT_HEADER,
+    ALIGN_CENTER_HEADER,
+    ALIGN_RIGHT_HEADER,
+    TABLE_STYLE_FIXED,
+    TABLE_STYLE_AUTO,
+    EMPTY_LINE_STYLE,
+    SMALL_EMPTY_LINE_STYLE,
+    ERROR_FALLBACK_STYLE
+)
+
 # 设置最大工作线程数为4，避免过多线程竞争资源
 MAX_WORKERS = 4
 
@@ -629,26 +647,7 @@ class AnalysisSaveHandler(BaseEventHandler):
             doc = generator.create_document()
             
             # 添加默认CSS样式
-            generator.add_css("""
-                body {
-                    font-family: Consolas, 'Courier New', monospace;
-                    font-size: 14px;
-                    text-align: left;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 1em 0;
-                }
-                th, td {
-                    border: 1px solid;
-                    padding: 3px;
-                    word-wrap: break-word;
-                }
-                th {
-                    background-color: #f2f2f2;
-                }
-            """)
+            generator.add_css(GLOBAL_CSS)
             
             # 处理表格标记
             lines = text.split('\n')
@@ -712,8 +711,7 @@ class AnalysisSaveHandler(BaseEventHandler):
                             formatted_headers.append(formatted_cell)
                         
                         # 开始创建表格
-                        table_style = 'width: 100%; table-layout: fixed; border-collapse: collapse;' if has_custom_widths else \
-                                     'width: 100%; table-layout: auto; border-collapse: collapse;'
+                        table_style = TABLE_STYLE_FIXED if has_custom_widths else TABLE_STYLE_AUTO
                         generator.start_table(style=table_style, css_class="export-table")
                         generator.add_table_header(formatted_headers, widths)
                         generator.start_table_body()
@@ -781,7 +779,7 @@ class AnalysisSaveHandler(BaseEventHandler):
                         generator.add_paragraph(line)
                     else:
                         # 空行添加空白div
-                        generator.add_raw_html('<div style="height: 0.5em;"></div>')
+                        generator.add_raw_html(SMALL_EMPTY_LINE_STYLE)
                 i += 1
             
             # 返回生成的HTML

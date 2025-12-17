@@ -29,6 +29,23 @@ logging.basicConfig(
     ]
 )
 
+from styles import (
+    GLOBAL_CSS, 
+    TABLE_CELL_BASE_STYLE, 
+    TABLE_HEADER_BASE_STYLE, 
+    ALIGN_LEFT, 
+    ALIGN_CENTER, 
+    ALIGN_RIGHT,
+    ALIGN_LEFT_HEADER,
+    ALIGN_CENTER_HEADER,
+    ALIGN_RIGHT_HEADER,
+    TABLE_STYLE_FIXED,
+    TABLE_STYLE_AUTO,
+    EMPTY_LINE_STYLE,
+    SMALL_EMPTY_LINE_STYLE,
+    ERROR_FALLBACK_STYLE
+)
+
 
 class HTMLGenerator:
     """HTML生成器类
@@ -115,6 +132,9 @@ class HTMLGenerator:
                 attrs['cls'] = css_class
                 
             self.current_table = dtags.table(**attrs)
+            # 为兼容wx.html.HtmlWindow，添加HTML属性，但不设置border以移除边框
+            self.current_table['cellspacing'] = "0"
+            self.current_table['cellpadding'] = "3"
             self.current_table_head = None
             self.current_table_body = None
     
@@ -134,12 +154,24 @@ class HTMLGenerator:
             with self.current_table_head:
                 with dtags.tr():
                     for i, header in enumerate(headers):
-                        attrs = {'style': f'background-color: #f2f2f2; word-wrap: break-word; text-align: {align};'}
+                        # 根据对齐方式选择合适的样式
+                        align_style = ""
+                        if align == "left":
+                            align_style = ALIGN_LEFT_HEADER
+                        elif align == "center":
+                            align_style = ALIGN_CENTER_HEADER
+                        elif align == "right":
+                            align_style = ALIGN_RIGHT_HEADER
+                            
+                        attrs = {'style': align_style}
                         if widths and i < len(widths) and widths[i] is not None:
                             attrs['style'] += f' width: {widths[i]}%;'
                             
+                        # 为兼容wx.html.HtmlWindow，添加border属性
+                        attrs['border'] = "0"
+                            
                         dtags.th(header, **attrs)
-    
+
     def start_table_body(self):
         """开始表格主体部分"""
         if self.current_table is None:
@@ -161,8 +193,21 @@ class HTMLGenerator:
         with self.current_table_body:
             with dtags.tr():
                 for cell in cells:
-                    dtags.td(cell, style=f"word-wrap: break-word; text-align: {align};")
-    
+                    # 根据对齐方式选择合适的样式
+                    align_style = ""
+                    if align == "left":
+                        align_style = ALIGN_LEFT
+                    elif align == "center":
+                        align_style = ALIGN_CENTER
+                    elif align == "right":
+                        align_style = ALIGN_RIGHT
+                        
+                    # 为兼容wx.html.HtmlWindow，添加border属性
+                    # 如果单元格包含HTML标签，则使用raw来避免转义
+                    if '<' in cell and '>' in cell:
+                        dtags.td(raw(cell), style=align_style, border="0")
+                    else:
+                        dtags.td(cell, style=align_style, border="0")
     def end_table(self):
         """结束表格创建"""
         if self.doc is None:
@@ -254,30 +299,34 @@ class HTMLGenerator:
         temp_doc = dominate.document()
         with temp_doc:
             # 使用 table-layout: fixed 强制按比例显示
-            table_style = 'width: 100%; table-layout: fixed; border-collapse: collapse;' if has_custom_widths else \
-                         'width: 100%; table-layout: auto; border-collapse: collapse;'
-            with dtags.table(style=table_style, border="1", cellspacing="0", cellpadding="3"):
+            table_style = TABLE_STYLE_FIXED if has_custom_widths else TABLE_STYLE_AUTO
+            table_element = dtags.table(style=table_style)
+            # 为兼容wx.html.HtmlWindow添加HTML属性
+            table_element['border'] = "0"
+            table_element['cellspacing'] = "0"
+            table_element['cellpadding'] = "3"
+            with table_element:
                 # 表头
                 with dtags.thead():
                     with dtags.tr():
                         for i, header in enumerate(headers):
-                            style_attrs = 'background-color: #f2f2f2; word-wrap: break-word;'
+                            style_attrs = TABLE_HEADER_BASE_STYLE
                             if has_custom_widths and widths and i < len(widths) and widths[i] is not None:
                                 style_attrs += f' width: {widths[i]}%;'
-                            dtags.th(header, style=style_attrs)
-                
-                # 表体
-                with dtags.tbody():
-                    # 从第二行开始处理数据行（如果有宽度定义行，则实际上是第三行开始）
-                    start_index = 2 if not has_custom_widths else 1
-                    for line in lines[start_index:]:
-                        cells = [cell.strip() for cell in line.split('|') if cell.strip()]
-                        if cells:  # 只处理非空行
-                            with dtags.tr():
-                                for cell in cells:
-                                    dtags.td(cell, style="word-wrap: break-word;")
-        
-        return str(temp_doc)
+                            dtags.th(header, style=style_attrs, border="1")
+                    
+                    # 表体
+                    with dtags.tbody():
+                        # 从第二行开始处理数据行（如果有宽度定义行，则实际上是第三行开始）
+                        start_index = 2 if not has_custom_widths else 1
+                        for line in lines[start_index:]:
+                            cells = [cell.strip() for cell in line.split('|') if cell.strip()]
+                            if cells:  # 只处理非空行
+                                with dtags.tr():
+                                    for cell in cells:
+                                        dtags.td(cell, style=TABLE_CELL_BASE_STYLE, border="1")
+            
+            return str(temp_doc)
 
 
 # 使用示例
@@ -289,21 +338,13 @@ if __name__ == "__main__":
     doc = generator.create_document("测试文档")
     
     # 添加CSS样式
-    generator.add_css("""
-        body {
-            font-family: Consolas, 'Courier New', monospace;
-            font-size: 14px;
-        }
-        table {
-            margin: 1em 0;
-        }
-    """)
+    generator.add_css(GLOBAL_CSS)
     
     # 添加标题
     generator.add_title("测试标题", level=3)
     
     # 添加表格
-    generator.start_table(style="width: 100%; border-collapse: collapse;", css_class="test-table")
+    generator.start_table(style=TABLE_STYLE_FIXED, css_class="test-table")
     generator.add_table_header(["列1", "列2", "列3"], widths=[40, 30, 30])
     generator.start_table_body()
     generator.add_table_row(["数据1", "数据2", "数据3"])

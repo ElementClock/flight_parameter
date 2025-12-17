@@ -347,32 +347,48 @@ class CasAnalysis(AnalysisInterface):
             # 按告警级别分组
             grouped_alarms = self.group_alarms_by_level(cas_data['alarms'], alarm_levels)
             
-            # 按指定顺序排列告警级别
-            level_order = ['警告级', '戒备级', '提示级', '状态级']
+            # 创建一个包含所有告警的列表，并添加告警级别信息
+            all_alarms_with_levels = []
             
-            # 按级别顺序输出告警表格
+            # 按级别顺序处理告警
+            level_order = ['警告级', '戒备级', '提示级', '状态级', '未知级别']
             for level in level_order:
                 if level in grouped_alarms and grouped_alarms[level]:
-                    # 添加告警级别标题 (使用Markdown标题格式)
-                    result.append(f"##### {level}")
-                        
-                    # 添加表格标记 (使用Markdown表格格式)
-                    result.append("| 告警名称 | 时间 | 持续时间 |")
-                    # 添加列宽定义行，设置告警名称:时间:持续时间 = 6:3:1的比例
-                    result.append("| :::60::: | :::30::: | :::10::: |")
-                    result.append("|----------|------|----------|")
-                    
-                    # 遍历该级别的告警数据
                     for alarm in grouped_alarms[level]:
-                        # 提取当前行的告警信息
-                        alarm_name = alarm['name']
-                        start_time = alarm['start_time']
-                        end_time = alarm['end_time']
-                        duration = alarm['duration']
-                        
-                        # 添加表格行
-                        time_range = f"{start_time}-{end_time}"
-                        result.append(f"| {alarm_name} | {time_range} | {duration} |")
+                        alarm_copy = alarm.copy()
+                        alarm_copy['level'] = level
+                        all_alarms_with_levels.append(alarm_copy)
+            
+            # 如果有告警，则显示在一个表格中
+            if all_alarms_with_levels:
+                # 添加表格标记 (使用Markdown表格格式)
+                result.append("| 告警名称 | 时间 | 持续时间 | 告警级别 |")
+                # 添加列宽定义行，设置告警名称:时间:持续时间:告警级别 = 4:3:2:1的比例
+                result.append("| :::40::: | :::30::: | :::20::: | :::10::: |")
+                result.append("|----------|------|----------|----------|")
+                
+                # 遍历所有告警数据
+                for alarm in all_alarms_with_levels:
+                    # 提取当前行的告警信息
+                    alarm_name = alarm['name']
+                    start_time = alarm['start_time']
+                    end_time = alarm['end_time']
+                    duration = alarm['duration']
+                    level = alarm['level']
+                    
+                    # 根据告警级别设置颜色（使用内联样式，因为CSS类在wx.html.HtmlWindow中可能不生效）
+                    if level == '警告级':
+                        level_html = '警告级'  # 现在在UI组件中处理颜色
+                    elif level == '戒备级':
+                        level_html = '戒备级'
+                    elif level == '提示级':
+                        level_html = '提示级'
+                    else:
+                        level_html = level
+                    
+                    # 添加表格行
+                    time_range = f"{start_time}-{end_time}"
+                    result.append(f"| {alarm_name} | {time_range} | {duration} | {level_html} |")
 
             return "\n".join(result)
         except Exception as e:

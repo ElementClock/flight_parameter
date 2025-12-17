@@ -22,6 +22,7 @@ import sys
 import os
 import json
 import hashlib
+import logging
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +30,31 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from analysis.data_analyzer import DataAnalyzer
 from data_manager import DataContainer
 from html_generator import HTMLGenerator
+from styles import (
+    GLOBAL_CSS,
+    TABLE_CELL_BASE_STYLE,
+    TABLE_HEADER_BASE_STYLE,
+    ALIGN_LEFT,
+    ALIGN_CENTER,
+    ALIGN_RIGHT,
+    ALIGN_LEFT_HEADER,
+    ALIGN_CENTER_HEADER,
+    ALIGN_RIGHT_HEADER,
+    TABLE_STYLE_FIXED,
+    TABLE_STYLE_AUTO,
+    EMPTY_LINE_STYLE,
+    SMALL_EMPTY_LINE_STYLE,
+    ERROR_FALLBACK_STYLE
+)
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
 
 class StyleDebuggerFrame(wx.Frame):
@@ -87,6 +113,11 @@ class StyleDebuggerFrame(wx.Frame):
         self.reload_button.Bind(wx.EVT_BUTTON, self.on_reload)
         button_sizer.Add(self.reload_button, 0, wx.ALL, 5)
         
+        # 添加导出按钮
+        self.export_button = wx.Button(panel, label="导出HTML")
+        self.export_button.Bind(wx.EVT_BUTTON, self.on_export)
+        button_sizer.Add(self.export_button, 0, wx.ALL, 5)
+        
         sizer.Add(button_sizer, 0, wx.ALL | wx.CENTER, 5)
         
         # 创建HTML显示窗口
@@ -123,7 +154,7 @@ class StyleDebuggerFrame(wx.Frame):
                 wx.MessageBox("已从缓存加载分析结果", "信息", wx.OK | wx.ICON_INFORMATION)
                 return
             except Exception as e:
-                print(f"加载缓存失败: {e}")
+                logging.error(f"加载缓存失败: {e}")
         
         # 加载并分析数据
         try:
@@ -177,7 +208,8 @@ class StyleDebuggerFrame(wx.Frame):
                     return False
                     
             return True
-        except Exception:
+        except Exception as e:
+            logging.error(f"检查缓存有效性时出错: {e}")
             return False
         
     def load_from_cache(self):
@@ -301,6 +333,40 @@ class StyleDebuggerFrame(wx.Frame):
         # 重新加载数据
         self.load_or_generate_analysis_result()
         
+    def on_export(self, event):
+        """导出当前显示内容为HTML文件"""
+        try:
+            # 获取当前显示的HTML内容
+            html_content = self.html_window.GetOpenedPage() or self.html_window.GetParser().GetInnerXml()
+            
+            # 如果无法获取内容，则使用ToText方法获取文本
+            if not html_content:
+                html_content = self.html_window.ToText()
+                # 如果是纯文本，包装成完整的HTML
+                if html_content and not html_content.strip().startswith('<'):
+                    html_content = f"<html><body>{html_content}</body></html>"
+            
+            # 打开文件保存对话框
+            with wx.FileDialog(
+                self,
+                message="保存HTML文件",
+                wildcard="HTML文件 (*.html)|*.html",
+                style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
+            ) as fileDialog:
+                if fileDialog.ShowModal() == wx.ID_CANCEL:
+                    return
+                    
+                pathname = fileDialog.GetPath()
+                
+                # 保存HTML内容到文件
+                with open(pathname, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                    
+                wx.MessageBox(f"已成功导出到: {pathname}", "导出成功", wx.OK | wx.ICON_INFORMATION)
+        except Exception as e:
+            logging.error(f"导出HTML时出错: {e}")
+            wx.MessageBox(f"导出失败: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+        
     def display_result(self, text):
         """显示结果文本"""
         # 这里使用与ui_components.py中相同的转换逻辑
@@ -317,26 +383,7 @@ class StyleDebuggerFrame(wx.Frame):
             doc = generator.create_document()
             
             # 添加默认CSS样式
-            generator.add_css("""
-                body {
-                    font-family: Consolas, 'Courier New', monospace;
-                    font-size: 14px;
-                    text-align: left;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 1em 0;
-                }
-                th, td {
-                    border: 1px solid;
-                    padding: 3px;
-                    word-wrap: break-word;
-                }
-                th {
-                    background-color: #f2f2f2;
-                }
-            """)
+            generator.add_css(GLOBAL_CSS)
             
             # 处理Markdown标题 (# 标题)
             lines = text.split('\n')
@@ -412,8 +459,7 @@ class StyleDebuggerFrame(wx.Frame):
                             formatted_headers.append(formatted_cell)
                         
                         # 开始创建表格
-                        table_style = 'width: 100%; table-layout: fixed; border-collapse: collapse;' if has_custom_widths else \
-                                     'width: 100%; table-layout: auto; border-collapse: collapse;'
+                        table_style = TABLE_STYLE_FIXED if has_custom_widths else TABLE_STYLE_AUTO
                         generator.start_table(style=table_style, css_class="analysis-table")
                         generator.add_table_header(formatted_headers, widths)
                         generator.start_table_body()
@@ -463,7 +509,7 @@ class StyleDebuggerFrame(wx.Frame):
                         generator.end_table()
                         
                         # 在表格后添加一行空白
-                        generator.add_raw_html('<div style="height: 1em;"></div>')
+                        generator.add_raw_html(EMPTY_LINE_STYLE)
                     else:
                         # 不符合表格格式，当作普通文本处理
                         generator.add_paragraph(line)
@@ -473,7 +519,7 @@ class StyleDebuggerFrame(wx.Frame):
                         generator.add_paragraph(line)
                     else:
                         # 空行添加空白div
-                        generator.add_raw_html('<div style="height: 0.5em;"></div>')
+                        generator.add_raw_html(SMALL_EMPTY_LINE_STYLE)
                 i += 1
             
             # 返回生成的HTML
@@ -481,7 +527,7 @@ class StyleDebuggerFrame(wx.Frame):
         except Exception as e:
             logging.error(f"转换自定义标记为HTML时出错: {str(e)}")
             # 出错时回退到原来的实现
-            return f'<html><body style="font-family: Consolas, \'Courier New\', monospace;"><pre>{text}</pre></body></html>'
+            return ERROR_FALLBACK_STYLE.format(text=text)
 
 
 class StyleDebuggerApp(wx.App):
@@ -502,6 +548,7 @@ def main():
     print("  - 显示各专业结果: 单独显示某一专业的分析结果")
     print("  - 清空: 清除当前显示内容")
     print("  - 重新加载数据: 强制重新加载并分析数据（忽略缓存）")
+    print("  - 导出HTML: 将当前显示内容导出为HTML文件")
     
     app = StyleDebuggerApp()
     app.MainLoop()
