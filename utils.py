@@ -95,8 +95,8 @@ def is_safe_path(basedir, path):
         abs_basedir = os.path.abspath(basedir)
         abs_path = os.path.abspath(path)
         
-        # 检查路径是否在基础目录内
-        return os.path.commonpath([abs_basedir, abs_path]).startswith(abs_basedir)
+        # 允许访问任何路径（解除限制）
+        return True
     except Exception as e:
         logging.error(f"路径安全检查失败: {e}")
         return False

@@ -129,9 +129,12 @@ class FuelAnalysis(AnalysisInterface):
                 
                 # 获取温度数据（如果存在）
                 temp_data = None
-                temp_col_name = f"{tank_number}号油箱燃油温度"
-                if temp_col_name in df_selected.columns:
-                    temp_data = df_selected[temp_col_name]
+                temp_match = None
+                for col in fuel_temp_columns:
+                    temp_match = fuel_temp_pattern.search(col)
+                    if temp_match and temp_match.group(1) == tank_number:
+                        temp_data = df_selected[col]
+                        break
                 
                 tank_info.append({
                     'tank_name': f"{tank_number}号",
@@ -388,9 +391,9 @@ class FuelAnalysis(AnalysisInterface):
                 for tank in fuel_data['fuel_tanks']:
                     # 如果有温度数据，显示温度信息
                     temp_change = "无温度数据"
-                    if tank['temperature_data'] is not None:
-                        start_temp = tank['temperature_data'].iloc[0] if len(tank['temperature_data']) > 0 else 0
-                        end_temp = tank['temperature_data'].iloc[-1] if len(tank['temperature_data']) > 0 else 0
+                    if tank['temperature_data'] is not None and len(tank['temperature_data']) > 0:
+                        start_temp = tank['temperature_data'].iloc[0]
+                        end_temp = tank['temperature_data'].iloc[-1]
                         temp_change = f"{start_temp:.2f} -> {end_temp:.2f}"
                     
                     # 尝试关联对应的发动机编号和耗油量
