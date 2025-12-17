@@ -622,11 +622,36 @@ class AnalysisSaveHandler(BaseEventHandler):
             str: 转换为HTML格式的文本
         """
         try:
-            html_content = text
+            # 创建HTML生成器实例
+            generator = HTMLGenerator()
+            
+            # 创建文档
+            doc = generator.create_document()
+            
+            # 添加默认CSS样式
+            generator.add_css("""
+                body {
+                    font-family: Consolas, 'Courier New', monospace;
+                    font-size: 14px;
+                    text-align: left;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 1em 0;
+                }
+                th, td {
+                    border: 1px solid;
+                    padding: 3px;
+                    word-wrap: break-word;
+                }
+                th {
+                    background-color: #f2f2f2;
+                }
+            """)
             
             # 处理表格标记
             lines = text.split('\n')
-            html_lines = []
             i = 0
             while i < len(lines):
                 line = lines[i]
@@ -644,11 +669,20 @@ class AnalysisSaveHandler(BaseEventHandler):
                     if len(table_lines) >= 2:  # 至少要有表头和分隔行
                         # 检查是否有自定义列宽设置
                         has_custom_widths = ':::' in table_lines[1]
+                        widths = None
+                        
                         if has_custom_widths:
                             # 解析自定义列宽
                             width_line = table_lines[1]
                             widths = []
-                            for part in width_line.split('|'):
+                            width_parts = width_line.split('|')
+                            # 移除首尾的空字符串
+                            if width_parts[0] == '':
+                                width_parts = width_parts[1:]
+                            if width_parts and width_parts[-1] == '':
+                                width_parts = width_parts[:-1]
+                            
+                            for part in width_parts:
                                 part = part.strip()
                                 if part.startswith(':::') and part.endswith(':::'):
                                     try:
@@ -661,13 +695,6 @@ class AnalysisSaveHandler(BaseEventHandler):
                             
                             # 移除宽度定义行
                             table_lines.pop(1)
-                            
-                            # 构造带有自定义列宽的表格
-                            table_style = 'width: 100%; border-collapse: collapse;'
-                            html_lines.append(f'<table style="{table_style}" border="1" cellspacing="0" cellpadding="3">')
-                        else:
-                            # 使用固定布局确保列宽相等
-                            html_lines.append('<table style="width: 100%; table-layout: fixed; border-collapse: collapse;" border="1" cellspacing="0" cellpadding="3">')
                         
                         # 处理表头
                         header_cells = [cell.strip() for cell in table_lines[0].split('|')]
@@ -677,29 +704,19 @@ class AnalysisSaveHandler(BaseEventHandler):
                         if header_cells and header_cells[-1] == '':
                             header_cells = header_cells[:-1]
                         
-                        html_lines.append('<thead>')
-                        html_lines.append('<tr>')
-                        for idx, cell in enumerate(header_cells):
-                            # 处理单元格中的加粗标记
+                        # 处理表头中的加粗标记
+                        formatted_headers = []
+                        for cell in header_cells:
                             formatted_cell = cell.replace('**', '<strong>')
                             formatted_cell = formatted_cell.replace('</strong><strong>', '')
-                            
-                            # 如果有自定义宽度设置，则应用宽度
-                            if has_custom_widths and idx < len(widths) and widths[idx] is not None:
-                                style = f'word-wrap: break-word; background-color: #f2f2f2; width: {widths[idx]}%;'
-                                html_lines.append(f'<th style="{style}">{formatted_cell}</th>')
-                            else:
-                                html_lines.append(f'<th style="word-wrap: break-word; background-color: #f2f2f2;">{formatted_cell}</th>')
-                        html_lines.append('</tr>')
-                        html_lines.append('</thead>')
+                            formatted_headers.append(formatted_cell)
                         
-                        # 处理数据行 (跳过分隔行)
-                        html_lines.append('<tbody>')
-                        # 修复：正确处理数据行索引
-                        # table_lines现在的结构：
-                        # [0] 表头行
-                        # [1] 分隔行或宽度定义行
-                        # [2] 及以后 数据行
+                        # 开始创建表格
+                        table_style = 'width: 100%; table-layout: fixed; border-collapse: collapse;' if has_custom_widths else \
+                                     'width: 100%; table-layout: auto; border-collapse: collapse;'
+                        generator.start_table(style=table_style, css_class="export-table")
+                        generator.add_table_header(formatted_headers, widths)
+                        generator.start_table_body()
                         
                         # 确定数据起始索引
                         data_start_index = 1  # 默认从索引1开始（跳过表头）
@@ -717,6 +734,9 @@ class AnalysisSaveHandler(BaseEventHandler):
                                 # 这是数据行，数据从索引1开始
                                 data_start_index = 1
                         
+                        # 检查是否是CAS告警表格（第一列应该是"告警名称"）
+                        is_cas_table = len(header_cells) >= 3 and header_cells[0] == "告警名称" and header_cells[1] == "时间" and header_cells[2] == "持续时间"
+                        
                         # 处理数据行
                         for row_idx in range(data_start_index, len(table_lines)):
                             row_line = table_lines[row_idx]
@@ -727,52 +747,45 @@ class AnalysisSaveHandler(BaseEventHandler):
                             if row_cells and row_cells[-1] == '':
                                 row_cells = row_cells[:-1]
                             
-                            html_lines.append('<tr>')
-                            for idx, cell in enumerate(row_cells):
-                                # 处理单元格中的加粗标记
+                            # 处理单元格中的加粗标记
+                            formatted_cells = []
+                            for cell in row_cells:
                                 formatted_cell = cell.replace('**', '<strong>')
                                 formatted_cell = formatted_cell.replace('</strong><strong>', '')
-                                
-                                # 如果有自定义宽度设置，则应用宽度
-                                if has_custom_widths and idx < len(widths) and widths[idx] is not None:
-                                    style = f'word-wrap: break-word; width: {widths[idx]}%; text-align: center;'
-                                    html_lines.append(f'<td style="{style}">{formatted_cell}</td>')
-                                else:
-                                    html_lines.append(f'<td style="word-wrap: break-word; text-align: center;">{formatted_cell}</td>')
-                            html_lines.append('</tr>')
-                        html_lines.append('</tbody>')
+                                formatted_cells.append(formatted_cell)
+                            
+                            # 对于CAS告警表格，第一列（告警名称）左对齐，其余居中对齐
+                            if is_cas_table:
+                                generator.add_table_row(formatted_cells, "left")
+                            else:
+                                generator.add_table_row(formatted_cells, "center")
                         
-                        html_lines.append('</table>')
+                        generator.end_table()
                     else:
                         # 不符合表格格式，当作普通文本处理
-                        html_lines.append(line)
+                        generator.add_paragraph(line)
                 # 处理标题
                 elif line.startswith('### '):
-                    html_lines.append(f'<h3>{line[4:]}</h3>')
+                    generator.add_title(line[4:], level=3)
                 elif line.startswith('##### '):
-                    html_lines.append(f'<h5>{line[6:]}</h5>')
+                    generator.add_title(line[6:], level=5)
                 # 处理加粗文本
                 elif '**' in line:
-                    parts = line.split('**')
-                    new_line = ''
-                    for j, part in enumerate(parts):
-                        if j % 2 == 1:  # 加粗部分
-                            new_line += f'<strong>{part}</strong>'
-                        else:
-                            new_line += part
-                    html_lines.append(new_line)
+                    # 简单处理加粗文本，后续可以增强
+                    clean_line = line.replace('**', '<strong>')
+                    clean_line = clean_line.replace('</strong><strong>', '')
+                    generator.add_paragraph(clean_line)
                 else:
                     # 处理普通文本行
                     if line.strip():  # 只有非空行才添加
-                        html_lines.append(f'<div>{line}</div>')
+                        generator.add_paragraph(line)
                     else:
                         # 空行添加空白div
-                        html_lines.append('<div style="height: 0.5em;"></div>')
+                        generator.add_raw_html('<div style="height: 0.5em;"></div>')
                 i += 1
             
-            html_content = '\n'.join(html_lines)
-            
-            return html_content
+            # 返回生成的HTML
+            return generator.get_html()
         except Exception as e:
             logging.error(f"转换自定义标记为HTML时出错: {str(e)}")
             return text

@@ -358,6 +358,8 @@ class CasAnalysis(AnalysisInterface):
                         
                     # 添加表格标记 (使用Markdown表格格式)
                     result.append("| 告警名称 | 时间 | 持续时间 |")
+                    # 添加列宽定义行，设置告警名称:时间:持续时间 = 6:3:1的比例
+                    result.append("| :::60::: | :::30::: | :::10::: |")
                     result.append("|----------|------|----------|")
                     
                     # 遍历该级别的告警数据
