@@ -19,6 +19,7 @@ import pandas as pd
 import wx
 from wx import ID_CANCEL, NOT_FOUND
 
+# 项目模块导入
 from html_generator import HTMLGenerator
 from styles import (
     GLOBAL_CSS,
@@ -36,6 +37,7 @@ from styles import (
     SMALL_EMPTY_LINE_STYLE,
     ERROR_FALLBACK_STYLE
 )
+from utils import is_safe_path, sanitize_filename
 
 # 根据CPU核心数动态设置最大工作线程数
 import multiprocessing
