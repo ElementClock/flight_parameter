@@ -233,9 +233,14 @@ class StyleDebuggerFrame(wx.Frame):
         
     def save_to_cache(self, data_file_path):
         """保存分析结果到缓存"""
+        # 检查路径安全性
+        if not is_safe_path(os.getcwd(), data_file_path):
+            logging.warning(f"不允许缓存的文件路径: {data_file_path}")
+            return
+            
         # 准备缓存数据
         cache_data = {
-            'data_file': data_file_path,
+            'data_file': os.path.basename(data_file_path),  # 只保存文件名，不保存完整路径
             'data_file_mtime': os.path.getmtime(data_file_path),
             'analysis_results': {
                 'text_engine': getattr(self.analysis_result, 'text_engine', ''),
@@ -358,6 +363,20 @@ class StyleDebuggerFrame(wx.Frame):
                     
                 pathname = fileDialog.GetPath()
                 
+                # 检查路径安全性
+                if not is_safe_path(os.getcwd(), pathname):
+                    wx.MessageBox("不允许保存到指定路径", "错误", wx.OK | wx.ICON_ERROR)
+                    return
+                
+                # 清理文件名
+                dir_name = os.path.dirname(pathname)
+                file_name = sanitize_filename(os.path.basename(pathname))
+                pathname = os.path.join(dir_name, file_name)
+                
+                # 确保文件扩展名正确
+                if not pathname.endswith('.html'):
+                    pathname += '.html'
+                
                 # 保存HTML内容到文件
                 with open(pathname, 'w', encoding='utf-8') as f:
                     f.write(html_content)
@@ -365,7 +384,7 @@ class StyleDebuggerFrame(wx.Frame):
                 wx.MessageBox(f"已成功导出到: {pathname}", "导出成功", wx.OK | wx.ICON_INFORMATION)
         except Exception as e:
             logging.error(f"导出HTML时出错: {e}")
-            wx.MessageBox(f"导出失败: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+            wx.MessageBox("导出失败，请查看日志获取详细信息", "错误", wx.OK | wx.ICON_ERROR)
         
     def display_result(self, text):
         """显示结果文本"""

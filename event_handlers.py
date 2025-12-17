@@ -36,6 +36,7 @@ from styles import (
     SMALL_EMPTY_LINE_STYLE,
     ERROR_FALLBACK_STYLE
 )
+from utils import is_safe_path, sanitize_filename
 
 # 设置最大工作线程数为4，避免过多线程竞争资源
 MAX_WORKERS = 4
@@ -157,7 +158,8 @@ class DataLoaderHandler(BaseEventHandler):
                 # 可以在这里添加对future的处理，如添加回调函数
         except Exception as e:
             logging.error(f"加载数据时出错: {str(e)}")
-            wx.MessageBox(f"加载数据时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
+            logging.error(f"加载数据时出错: {str(e)}")
+            wx.MessageBox("加载数据时出错，请查看日志获取详细信息", "错误", wx.OK | wx.ICON_ERROR)
     
     def _update_analysis_progress(self, value, message=""):
         """更新分析进度的内部方法
@@ -322,7 +324,8 @@ class DataLoaderHandler(BaseEventHandler):
 
         except Exception as e:
             # 在UI线程中显示错误消息
-            wx.CallAfter(self.on_data_load_error, pathname, str(e))
+            logging.error(f"处理文件 {pathname} 时出错: {str(e)}")
+            wx.CallAfter(self.on_data_load_error, pathname, "处理文件时出错，请查看日志获取详细信息")
     
     def process_multiple_data(self, pathnames):
         """在线程池中处理多个数据文件
@@ -356,7 +359,8 @@ class DataLoaderHandler(BaseEventHandler):
         except Exception as e:
             logging.error(f"处理多个数据文件时出错: {str(e)}")
             wx.CallAfter(self.app_frame.sidebar_panel.show_progress, False)
-            wx.CallAfter(self.on_data_load_error, "所有文件", str(e))
+            logging.error(f"处理多个数据文件时出错: {str(e)}")
+            wx.CallAfter(self.on_data_load_error, "所有文件", "处理文件时出错，请查看日志获取详细信息")
     
     def on_single_data_loaded(self, pathname, encoding, data_container):
         """在UI线程中更新界面 - 单个数据加载成功
@@ -464,6 +468,17 @@ class DataSaveHandler(BaseEventHandler):
                         return
 
                     pathname = fileDialog.GetPath()
+                    
+                    # 检查路径安全性
+                    if not is_safe_path(os.getcwd(), pathname):
+                        wx.MessageBox("不允许保存到指定路径", "错误", wx.OK | wx.ICON_ERROR)
+                        return
+                    
+                    # 清理文件名
+                    dir_name = os.path.dirname(pathname)
+                    file_name = sanitize_filename(os.path.basename(pathname))
+                    pathname = os.path.join(dir_name, file_name)
+                    
                     if not pathname.endswith('.csv'):
                         pathname += '.csv'
                     # 确保目录存在
@@ -542,6 +557,17 @@ class AnalysisSaveHandler(BaseEventHandler):
                         return
 
                     pathname = fileDialog.GetPath()
+                    
+                    # 检查路径安全性
+                    if not is_safe_path(os.getcwd(), pathname):
+                        wx.MessageBox("不允许保存到指定路径", "错误", wx.OK | wx.ICON_ERROR)
+                        return
+                    
+                    # 清理文件名
+                    dir_name = os.path.dirname(pathname)
+                    file_name = sanitize_filename(os.path.basename(pathname))
+                    pathname = os.path.join(dir_name, file_name)
+                    
                     # 确保目录存在
                     os.makedirs(os.path.dirname(pathname) or '.', exist_ok=True)
                     
@@ -957,6 +983,20 @@ class QuickSaveHandler(BaseEventHandler):
             default_analysis_path = os.path.join(save_directory, default_analysis_filename)
             
             try:
+                # 检查路径安全性
+                if not is_safe_path(os.getcwd(), default_data_path) or not is_safe_path(os.getcwd(), default_analysis_path):
+                    wx.MessageBox("不允许保存到指定路径", "错误", wx.OK | wx.ICON_ERROR)
+                    return
+                
+                # 清理文件名
+                data_dir = os.path.dirname(default_data_path)
+                data_filename = sanitize_filename(os.path.basename(default_data_path))
+                default_data_path = os.path.join(data_dir, data_filename)
+                
+                analysis_dir = os.path.dirname(default_analysis_path)
+                analysis_filename = sanitize_filename(os.path.basename(default_analysis_path))
+                default_analysis_path = os.path.join(analysis_dir, analysis_filename)
+                
                 # 保存数据文件
                 current_container.df.to_csv(default_data_path, encoding='utf-8-sig', index=False)
                 
@@ -1189,8 +1229,12 @@ class BatchProcessHandler(BaseEventHandler):
     def _process_single_file(self, file_path, output_folder, index, total_files):
         """处理单个CSV文件"""
         try:
+            # 检查路径安全性
+            if not is_safe_path(os.getcwd(), file_path):
+                raise ValueError(f"不允许访问的文件路径: {file_path}")
+                
             # 更新进度
-            filename = os.path.basename(file_path)
+            filename = sanitize_filename(os.path.basename(file_path))
             wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
                          int((index / total_files) * 5), 
                          f"正在处理: {filename}")
@@ -1208,6 +1252,9 @@ class BatchProcessHandler(BaseEventHandler):
             # 生成文件名前缀
             filename_prefix = self._generate_filename_prefix(analysis_result)
             
+            # 清理文件名
+            filename_prefix = sanitize_filename(filename_prefix)
+            
             # 保存数据文件
             data_file_path = os.path.join(output_folder, f"{filename_prefix}.csv")
             df.to_csv(data_file_path, encoding='utf-8-sig', index=False)
@@ -1223,6 +1270,10 @@ class BatchProcessHandler(BaseEventHandler):
             
     def _detect_file_encoding_cached(self, filepath, encodings=['utf-8', 'gbk', 'gb2312', 'latin1']):
         """检测文件编码（带缓存）"""
+        # 检查路径安全性
+        if not is_safe_path(os.getcwd(), filepath):
+            raise ValueError(f"不允许访问的文件路径: {filepath}")
+            
         # 检查缓存
         if filepath in self.encoding_cache:
             return self.encoding_cache[filepath]

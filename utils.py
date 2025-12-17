@@ -9,6 +9,7 @@
 """
 
 import logging
+import os
 
 import wx
 
@@ -77,3 +78,51 @@ def create_buttons_batch(parent, button_configs, basic_width, basic_height):
     except Exception as e:
         logging.error(f"批量创建按钮时出错: {str(e)}")
         return []
+
+
+def is_safe_path(basedir, path):
+    """检查路径是否在指定的基础目录内，防止路径遍历攻击
+    
+    Args:
+        basedir (str): 基础目录路径
+        path (str): 待检查的路径
+        
+    Returns:
+        bool: 路径是否安全
+    """
+    try:
+        # 将路径转换为绝对路径
+        abs_basedir = os.path.abspath(basedir)
+        abs_path = os.path.abspath(path)
+        
+        # 检查路径是否在基础目录内
+        return os.path.commonpath([abs_basedir, abs_path]).startswith(abs_basedir)
+    except Exception as e:
+        logging.error(f"路径安全检查失败: {e}")
+        return False
+
+
+def sanitize_filename(filename):
+    """清理文件名，移除非法字符
+    
+    Args:
+        filename (str): 原始文件名
+        
+    Returns:
+        str: 清理后的文件名
+    """
+    # 定义非法字符
+    illegal_chars = '<>:"/\\|?*\x00-\x1F'
+    
+    # 移除非法字符
+    sanitized = ''.join(c for c in filename if c not in illegal_chars)
+    
+    # 限制长度
+    if len(sanitized) > 255:
+        sanitized = sanitized[:255]
+        
+    # 如果清理后为空，返回默认名称
+    if not sanitized:
+        sanitized = "unnamed_file"
+        
+    return sanitized
