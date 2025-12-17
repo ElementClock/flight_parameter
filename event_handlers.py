@@ -36,10 +36,10 @@ from styles import (
     SMALL_EMPTY_LINE_STYLE,
     ERROR_FALLBACK_STYLE
 )
-from utils import is_safe_path, sanitize_filename
 
-# 设置最大工作线程数为4，避免过多线程竞争资源
-MAX_WORKERS = 4
+# 根据CPU核心数动态设置最大工作线程数
+import multiprocessing
+MAX_WORKERS = min(32, max(4, multiprocessing.cpu_count()))  # 至少4个，最多32个线程
 
 # 文件处理常量
 CHUNK_SIZE = 10000              # CSV文件分块读取大小
@@ -134,6 +134,8 @@ class DataLoaderHandler(BaseEventHandler):
         self.current_progress = 0
         # 创建线程池
         self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        # 添加编码缓存以提高性能
+        self.encoding_cache = {}
         
     def handle(self, event):
         """加载CSV数据文件"""
@@ -187,6 +189,14 @@ class DataLoaderHandler(BaseEventHandler):
         Returns:
             str: 检测到的编码，如果无法检测则返回None
         """
+        # 检查路径安全性
+        if not is_safe_path(os.getcwd(), filepath):
+            raise ValueError(f"不允许访问的文件路径: {filepath}")
+            
+        # 检查缓存
+        if filepath in self.encoding_cache:
+            return self.encoding_cache[filepath]
+            
         # 读取文件的前几行进行测试
         # 逐个尝试不同的编码方式，一旦成功读取就返回该编码
         for encoding in encodings:
@@ -194,6 +204,7 @@ class DataLoaderHandler(BaseEventHandler):
                 with open(filepath, 'r', encoding=encoding) as f:
                     f.read(1024)  # 读取前1024个字符
                 logging.info(f"使用 {encoding} 编码成功读取文件头部")
+                self.encoding_cache[filepath] = encoding  # 缓存结果
                 return encoding
             except UnicodeDecodeError:
                 logging.warning(f"使用 {encoding} 编码读取文件失败")
@@ -238,9 +249,8 @@ class DataLoaderHandler(BaseEventHandler):
                 wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
                              int((rows_read / total_rows) * 20), progress_msg)
             
-            # 合并所有块
-            # ignore_index=True表示重新生成连续的索引，不保留各块原有的索引
-            df = pd.concat(chunks, ignore_index=True)
+            # 合并所有块，使用ignore_index=True减少内存占用
+            df = pd.concat(chunks, ignore_index=True, copy=False)
             
             # 清理临时数据以释放内存
             del chunks
@@ -267,7 +277,7 @@ class DataLoaderHandler(BaseEventHandler):
             wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 
                          int((index / total_files) * 10), progress_msg)  # 前10%用于文件准备
             
-            # 首先尝试检测文件编码
+            # 首先尝试检测文件编码（使用缓存）
             detected_encoding = self._detect_file_encoding(pathname)
             
             # 定义尝试的编码列表
@@ -1092,7 +1102,9 @@ class BatchProcessHandler(BaseEventHandler):
     
     def __init__(self, app_frame):
         super().__init__(app_frame)
-        self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        # 根据系统资源动态调整线程数
+        optimal_workers = min(MAX_WORKERS, max(2, (multiprocessing.cpu_count() or 4) + 2))
+        self.executor = ThreadPoolExecutor(max_workers=optimal_workers)
         self.encoding_cache = {}  # 添加编码缓存以提高性能
         
     def handle(self, event):
@@ -1175,8 +1187,10 @@ class BatchProcessHandler(BaseEventHandler):
         processed_count = 0
         error_files = []
         
-        # 动态调整线程数：文件越多，使用的线程越多（但不超过系统限制）
-        optimal_workers = min(MAX_WORKERS, max(1, total_files // 2))
+        # 动态调整线程数：根据CPU核心数和文件数量确定最优线程数
+        cpu_count = multiprocessing.cpu_count() or 4
+        # 线程数不超过CPU核心数的2倍，也不超过文件总数，最大不超过MAX_WORKERS
+        optimal_workers = min(MAX_WORKERS, max(2, min(total_files, cpu_count * 2)))
         
         # 使用线程池并行处理文件
         futures = []

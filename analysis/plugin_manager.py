@@ -11,6 +11,8 @@
 import logging
 import importlib
 import pkgutil
+import multiprocessing
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Any, Callable, Optional
 from abc import ABC, abstractmethod
 
@@ -150,7 +152,7 @@ class PluginManager:
         self.plugin_order = ordered_names
         
     def execute_analysis(self, df, **kwargs) -> Dict[str, Any]:
-        """执行所有插件的分析
+        """并行执行所有插件的分析
         
         Args:
             df: 要分析的数据
@@ -161,21 +163,55 @@ class PluginManager:
         """
         results = {}
         
-        for plugin_name in self.plugin_order:
-            plugin = self.plugins[plugin_name]
-            try:
-                # 传递之前插件的结果给后续插件
-                plugin_kwargs = kwargs.copy()
-                plugin_kwargs.update(results)
+        # 使用线程池并行执行分析
+        # 限制最大线程数以避免资源耗尽
+        max_workers = min(4, len(self.plugin_order), multiprocessing.cpu_count())
+        
+        if max_workers <= 1:
+            # 如果只有一个插件或者CPU核心数不足，串行执行
+            for plugin_name in self.plugin_order:
+                plugin = self.plugins[plugin_name]
+                try:
+                    # 传递之前插件的结果给后续插件
+                    plugin_kwargs = kwargs.copy()
+                    plugin_kwargs.update(results)
+                    
+                    result = plugin.analyze(df, **plugin_kwargs)
+                    results[plugin_name] = result
+                    logging.info(f"Executed analysis plugin: {plugin_name}")
+                except Exception as e:
+                    logging.error(f"Error executing plugin {plugin_name}: {str(e)}")
+                    results[plugin_name] = {"error": str(e)}
+        else:
+            # 并行执行分析
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # 提交所有任务
+                future_to_plugin = {}
+                for plugin_name in self.plugin_order:
+                    plugin = self.plugins[plugin_name]
+                    # 传递之前插件的结果给后续插件
+                    plugin_kwargs = kwargs.copy()
+                    plugin_kwargs.update(results)
+                    
+                    future = executor.submit(self._run_plugin_analysis, plugin, df, plugin_kwargs)
+                    future_to_plugin[future] = plugin_name
                 
-                result = plugin.analyze(df, **plugin_kwargs)
-                results[plugin_name] = result
-                logging.info(f"Executed analysis plugin: {plugin_name}")
-            except Exception as e:
-                logging.error(f"Error executing plugin {plugin_name}: {str(e)}")
-                results[plugin_name] = {"error": str(e)}
-                
+                # 收集结果
+                for future in as_completed(future_to_plugin):
+                    plugin_name = future_to_plugin[future]
+                    try:
+                        result = future.result()
+                        results[plugin_name] = result
+                        logging.info(f"Executed analysis plugin: {plugin_name}")
+                    except Exception as e:
+                        logging.error(f"Error executing plugin {plugin_name}: {str(e)}")
+                        results[plugin_name] = {"error": str(e)}
+                        
         return results
+    
+    def _run_plugin_analysis(self, plugin, df, plugin_kwargs):
+        """运行单个插件分析的包装函数"""
+        return plugin.analyze(df, **plugin_kwargs)
         
     def generate_reports(self, analysis_data: Dict[str, Any]) -> Dict[str, str]:
         """生成所有插件的文本报告
