@@ -1,6 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""
+样式资源模块初始化文件
+"""
 
-"""
-样式资源包
-"""
+# 导出样式定义
+from .style_definitions import get_css_styles
+
+__all__ = [
+    'get_css_styles'
+]

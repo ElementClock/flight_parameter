@@ -9,8 +9,10 @@
 使用线程池管理并发任务，确保UI响应性。
 """
 
-# 导入所有事件处理器
+# 导入基础类和常量
 from .base import BaseEventHandler, MAX_WORKERS, CHUNK_SIZE, MIN_PROCESSING_TIME_THRESHOLD, FILE_READ_BUFFER_SIZE
+
+# 导入所有事件处理器
 from .route_visualization import RouteVisualizationHandler
 from .data_loading import DataLoaderHandler
 from .data_saving import DataSaveHandler

@@ -4,7 +4,7 @@
 
 飞行参数分析工具是一个专门用于分析飞行数据的桌面应用程序。该工具可以帮助航空工程技术人员和飞行数据分析人员快速处理和分析飞行参数数据，生成专业的分析报告。
 
-本项目以 [app.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/app.py) 作为主程序，使用 wxPython 构建现代化的图形用户界面。
+本项目以 [src/flight_parameter/main.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/main.py) 作为主程序，使用 wxPython 构建现代化的图形用户界面。
 
 ## 功能特点
 
@@ -67,41 +67,41 @@
 
 ### 核心组件
 
-1. **主程序** ([app.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/app.py))
+1. **主程序** ([src/flight_parameter/main.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/main.py))
    - 使用wxPython构建图形用户界面
    - 负责窗口管理、事件处理和UI协调
    - 程序入口点
 
-2. **UI组件** ([ui_components.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py))
-   - [SidebarPanel](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py#L31-L95)：侧边栏面板，包含操作按钮和数据选择器
-   - [ContentPanel](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/ui_components.py#L186-L222)：内容面板，用于显示分析结果
+2. **UI组件** ([src/flight_parameter/ui/components.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/ui/components.py))
+   - [SidebarPanel](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/ui/components.py#L31-L95)：侧边栏面板，包含操作按钮和数据选择器
+   - [ContentPanel](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/ui/components.py#L186-L222)：内容面板，用于显示分析结果
 
-3. **事件处理** ([event_handlers.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/event_handlers.py))
+3. **事件处理** ([src/flight_parameter/event_handlers/](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/event_handlers/))
    - 处理用户界面的各种事件
    - 包括数据加载、保存、分析等操作
    - 实现快捷保存功能
 
-4. **数据管理** ([data_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/data_manager.py))
+4. **数据管理** ([src/flight_parameter/core/data_manager.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/core/data_manager.py))
    - 管理加载的数据和分析结果
    - 提供数据访问接口
    - 跟踪原始文件路径
 
-5. **分析模块** ([analysis/](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis))
-   - [data_analyzer.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/data_analyzer.py)：主分析流程，协调各专业分析模块
-   - [plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/plugin_manager.py)：插件管理器，负责管理分析插件的生命周期
-   - [engines/engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/engines/engine_analysis.py)：发动机参数分析
-   - [cas/cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/cas/cas_analysis.py)：CAS告警分析
-   - [fuel/fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/fuel/fuel_analysis.py)：燃油系统分析
-   - [power/power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/power/power_analysis.py)：电源系统分析
+5. **分析模块** ([src/flight_parameter/analysis/](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis))
+   - [data_analyzer.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/data_analyzer.py)：主分析流程，协调各专业分析模块
+   - [plugin_manager.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/plugin_manager.py)：插件管理器，负责管理分析插件的生命周期
+   - [engines/engine_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/engines/engine_analysis.py)：发动机参数分析
+   - [cas/cas_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/cas/cas_analysis.py)：CAS告警分析
+   - [fuel/fuel_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/fuel/fuel_analysis.py)：燃油系统分析
+   - [power/power_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/power/power_analysis.py)：电源系统分析
 
-6. **工具函数** ([utils.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/utils.py))
+6. **工具函数** ([src/flight_parameter/utils/](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/utils/))
    - 提供辅助函数，如窗口尺寸计算等
 
 ## 插件化架构
 
 ### 架构概述
 
-本项目采用插件化架构设计，通过插件管理器([plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/plugin_manager.py))来管理各个分析模块。这种设计具有以下优点：
+本项目采用插件化架构设计，通过插件管理器([plugin_manager.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/plugin_manager.py))来管理各个分析模块。这种设计具有以下优点：
 
 1. **模块解耦**：各分析模块相互独立，降低模块间的耦合度
 2. **易于扩展**：可以方便地添加新的分析模块
@@ -139,7 +139,7 @@ class AnalysisInterface(ABC):
 
 ## 分析功能详解
 
-### 发动机分析 ([engines/engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/engines/engine_analysis.py))
+### 发动机分析 ([src/flight_parameter/analysis/engines/engine_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/engines/engine_analysis.py))
 
 #### 功能说明
 分析发动机数据，提取发动机转速和点火状态，计算转速变化。
@@ -158,7 +158,7 @@ class AnalysisInterface(ABC):
 #### 调用函数
 - `analyze(df)`：主分析函数
 
-### CAS告警分析 ([cas/cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/cas/cas_analysis.py))
+### CAS告警分析 ([src/flight_parameter/analysis/cas/cas_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/cas/cas_analysis.py))
 
 #### 功能说明
 分析CAS告警数据，识别告警时间段、类型及持续时间统计。
@@ -180,7 +180,7 @@ class AnalysisInterface(ABC):
 - `load_alarm_levels()`：加载告警级别信息
 - `group_alarms_by_level(alarms, alarm_levels)`：按级别分组告警
 
-### 燃油系统分析 ([fuel/fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/fuel/fuel_analysis.py))
+### 燃油系统分析 ([src/flight_parameter/analysis/fuel/fuel_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/fuel/fuel_analysis.py))
 
 #### 功能说明
 分析燃油系统数据，包括燃油消耗、油箱状态等关键参数。
@@ -201,7 +201,7 @@ class AnalysisInterface(ABC):
 - `analyze(df)`：主分析函数
 - `generate_text(fuel_data)`：生成格式化文本输出
 
-### 电源系统分析 ([power/power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/power/power_analysis.py))
+### 电源系统分析 ([src/flight_parameter/analysis/power/power_analysis.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/power/power_analysis.py))
 
 #### 功能说明
 分析电源系统数据，包括直流发电机、交流发电机和汇流条等关键参数。
@@ -250,19 +250,19 @@ class AnalysisInterface(ABC):
 
 直接运行主程序：
 ```bash
-python app.py
+python src/flight_parameter/main.py
 ```
 
-或者运行新结构的主程序：
+或者使用命令行工具：
 ```bash
-python src/flight_parameter/main.py
+flight-analyzer
 ```
 
 ### 打包为可执行文件（可选）
 
 使用PyInstaller打包：
 ```bash
-pyinstaller --onefile --windowed app.py
+pyinstaller --onefile --windowed src/flight_parameter/main.py
 ```
 
 ## 项目结构
@@ -271,77 +271,72 @@ pyinstaller --onefile --windowed app.py
 flight_parameter/
 ├── src/
 │   └── flight_parameter/
-│       ├── __init__.py
-│       ├── main.py               # 主程序入口
-│       ├── core/                 # 核心应用模块
+│       ├── __init__.py              # 项目主入口
+│       ├── main.py                  # 主程序入口
+│       ├── core/                    # 核心应用模块
 │       │   ├── __init__.py
-│       │   ├── app.py            # 应用程序主类
-│       │   └── data_manager.py   # 数据管理器
-│       ├── analysis/             # 分析模块
+│       │   ├── app.py               # 应用程序主类
+│       │   └── data_manager.py      # 数据管理器
+│       ├── analysis/                # 分析模块
 │       │   ├── __init__.py
 │       │   ├── analysis_interface.py # 分析接口定义
-│       │   ├── config.py         # 分析配置
-│       │   ├── logger.py         # 日志模块
-│       │   ├── utils.py          # 分析工具函数
-│       │   ├── plugin_manager.py # 插件管理器
-│       │   ├── data_analyzer.py  # 主分析流程
-│       │   ├── engines/          # 发动机分析模块
+│       │   ├── config.py            # 分析配置
+│       │   ├── logger.py            # 日志模块
+│       │   ├── utils.py             # 分析工具函数
+│       │   ├── plugin_manager.py     # 插件管理器
+│       │   ├── data_analyzer.py     # 主分析流程
+│       │   ├── engines/             # 发动机分析模块
 │       │   │   ├── __init__.py
 │       │   │   └── engine_analysis.py
-│       │   ├── cas/              # CAS告警分析模块
+│       │   ├── cas/                 # CAS告警分析模块
 │       │   │   ├── __init__.py
 │       │   │   └── cas_analysis.py
-│       │   ├── fuel/             # 燃油系统分析模块
+│       │   ├── fuel/                # 燃油系统分析模块
 │       │   │   ├── __init__.py
 │       │   │   └── fuel_analysis.py
-│       │   └── power/            # 电源系统分析模块
+│       │   └── power/               # 电源系统分析模块
 │       │       ├── __init__.py
 │       │       └── power_analysis.py
-│       ├── event_handlers/       # 事件处理器模块
+│       ├── event_handlers/          # 事件处理器模块
 │       │   ├── __init__.py
-│       │   ├── base.py           # 基础类和常量
+│       │   ├── base.py              # 基础类和常量
 │       │   ├── route_visualization.py  # 航路点绘制处理器
-│       │   ├── data_loading.py   # 数据加载处理器
-│       │   ├── data_saving.py    # 数据保存处理器
-│       │   ├── analysis_saving.py# 分析结果保存处理器
-│       │   ├── quick_saving.py   # 快捷保存处理器
-│       │   ├── batch_processing.py# 批量处理处理器
-│       │   ├── data_clearing.py  # 数据清除处理器
-│       │   ├── analysis_clearing.py# 分析清除处理器
-│       │   ├── data_selection.py # 数据选择处理器
-│       │   └── closing.py        # 关闭事件处理器
-│       ├── ui/                   # UI组件模块
+│       │   ├── data_loading.py      # 数据加载处理器
+│       │   ├── data_saving.py       # 数据保存处理器
+│       │   ├── analysis_saving.py   # 分析结果保存处理器
+│       │   ├── quick_saving.py      # 快捷保存处理器
+│       │   ├── batch_processing.py   # 批量处理处理器
+│       │   ├── data_clearing.py     # 数据清除处理器
+│       │   ├── analysis_clearing.py # 分析清除处理器
+│       │   ├── data_selection.py    # 数据选择处理器
+│       │   └── closing.py           # 关闭事件处理器
+│       ├── ui/                      # UI组件模块
 │       │   ├── __init__.py
-│       │   └── components.py     # UI组件
-│       ├── utils/                # 工具模块
+│       │   └── components.py        # UI组件
+│       ├── utils/                   # 工具模块
 │       │   ├── __init__.py
-│       │   ├── file_utils.py     # 文件工具
-│       │   └── system_utils.py   # 系统工具
-│       ├── config/               # 配置模块
+│       │   ├── file_utils.py        # 文件工具
+│       │   ├── system_utils.py      # 系统工具
+│       │   └── html_utils.py        # HTML工具
+│       ├── config/                  # 配置模块
 │       │   ├── __init__.py
-│       │   └── app_config.py     # 应用配置
-│       └── resources/            # 资源文件
+│       │   └── app_config.py        # 应用配置
+│       └── resources/               # 资源文件
 │           ├── __init__.py
-│           └── app_icon.ico      # 应用图标
-├── tests/                        # 测试用例
+│           ├── icons/               # 图标资源
+│           │   ├── __init__.py
+│           │   └── app_icon.ico
+│           └── styles/              # 样式资源
+│               ├── __init__.py
+│               └── style_definitions.py
+├── tests/                           # 测试用例
 │   ├── __init__.py
-│   ├── test_data/                # 测试数据
-│   ├── test_engine_analysis.py
-│   ├── test_data_analyzer.py
-│   ├── test_plugin_manager.py
-│   └── test_integration.py
-├── visualization/                # 可视化模块
-│   └── route_visualization.py    # 航线可视化
-├── oldfile/                      # 旧版本文件（历史版本，不再维护）
-│   ├── App_fparameter.py         # 旧版基于Tkinter的实现
-│   └── App_fparameter_wx.py      # 旧版基于wxPython的实现
-├── app.py                       # 向后兼容的主程序入口
-├── data_manager.py              # 向后兼容的数据管理器
-├── ui_components.py             # 向后兼容的UI组件
-├── utils.py                     # 向后兼容的工具函数
-├── requirements.txt             # 项目依赖
-├── DEVELOPING.md               # 开发者文档
-└── readme.md                   # 项目说明文档
+│   └── ...                          # 测试文件
+├── app.py                          # 向后兼容的主程序入口
+├── readme.md                       # 项目说明文档
+├── DEVELOPING.md                   # 开发者文档
+├── requirements.txt                # 项目依赖
+└── setup.py                       # 安装配置
 ```
 
 ## 开发规范
@@ -353,13 +348,7 @@ flight_parameter/
 
 ## 版本说明
 
-当前主程序为 [app.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/app.py)，使用 wxPython 构建现代化图形界面。
-
-[oldfile/](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/oldfile) 目录中包含旧版本的实现：
-- [App_fparameter.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/oldfile/App_fparameter.py)：基于 Tkinter 的旧版本实现
-- [App_fparameter_wx.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/oldfile/App_fparameter_wx.py)：早期基于 wxPython 的实现
-
-这些旧版本文件仅作为历史参考，不再维护。
+当前主程序为 [src/flight_parameter/main.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/main.py)，使用 wxPython 构建现代化图形界面。
 
 ## 待办事项
 
@@ -377,5 +366,5 @@ flight_parameter/
 
 - **v1.0**：初始版本，包含基本的飞行参数分析功能
 - **v1.1**：重构代码结构，分离UI组件和业务逻辑
-- **v2.0**：重新设计架构，以 [app.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/app.py) 作为主程序，实现更清晰的模块化结构
+- **v2.0**：重新设计架构，以 [src/flight_parameter/main.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/main.py) 作为主程序，实现更清晰的模块化结构
 - **v3.0**：引入插件化架构，增强系统的可扩展性和可维护性

@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Any, Callable, Optional
 from abc import ABC, abstractmethod
 
-from analysis.analysis_interface import AnalysisInterface
+from .analysis_interface import AnalysisInterface
 
 # 配置日志
 logging.basicConfig(
@@ -238,14 +238,14 @@ class PluginManager:
                 
         return reports
         
-    def discover_and_load_plugins(self, package_name: str = "analysis"):
+    def discover_and_load_plugins(self, package_name: str = "."):
         """动态发现并加载插件
         
         Args:
-            package_name (str): 包名，默认为analysis
+            package_name (str): 包名，默认为当前包
         """
         try:
-            package = importlib.import_module(package_name)
+            package = importlib.import_module(package_name, __package__)
             for importer, modname, ispkg in pkgutil.iter_modules(package.__path__):
                 if ispkg:
                     continue
@@ -253,7 +253,7 @@ class PluginManager:
                 # 检查是否为分析插件（以_analysis.py结尾的文件）
                 if modname.endswith('_analysis') and modname != 'data_analyzer':
                     try:
-                        module = importlib.import_module(f"{package_name}.{modname}")
+                        module = importlib.import_module(f"{package_name}.{modname}", __package__)
                         # 查找模块中的AnalysisInterface实现
                         for attr_name in dir(module):
                             attr = getattr(module, attr_name)

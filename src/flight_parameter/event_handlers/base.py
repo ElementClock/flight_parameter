@@ -17,24 +17,9 @@ import pandas as pd
 import wx
 
 # 项目模块导入
-from html_generator import HTMLGenerator
-from styles import (
-    GLOBAL_CSS,
-    TABLE_CELL_BASE_STYLE,
-    TABLE_HEADER_BASE_STYLE,
-    ALIGN_LEFT,
-    ALIGN_CENTER,
-    ALIGN_RIGHT,
-    ALIGN_LEFT_HEADER,
-    ALIGN_CENTER_HEADER,
-    ALIGN_RIGHT_HEADER,
-    TABLE_STYLE_FIXED,
-    TABLE_STYLE_AUTO,
-    EMPTY_LINE_STYLE,
-    SMALL_EMPTY_LINE_STYLE,
-    ERROR_FALLBACK_STYLE
-)
-from utils import is_safe_path, sanitize_filename
+from ..utils.html_utils import HTMLGenerator
+from ..resources.styles import get_css_styles
+from ..utils.file_utils import is_safe_path, sanitize_filename
 
 # 根据CPU核心数动态设置最大工作线程数
 MAX_WORKERS = min(32, max(4, multiprocessing.cpu_count()))  # 至少4个，最多32个线程

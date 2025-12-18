@@ -15,14 +15,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 # 导入我们的公共工具模块
-from src.flight_parameter.utils.common import save_as_pdf, remove_format_markers
+from ..utils.file_utils import save_as_pdf, remove_format_markers
 
 import wx
 
 from .base import BaseEventHandler, MAX_WORKERS
-from html_generator import HTMLGenerator
-from styles import GLOBAL_CSS, TABLE_STYLE_FIXED, TABLE_STYLE_AUTO, SMALL_EMPTY_LINE_STYLE
-from utils import is_safe_path, sanitize_filename
+from ..utils.html_utils import HTMLGenerator
+from ..resources.styles.style_definitions import GLOBAL_CSS, TABLE_STYLE_FIXED, TABLE_STYLE_AUTO, SMALL_EMPTY_LINE_STYLE
+from ..utils.file_utils import is_safe_path, sanitize_filename
 
 # 配置日志
 logging.basicConfig(

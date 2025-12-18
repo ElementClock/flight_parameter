@@ -27,10 +27,10 @@ from abc import ABC, abstractmethod
 import wx
 
 # 项目模块导入
-from ..core.data_manager import DataManager
+from .data_manager import DataManager
 from ..event_handlers import EventHandlers
 from ..ui.components import SidebarPanel, ContentPanel, RightSidebarPanel
-from ..utils import calculate_window_geometry
+from ..utils.system_utils import calculate_window_geometry
 
 # 配置日志
 logging.basicConfig(

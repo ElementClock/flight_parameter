@@ -15,7 +15,7 @@ from datetime import datetime
 import wx
 
 from .base import BaseEventHandler
-from utils import is_safe_path, sanitize_filename
+from ..utils.file_utils import is_safe_path, sanitize_filename
 
 # 配置日志
 logging.basicConfig(

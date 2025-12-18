@@ -1,6 +1,12 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""
+UI模块初始化文件
+"""
 
-"""
-用户界面模块包
-"""
+# 导出主要的UI组件
+from .components import SidebarPanel, ContentPanel, RightSidebarPanel
+
+__all__ = [
+    'SidebarPanel',
+    'ContentPanel', 
+    'RightSidebarPanel'
+]

@@ -18,9 +18,7 @@ import wx
 from wx import ID_CANCEL, NOT_FOUND
 
 # 导入我们的公共工具模块
-from src.flight_parameter.utils.common import detect_encoding, is_safe_path
-
-from ..utils import sanitize_filename
+from ..utils.file_utils import detect_encoding, is_safe_path, sanitize_filename
 
 # 配置日志
 logging.basicConfig(
@@ -30,6 +28,9 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+# 在文件顶部导入BaseEventHandler，避免循环导入
+from .base import BaseEventHandler, MAX_WORKERS
 
 
 class DataLoaderHandler(BaseEventHandler):
@@ -96,7 +97,7 @@ class DataLoaderHandler(BaseEventHandler):
             str: 检测到的编码，如果无法检测则返回None
         """
         try:
-            return detect_encoding(filepath, encodings)
+            return detect_encoding(filepath)  # 修复：只传入文件路径
         except Exception as e:
             logging.error(f"检测文件编码时出错: {str(e)}")
             return None
@@ -228,77 +229,85 @@ class DataLoaderHandler(BaseEventHandler):
         """在线程池中处理多个数据文件
         
         Args:
-            pathnames: 文件路径列表
+            pathnames (list): 文件路径列表
+            
+        Returns:
+            list: 处理结果列表
         """
         try:
+            results = []
             total_files = len(pathnames)
             
-            # 如果只有一个文件，直接在当前线程中处理
-            if total_files == 1:
-                self._process_single_file(pathnames[0], 0, total_files)
-            else:
-                # 对于多个文件，使用线程池并发处理
-                futures = []
-                for i, pathname in enumerate(pathnames):
-                    # 提交任务到线程池
-                    future = self.executor.submit(self._process_single_file, pathname, i, total_files)
-                    futures.append(future)
-                
-                # 等待所有任务完成
-                for future in as_completed(futures):
-                    try:
-                        future.result()  # 获取结果，如果有异常会抛出
-                    except Exception as e:
-                        logging.error(f"处理文件时出错: {str(e)}")
+            # 更新进度（0%）
+            wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 0, f"准备处理 {total_files} 个文件")
             
-            # 完成所有文件处理后隐藏进度条
-            wx.CallAfter(self.app_frame.sidebar_panel.show_progress, False)
+            # 处理每个文件
+            futures = []
+            for i, pathname in enumerate(pathnames):
+                future = self.executor.submit(self._process_single_file, pathname, i, total_files)
+                futures.append(future)
+            
+            # 等待所有任务完成
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    logging.error(f"处理文件时出错: {str(e)}")
+                    results.append(None)
+            
+            # 更新进度（100%）
+            wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 100, "文件处理完成")
+            
+            return results
         except Exception as e:
             logging.error(f"处理多个数据文件时出错: {str(e)}")
-            wx.CallAfter(self.app_frame.sidebar_panel.show_progress, False)
-            logging.error(f"处理多个数据文件时出错: {str(e)}")
-            wx.CallAfter(self.on_data_load_error, "所有文件", "处理文件时出错，请查看日志获取详细信息")
-    
+            wx.CallAfter(self.app_frame.sidebar_panel.update_progress, 100, "文件处理出错")
+            raise e
+
     def on_single_data_loaded(self, pathname, encoding, data_container):
-        """在UI线程中更新界面 - 单个数据加载成功
+        """当单个数据文件加载完成时调用
         
         Args:
-            pathname: 文件路径
-            encoding: 文件编码
+            pathname (str): 文件路径
+            encoding (str): 使用的编码
             data_container: 数据容器对象
         """
         try:
-            # 更新下拉菜单
-            choices = self.app_frame.data_manager.get_data_keys()
-            self.app_frame.sidebar_panel.data_choice.Set(choices)
-            
-            # 设置当前加载的数据为选中状态
-            if choices:
-                self.app_frame.sidebar_panel.data_choice.SetSelection(len(choices) - 1)  # 选择最新添加的项
-            
-            # 使用富文本格式显示数据
-            text_content = (
-                f"成功加载文件({encoding}编码): {pathname}\n"
-                f"文件名: {data_container.filename}\n"
-                f"本次文件解析结果如下：\n{data_container.analysis_result}\n")
-            
-            self.app_frame.content_panel.set_formatted_text(text_content)
+            if data_container:
+                # 更新数据选择器
+                self.app_frame.sidebar_panel.update_data_choice(self.app_frame.data_manager.get_data_keys())
+                
+                # 显示分析结果
+                if data_container.analysis_result:
+                    self.app_frame.content_panel.set_formatted_text(data_container.analysis_result)
+                else:
+                    self.app_frame.content_panel.set_formatted_text("数据加载完成，但未生成分析结果")
+                
+                # 显示成功消息
+                wx.MessageBox(f"文件 {os.path.basename(pathname)} 加载成功\n使用编码: {encoding}", 
+                              "成功", wx.OK | wx.ICON_INFORMATION)
+            else:
+                self.app_frame.content_panel.set_formatted_text("数据加载失败")
         except Exception as e:
-            logging.error(f"显示加载数据时出错: {str(e)}")
-            self.app_frame.content_panel.set_formatted_text(f"显示数据时出错: {str(e)}")
-    
+            logging.error(f"处理单个数据加载完成事件时出错: {str(e)}")
+            self.app_frame.content_panel.set_formatted_text("数据加载完成，但处理结果时出错")
+
     def on_data_load_error(self, pathname, error_message):
-        """在UI线程中更新界面 - 数据加载失败
+        """当数据加载出错时调用
         
         Args:
-            pathname: 文件路径
-            error_message: 错误信息
+            pathname (str): 出错的文件路径
+            error_message (str): 错误消息
         """
         try:
-            logging.error(f"无法读取文件 '{pathname}': {error_message}")
-            wx.MessageBox(f"无法读取文件 '{pathname}': {error_message}", "错误", wx.OK | wx.ICON_ERROR)
-            self.app_frame.content_panel.set_formatted_text(f"加载文件失败: {error_message}")
             # 隐藏进度条
             self.app_frame.sidebar_panel.show_progress(False)
+            
+            # 显示错误消息
+            wx.MessageBox(error_message, "错误", wx.OK | wx.ICON_ERROR)
+            
+            # 清空内容区域
+            self.app_frame.content_panel.set_formatted_text("")
         except Exception as e:
-            logging.error(f"处理数据加载错误时出错: {str(e)}")
+            logging.error(f"处理数据加载错误事件时出错: {str(e)}")

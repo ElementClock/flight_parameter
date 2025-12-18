@@ -13,15 +13,15 @@ import os
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+import multiprocessing
 
 import pandas as pd
 import wx
 from wx import ID_CANCEL, NOT_FOUND
 
 # 导入我们的公共工具模块
-from src.flight_parameter.utils.common import detect_encoding, is_safe_path
-
-from ..utils import sanitize_filename
+from ..utils.file_utils import detect_encoding, is_safe_path, sanitize_filename
+from .base import BaseEventHandler, MAX_WORKERS
 
 # 配置日志
 logging.basicConfig(
@@ -218,7 +218,7 @@ class BatchProcessHandler(BaseEventHandler):
             logging.error(f"处理单个文件 {file_path} 时出错: {str(e)}")
             raise e
             
-    def _detect_file_encoding_cached(self, filepath, encodings=['utf-8', 'gbk', 'gb2312', 'latin1']):
+    def _detect_file_encoding_cached(self, filepath):
         """检测文件编码（带缓存）"""
         try:
             # 检查路径安全性
@@ -230,7 +230,7 @@ class BatchProcessHandler(BaseEventHandler):
                 return self.encoding_cache[filepath]
                 
             # 使用公共工具函数检测编码
-            encoding = detect_encoding(filepath, encodings)
+            encoding = detect_encoding(filepath)
             
             logging.info(f"使用 {encoding} 编码成功读取文件头部")
             self.encoding_cache[filepath] = encoding  # 缓存结果

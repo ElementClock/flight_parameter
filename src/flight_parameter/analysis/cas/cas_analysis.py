@@ -238,7 +238,7 @@ class CasAnalysis(AnalysisInterface):
         try:
             # 获取项目根目录
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            cas_level_path = os.path.join(project_root, 'cas_level.csv')
+            cas_level_path = os.path.join(project_root, 'cas', 'cas_level.csv')
             
             # 读取CSV文件
             df = pd.read_csv(cas_level_path, header=0)

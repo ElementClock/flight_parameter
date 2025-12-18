@@ -22,7 +22,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/flight-analysis/flight-parameter",
-    packages=find_packages(),
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -41,7 +42,7 @@ setup(
     install_requires=requirements,
     entry_points={
         'console_scripts': [
-            'flight-analyzer=app:main',
+            'flight-analyzer=flight_parameter.main:main',
         ],
     },
     package_data={
