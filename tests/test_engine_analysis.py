@@ -9,7 +9,7 @@ import unittest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from analysis.engines.engine_analysis import EngineAnalysis
+from flight_parameter.analysis.engines.engine_analysis import EngineAnalysis
 
 
 class TestEngineAnalysis(unittest.TestCase):

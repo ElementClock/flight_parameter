@@ -4,29 +4,73 @@
 
 ```
 flight_parameter/
-├── analysis/                 # 分析模块
-│   ├── __init__.py
-│   ├── analysis_interface.py # 分析接口定义
-│   ├── data_analyzer.py      # 主分析流程
-│   ├── engine_analysis.py    # 发动机分析
-│   ├── cas_analysis.py       # CAS告警分析
-│   ├── fuel_analysis.py      # 燃油系统分析
-│   └── power_analysis.py     # 电源系统分析
-├── tests/                    # 测试用例
+├── src/
+│   └── flight_parameter/
+│       ├── __init__.py
+│       ├── main.py               # 主程序入口
+│       ├── core/                 # 核心应用模块
+│       │   ├── __init__.py
+│       │   ├── app.py            # 应用程序主类
+│       │   └── data_manager.py   # 数据管理器
+│       ├── analysis/             # 分析模块
+│       │   ├── __init__.py
+│       │   ├── analysis_interface.py # 分析接口定义
+│       │   ├── config.py         # 分析配置
+│       │   ├── logger.py         # 日志模块
+│       │   ├── utils.py          # 分析工具函数
+│       │   ├── plugin_manager.py # 插件管理器
+│       │   ├── data_analyzer.py  # 主分析流程
+│       │   ├── engines/          # 发动机分析模块
+│       │   │   ├── __init__.py
+│       │   │   └── engine_analysis.py
+│       │   ├── cas/              # CAS告警分析模块
+│       │   │   ├── __init__.py
+│       │   │   └── cas_analysis.py
+│       │   ├── fuel/             # 燃油系统分析模块
+│       │   │   ├── __init__.py
+│       │   │   └── fuel_analysis.py
+│       │   └── power/            # 电源系统分析模块
+│       │       ├── __init__.py
+│       │       └── power_analysis.py
+│       ├── event_handlers/       # 事件处理器模块
+│       │   ├── __init__.py
+│       │   ├── base.py           # 基础类和常量
+│       │   ├── route_visualization.py  # 航路点绘制处理器
+│       │   ├── data_loading.py   # 数据加载处理器
+│       │   ├── data_saving.py    # 数据保存处理器
+│       │   ├── analysis_saving.py# 分析结果保存处理器
+│       │   ├── quick_saving.py   # 快捷保存处理器
+│       │   ├── batch_processing.py# 批量处理处理器
+│       │   ├── data_clearing.py  # 数据清除处理器
+│       │   ├── analysis_clearing.py# 分析清除处理器
+│       │   ├── data_selection.py # 数据选择处理器
+│       │   └── closing.py        # 关闭事件处理器
+│       ├── ui/                   # UI组件模块
+│       │   ├── __init__.py
+│       │   └── components.py     # UI组件
+│       ├── utils/                # 工具模块
+│       │   ├── __init__.py
+│       │   ├── file_utils.py     # 文件工具
+│       │   └── system_utils.py   # 系统工具
+│       ├── config/               # 配置模块
+│       │   ├── __init__.py
+│       │   └── app_config.py     # 应用配置
+│       └── resources/            # 资源文件
+│           ├── __init__.py
+│           └── app_icon.ico      # 应用图标
+├── tests/                        # 测试用例
 │   ├── __init__.py
 │   ├── test_engine_analysis.py
 │   └── test_data_analyzer.py
-├── visualization/            # 可视化模块
-│   └── route_visualization.py # 航线可视化
-├── oldfile/                  # 旧版本文件（历史版本，不再维护）
-├── app.py                    # 主程序（当前版本）
-├── data_manager.py           # 数据管理器
-├── event_handlers.py         # 事件处理器
-├── ui_components.py          # UI组件
-├── utils.py                  # 工具函数
-├── requirements.txt          # 项目依赖
-├── setup.py                 # 安装配置
-└── README.md                # 项目说明文档
+├── visualization/                # 可视化模块
+│   └── route_visualization.py    # 航线可视化
+├── app.py                       # 向后兼容的主程序入口
+├── data_manager.py              # 向后兼容的数据管理器
+├── ui_components.py             # 向后兼容的UI组件
+├── utils.py                     # 向后兼容的工具函数
+├── requirements.txt             # 项目依赖
+├── setup.py                    # 安装配置
+└── README.md                   # 项目说明文档
 ```
 
 ## 开发环境搭建

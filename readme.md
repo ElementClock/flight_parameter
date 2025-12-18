@@ -86,13 +86,13 @@
    - 提供数据访问接口
    - 跟踪原始文件路径
 
-5. **分析模块** ([analysis/](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis))
-   - [data_analyzer.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/data_analyzer.py)：主分析流程，协调各专业分析模块
-   - [plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/plugin_manager.py)：插件管理器，负责管理分析插件的生命周期
-   - [engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/engine_analysis.py)：发动机参数分析
-   - [cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/cas_analysis.py)：CAS告警分析
-   - [fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/fuel_analysis.py)：燃油系统分析
-   - [power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/power_analysis.py)：电源系统分析
+5. **分析模块** ([analysis/](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis))
+   - [data_analyzer.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/data_analyzer.py)：主分析流程，协调各专业分析模块
+   - [plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/plugin_manager.py)：插件管理器，负责管理分析插件的生命周期
+   - [engines/engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/engines/engine_analysis.py)：发动机参数分析
+   - [cas/cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/cas/cas_analysis.py)：CAS告警分析
+   - [fuel/fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/fuel/fuel_analysis.py)：燃油系统分析
+   - [power/power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/power/power_analysis.py)：电源系统分析
 
 6. **工具函数** ([utils.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/utils.py))
    - 提供辅助函数，如窗口尺寸计算等
@@ -101,7 +101,7 @@
 
 ### 架构概述
 
-本项目采用插件化架构设计，通过插件管理器([plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/plugin_manager.py))来管理各个分析模块。这种设计具有以下优点：
+本项目采用插件化架构设计，通过插件管理器([plugin_manager.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/plugin_manager.py))来管理各个分析模块。这种设计具有以下优点：
 
 1. **模块解耦**：各分析模块相互独立，降低模块间的耦合度
 2. **易于扩展**：可以方便地添加新的分析模块
@@ -139,7 +139,7 @@ class AnalysisInterface(ABC):
 
 ## 分析功能详解
 
-### 发动机分析 ([engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/engine_analysis.py))
+### 发动机分析 ([engines/engine_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/engines/engine_analysis.py))
 
 #### 功能说明
 分析发动机数据，提取发动机转速和点火状态，计算转速变化。
@@ -158,7 +158,7 @@ class AnalysisInterface(ABC):
 #### 调用函数
 - `analyze(df)`：主分析函数
 
-### CAS告警分析 ([cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/cas_analysis.py))
+### CAS告警分析 ([cas/cas_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/cas/cas_analysis.py))
 
 #### 功能说明
 分析CAS告警数据，识别告警时间段、类型及持续时间统计。
@@ -180,7 +180,7 @@ class AnalysisInterface(ABC):
 - `load_alarm_levels()`：加载告警级别信息
 - `group_alarms_by_level(alarms, alarm_levels)`：按级别分组告警
 
-### 燃油系统分析 ([fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/fuel_analysis.py))
+### 燃油系统分析 ([fuel/fuel_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/fuel/fuel_analysis.py))
 
 #### 功能说明
 分析燃油系统数据，包括燃油消耗、油箱状态等关键参数。
@@ -201,7 +201,7 @@ class AnalysisInterface(ABC):
 - `analyze(df)`：主分析函数
 - `generate_text(fuel_data)`：生成格式化文本输出
 
-### 电源系统分析 ([power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/analysis/power_analysis.py))
+### 电源系统分析 ([power/power_analysis.py](file:///C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/analysis/power/power_analysis.py))
 
 #### 功能说明
 分析电源系统数据，包括直流发电机、交流发电机和汇流条等关键参数。
@@ -253,6 +253,11 @@ class AnalysisInterface(ABC):
 python app.py
 ```
 
+或者运行新结构的主程序：
+```bash
+python src/flight_parameter/main.py
+```
+
 ### 打包为可执行文件（可选）
 
 使用PyInstaller打包：
@@ -260,51 +265,83 @@ python app.py
 pyinstaller --onefile --windowed app.py
 ```
 
-## 使用说明
-
-1. **加载数据**：点击"加载数据"按钮，选择CSV格式的飞行参数文件
-2. **查看分析结果**：数据加载后会自动进行分析，结果会显示在右侧文本区域
-3. **切换数据**：如果有多个数据文件，可以通过下拉菜单切换查看
-4. **保存数据**：点击"保存数据"按钮将当前数据保存到文件，对话框会预填充推荐文件名
-5. **保存分析**：点击"保存分析"按钮将分析结果保存到文件，对话框会预填充推荐文件名
-6. **快捷保存**：点击"快捷保存"按钮一键保存当前数据和分析结果到原始文件所在目录
-7. **清除操作**：
-   - "清除分析"：清除当前分析结果
-   - "清除数据"：清除所有加载的数据
-
 ## 项目结构
 
 ```
 flight_parameter/
-├── analysis/                  # 分析模块
+├── src/
+│   └── flight_parameter/
+│       ├── __init__.py
+│       ├── main.py               # 主程序入口
+│       ├── core/                 # 核心应用模块
+│       │   ├── __init__.py
+│       │   ├── app.py            # 应用程序主类
+│       │   └── data_manager.py   # 数据管理器
+│       ├── analysis/             # 分析模块
+│       │   ├── __init__.py
+│       │   ├── analysis_interface.py # 分析接口定义
+│       │   ├── config.py         # 分析配置
+│       │   ├── logger.py         # 日志模块
+│       │   ├── utils.py          # 分析工具函数
+│       │   ├── plugin_manager.py # 插件管理器
+│       │   ├── data_analyzer.py  # 主分析流程
+│       │   ├── engines/          # 发动机分析模块
+│       │   │   ├── __init__.py
+│       │   │   └── engine_analysis.py
+│       │   ├── cas/              # CAS告警分析模块
+│       │   │   ├── __init__.py
+│       │   │   └── cas_analysis.py
+│       │   ├── fuel/             # 燃油系统分析模块
+│       │   │   ├── __init__.py
+│       │   │   └── fuel_analysis.py
+│       │   └── power/            # 电源系统分析模块
+│       │       ├── __init__.py
+│       │       └── power_analysis.py
+│       ├── event_handlers/       # 事件处理器模块
+│       │   ├── __init__.py
+│       │   ├── base.py           # 基础类和常量
+│       │   ├── route_visualization.py  # 航路点绘制处理器
+│       │   ├── data_loading.py   # 数据加载处理器
+│       │   ├── data_saving.py    # 数据保存处理器
+│       │   ├── analysis_saving.py# 分析结果保存处理器
+│       │   ├── quick_saving.py   # 快捷保存处理器
+│       │   ├── batch_processing.py# 批量处理处理器
+│       │   ├── data_clearing.py  # 数据清除处理器
+│       │   ├── analysis_clearing.py# 分析清除处理器
+│       │   ├── data_selection.py # 数据选择处理器
+│       │   └── closing.py        # 关闭事件处理器
+│       ├── ui/                   # UI组件模块
+│       │   ├── __init__.py
+│       │   └── components.py     # UI组件
+│       ├── utils/                # 工具模块
+│       │   ├── __init__.py
+│       │   ├── file_utils.py     # 文件工具
+│       │   └── system_utils.py   # 系统工具
+│       ├── config/               # 配置模块
+│       │   ├── __init__.py
+│       │   └── app_config.py     # 应用配置
+│       └── resources/            # 资源文件
+│           ├── __init__.py
+│           └── app_icon.ico      # 应用图标
+├── tests/                        # 测试用例
 │   ├── __init__.py
-│   ├── analysis_interface.py  # 分析接口定义
-│   ├── plugin_manager.py      # 插件管理器
-│   ├── data_analyzer.py       # 主分析流程
-│   ├── cas_analysis.py        # CAS告警分析
-│   ├── engine_analysis.py     # 发动机分析
-│   ├── fuel_analysis.py       # 燃油系统分析
-│   └── power_analysis.py      # 电源系统分析
-├── tests/                     # 测试用例
-│   ├── __init__.py
-│   ├── test_data/             # 测试数据
+│   ├── test_data/                # 测试数据
 │   ├── test_engine_analysis.py
 │   ├── test_data_analyzer.py
 │   ├── test_plugin_manager.py
 │   └── test_integration.py
-├── visualization/             # 可视化模块
-│   └── route_visualization.py # 航线可视化
-├── oldfile/                  # 旧版本文件（历史版本，不再维护）
-│   ├── App_fparameter.py      # 旧版基于Tkinter的实现
-│   └── App_fparameter_wx.py   # 旧版基于wxPython的实现
-├── app.py                    # 主程序（当前版本）
-├── data_manager.py           # 数据管理器
-├── event_handlers.py         # 事件处理器
-├── ui_components.py          # UI组件
-├── utils.py                  # 工具函数
-├── requirements.txt          # 项目依赖
-├── DEVELOPING.md             # 开发者文档
-└── readme.md                 # 项目说明文档
+├── visualization/                # 可视化模块
+│   └── route_visualization.py    # 航线可视化
+├── oldfile/                      # 旧版本文件（历史版本，不再维护）
+│   ├── App_fparameter.py         # 旧版基于Tkinter的实现
+│   └── App_fparameter_wx.py      # 旧版基于wxPython的实现
+├── app.py                       # 向后兼容的主程序入口
+├── data_manager.py              # 向后兼容的数据管理器
+├── ui_components.py             # 向后兼容的UI组件
+├── utils.py                     # 向后兼容的工具函数
+├── requirements.txt             # 项目依赖
+├── DEVELOPING.md               # 开发者文档
+└── readme.md                   # 项目说明文档
 ```
 
 ## 开发规范

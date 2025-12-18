@@ -9,7 +9,7 @@ import unittest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from analysis.data_analyzer import DataAnalyzer
+from flight_parameter.analysis.data_analyzer import DataAnalyzer
 
 
 class TestDataAnalyzer(unittest.TestCase):
