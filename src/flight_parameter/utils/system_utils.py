@@ -27,8 +27,8 @@ def calculate_window_geometry() -> Tuple[int, int, int, int]:
             screen_height = 1080
             
         # 计算窗口尺寸（屏幕的80%）
-        window_width = int(screen_width * 0.8)
-        window_height = int(screen_height * 0.8)
+        window_width = int(screen_width * 0.6)
+        window_height = int(screen_height * 0.6)
         
         # 计算窗口位置（居中）
         window_x = int((screen_width - window_width) / 2)
