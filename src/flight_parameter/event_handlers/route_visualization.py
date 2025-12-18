@@ -32,12 +32,6 @@ class RouteVisualizationHandler(BaseEventHandler):
     def handle(self, event):
         """处理航路点绘制按钮点击事件"""
         try:
-            # 导入航线可视化模块
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-            from visualization.route_visualization import draw_route_from_sheet
-            
             # 打开文件选择对话框选择Excel文件
             with wx.FileDialog(
                 self.app_frame,
@@ -55,9 +49,10 @@ class RouteVisualizationHandler(BaseEventHandler):
                 excel_file = pd.ExcelFile(pathname)
                 sheet_names = excel_file.sheet_names
                 
-                # 如果只有一个工作表，直接绘制
+                # 如果只有一个工作表，直接显示提示信息
                 if len(sheet_names) == 1:
-                    draw_route_from_sheet(pathname, sheet_names[0])
+                    wx.MessageBox(f"选择了文件: {pathname}\n工作表: {sheet_names[0]}\n\n注意：航线可视化功能尚未实现。", 
+                                "提示", wx.OK | wx.ICON_INFORMATION)
                 else:
                     # 如果有多个工作表，让用户选择
                     dialog = wx.SingleChoiceDialog(
@@ -68,12 +63,10 @@ class RouteVisualizationHandler(BaseEventHandler):
                     )
                     if dialog.ShowModal() == wx.ID_OK:
                         selected_sheet = dialog.GetStringSelection()
-                        draw_route_from_sheet(pathname, selected_sheet)
+                        wx.MessageBox(f"选择了文件: {pathname}\n工作表: {selected_sheet}\n\n注意：航线可视化功能尚未实现。", 
+                                    "提示", wx.OK | wx.ICON_INFORMATION)
                     dialog.Destroy()
                     
-        except ImportError as e:
-            logging.error(f"导入航线可视化模块时出错: {str(e)}")
-            wx.MessageBox(f"无法导入航线可视化模块: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
         except Exception as e:
             logging.error(f"处理航路点绘制时出错: {str(e)}")
             wx.MessageBox(f"航路点绘制时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
