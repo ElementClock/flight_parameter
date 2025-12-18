@@ -10,15 +10,18 @@
 
 import logging
 import os
-import multiprocessing
-import re
+from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 
+import pandas as pd
 import wx
+from wx import ID_CANCEL, NOT_FOUND
 
-from .base import BaseEventHandler, MAX_WORKERS
-from utils import is_safe_path, sanitize_filename
+# 导入我们的公共工具模块
+from src.flight_parameter.utils.common import detect_encoding, is_safe_path
+
+from ..utils import sanitize_filename
 
 # 配置日志
 logging.basicConfig(
@@ -217,26 +220,25 @@ class BatchProcessHandler(BaseEventHandler):
             
     def _detect_file_encoding_cached(self, filepath, encodings=['utf-8', 'gbk', 'gb2312', 'latin1']):
         """检测文件编码（带缓存）"""
-        # 检查路径安全性
-        if not is_safe_path(os.getcwd(), filepath):
-            raise ValueError(f"不允许访问的文件路径: {filepath}")
+        try:
+            # 检查路径安全性
+            if not is_safe_path(os.getcwd(), filepath):
+                raise ValueError(f"不允许访问的文件路径: {filepath}")
+                
+            # 检查缓存
+            if filepath in self.encoding_cache:
+                return self.encoding_cache[filepath]
+                
+            # 使用公共工具函数检测编码
+            encoding = detect_encoding(filepath, encodings)
             
-        # 检查缓存
-        if filepath in self.encoding_cache:
-            return self.encoding_cache[filepath]
-            
-        for encoding in encodings:
-            try:
-                with open(filepath, 'r', encoding=encoding) as f:
-                    f.read(1024)  # 读取前1024个字符
-                logging.info(f"使用 {encoding} 编码成功读取文件头部")
-                self.encoding_cache[filepath] = encoding  # 缓存结果
-                return encoding
-            except UnicodeDecodeError:
-                logging.warning(f"使用 {encoding} 编码读取文件失败")
-                continue
-        raise Exception(f"无法确定文件 {filepath} 的编码")
-        
+            logging.info(f"使用 {encoding} 编码成功读取文件头部")
+            self.encoding_cache[filepath] = encoding  # 缓存结果
+            return encoding
+        except Exception as e:
+            logging.error(f"检测文件编码时出错: {str(e)}")
+            raise e
+
     def _generate_filename_prefix(self, analysis_result):
         """生成文件名前缀"""
         try:

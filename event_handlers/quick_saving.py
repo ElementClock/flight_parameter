@@ -10,9 +10,12 @@
 
 import logging
 import os
-import re
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+
+# 导入我们的公共工具模块
+from src.flight_parameter.utils.common import save_as_pdf, remove_format_markers
 
 import wx
 
@@ -143,16 +146,51 @@ class QuickSaveHandler(BaseEventHandler):
             logging.error(f"处理快捷保存按钮点击事件时出错: {str(e)}")
             wx.MessageBox(f"快捷保存时出错: {str(e)}", "错误", wx.OK | wx.ICON_ERROR)
             
-    def _save_files(self, current_container, data_path, analysis_path):
-        """在后台线程中保存文件"""
-        try:
-            # 保存数据文件
-            current_container.df.to_csv(data_path, encoding='utf-8-sig', index=False)
+    def _save_files(self, current_container, data_file_path, analysis_file_path):
+        """保存数据和分析结果到文件
+        
+        Args:
+            current_container: 当前数据容器
+            data_file_path (str): 数据文件保存路径
+            analysis_file_path (str): 分析结果文件保存路径
             
-            # 保存分析结果为PDF文件
-            analysis_result = current_container.get_analysis_result()
-            self._save_as_pdf(analysis_path, analysis_result)
-            return data_path, analysis_path
+        Returns:
+            tuple: (数据文件路径, 分析结果文件路径)
+        """
+        try:
+            # 检查路径安全性
+            if not is_safe_path(os.getcwd(), data_file_path) or not is_safe_path(os.getcwd(), analysis_file_path):
+                raise ValueError(f"不允许保存到指定路径")
+            
+            # 保存数据文件
+            if current_container.df is not None:
+                # 确保目录存在
+                directory = os.path.dirname(data_file_path)
+                if directory and not os.path.exists(directory):
+                    os.makedirs(directory)
+                    
+                current_container.df.to_csv(data_file_path, encoding='utf-8-sig', index=False)
+            
+            # 保存分析结果文件
+            if current_container.analysis_result:
+                # 确保目录存在
+                directory = os.path.dirname(analysis_file_path)
+                if directory and not os.path.exists(directory):
+                    os.makedirs(directory)
+                
+                # 根据文件扩展名确定保存格式
+                _, ext = os.path.splitext(analysis_file_path.lower())
+                
+                if ext == '.pdf':
+                    # 保存为PDF格式
+                    save_as_pdf(analysis_file_path, current_container.analysis_result)
+                else:
+                    # 默认保存为文本格式
+                    plain_text = remove_format_markers(current_container.analysis_result)
+                    with open(analysis_file_path, 'w', encoding='utf-8') as f:
+                        f.write(plain_text)
+            
+            return data_file_path, analysis_file_path
         except Exception as e:
             logging.error(f"保存文件时出错: {str(e)}")
             raise e
@@ -210,17 +248,9 @@ class QuickSaveHandler(BaseEventHandler):
         Returns:
             str: 移除格式标记后的纯文本
         """
-        try:
-            import re
-            # 移除所有格式标记，如 **文本**
-            clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-            # 移除标题标记
-            clean_text = clean_text.replace('### ', '').replace('##### ', '')
-            return clean_text
-        except Exception as e:
-            logging.error(f"移除格式标记时出错: {str(e)}")
-            return text
-    
+        # 使用公共工具函数
+        return remove_format_markers(text)
+
     def _convert_custom_markup_to_html_for_export(self, text):
         """将自定义标记转换为HTML标记用于导出
         

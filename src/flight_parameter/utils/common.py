@@ -139,9 +139,163 @@ def _convert_custom_markup_to_html_for_export(text):
     Returns:
         str: 转换为HTML格式的文本
     """
-    # 这里可以添加实际的转换逻辑
-    # 目前只是简单示例
-    return text
+    try:
+        # 导入必要的模块
+        from html_generator import HTMLGenerator
+        from styles import (
+            GLOBAL_CSS, 
+            TABLE_STYLE_FIXED,
+            TABLE_STYLE_AUTO,
+            SMALL_EMPTY_LINE_STYLE
+        )
+        
+        # 创建HTML生成器实例
+        generator = HTMLGenerator()
+        
+        # 创建文档
+        doc = generator.create_document()
+        
+        # 添加默认CSS样式
+        generator.add_css(GLOBAL_CSS)
+        
+        # 处理表格标记
+        lines = text.split('\n')
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            # 处理表格
+            if line.startswith('|') and line.endswith('|') and line.count('|') >= 3:
+                # 开始处理表格
+                table_lines = []
+                # 收集连续的表格行
+                while i < len(lines) and lines[i].startswith('|') and lines[i].endswith('|') and lines[i].count('|') >= 3:
+                    table_lines.append(lines[i])
+                    i += 1
+                i -= 1  # 回退一步，因为主循环还会增加i
+                
+                # 解析表格
+                if len(table_lines) >= 2:  # 至少要有表头和分隔行
+                    # 检查是否有自定义列宽设置
+                    has_custom_widths = ':::' in table_lines[1]
+                    widths = None
+                    
+                    if has_custom_widths:
+                        # 解析自定义列宽
+                        width_line = table_lines[1]
+                        widths = []
+                        width_parts = width_line.split('|')
+                        # 移除首尾的空字符串
+                        if width_parts[0] == '':
+                            width_parts = width_parts[1:]
+                        if width_parts and width_parts[-1] == '':
+                            width_parts = width_parts[:-1]
+                        
+                        for part in width_parts:
+                            part = part.strip()
+                            if part.startswith(':::') and part.endswith(':::'):
+                                try:
+                                    width_percent = float(part[3:-3])
+                                    widths.append(width_percent)
+                                except ValueError:
+                                    widths.append(None)
+                            else:
+                                widths.append(None)
+                        
+                        # 移除宽度定义行
+                        table_lines.pop(1)
+                    
+                    # 处理表头
+                    header_cells = [cell.strip() for cell in table_lines[0].split('|')]
+                    # 移除首尾的空字符串
+                    if header_cells[0] == '':
+                        header_cells = header_cells[1:]
+                    if header_cells and header_cells[-1] == '':
+                        header_cells = header_cells[:-1]
+                    
+                    # 处理表头中的加粗标记
+                    formatted_headers = []
+                    for cell in header_cells:
+                        formatted_cell = cell.replace('**', '<strong>')
+                        formatted_cell = formatted_cell.replace('</strong><strong>', '')
+                        formatted_headers.append(formatted_cell)
+                    
+                    # 开始创建表格
+                    table_style = TABLE_STYLE_FIXED if has_custom_widths else TABLE_STYLE_AUTO
+                    generator.start_table(style=table_style, css_class="export-table")
+                    generator.add_table_header(formatted_headers, widths)
+                    generator.start_table_body()
+                    
+                    # 确定数据起始索引
+                    data_start_index = 1  # 默认从索引1开始（跳过表头）
+                    
+                    # 检查第二行是否为分隔行（只包含-和|字符）
+                    if len(table_lines) > 1:
+                        separator_line = table_lines[1].strip()
+                        if all(c in '|-' for c in separator_line):
+                            # 这是一个分隔行，需要跳过
+                            data_start_index = 2
+                        elif has_custom_widths:
+                            # 这是宽度定义行，已经在前面移除了，所以数据从索引1开始
+                            data_start_index = 1
+                        else:
+                            # 这是数据行，数据从索引1开始
+                            data_start_index = 1
+                    
+                    # 检查是否是CAS告警表格（第一列应该是"告警名称"）
+                    is_cas_table = len(header_cells) >= 3 and header_cells[0] == "告警名称" and header_cells[1] == "时间" and header_cells[2] == "持续时间"
+                    
+                    # 处理数据行
+                    for row_idx in range(data_start_index, len(table_lines)):
+                        row_line = table_lines[row_idx]
+                        row_cells = [cell.strip() for cell in row_line.split('|')]
+                        # 移除首尾的空字符串
+                        if row_cells[0] == '':
+                            row_cells = row_cells[1:]
+                        if row_cells and row_cells[-1] == '':
+                            row_cells = row_cells[:-1]
+                        
+                        # 处理单元格中的加粗标记
+                        formatted_cells = []
+                        for cell in row_cells:
+                            formatted_cell = cell.replace('**', '<strong>')
+                            formatted_cell = formatted_cell.replace('</strong><strong>', '')
+                            formatted_cells.append(formatted_cell)
+                        
+                        # 对于CAS告警表格，第一列（告警名称）左对齐，其余居中对齐
+                        if is_cas_table:
+                            generator.add_table_row(formatted_cells, "left")
+                        else:
+                            generator.add_table_row(formatted_cells, "center")
+                    
+                    generator.end_table()
+                else:
+                    # 不符合表格格式，当作普通文本处理
+                    generator.add_paragraph(line)
+            # 处理标题
+            elif line.startswith('### '):
+                generator.add_title(line[4:], level=3)
+            elif line.startswith('##### '):
+                generator.add_title(line[6:], level=5)
+            # 处理加粗文本
+            elif '**' in line:
+                # 简单处理加粗文本，后续可以增强
+                clean_line = line.replace('**', '<strong>')
+                clean_line = clean_line.replace('</strong><strong>', '')
+                generator.add_paragraph(clean_line)
+            else:
+                # 处理普通文本行
+                if line.strip():  # 只有非空行才添加
+                    generator.add_paragraph(line)
+                else:
+                    # 空行添加空白div
+                    generator.add_raw_html(SMALL_EMPTY_LINE_STYLE)
+            i += 1
+        
+        # 返回生成的HTML
+        return generator.get_html()
+    except Exception as e:
+        logging.error(f"转换自定义标记为HTML时出错: {str(e)}")
+        return text
 
 
 __all__ = [

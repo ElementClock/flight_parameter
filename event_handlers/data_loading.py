@@ -10,14 +10,17 @@
 
 import logging
 import os
+from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 import wx
-from wx import ID_CANCEL
+from wx import ID_CANCEL, NOT_FOUND
 
-from .base import BaseEventHandler, MAX_WORKERS
-from utils import is_safe_path
+# 导入我们的公共工具模块
+from src.flight_parameter.utils.common import detect_encoding, is_safe_path
+
+from ..utils import sanitize_filename
 
 # 配置日志
 logging.basicConfig(
@@ -92,31 +95,12 @@ class DataLoaderHandler(BaseEventHandler):
         Returns:
             str: 检测到的编码，如果无法检测则返回None
         """
-        # 检查路径安全性
-        if not is_safe_path(os.getcwd(), filepath):
-            raise ValueError(f"不允许访问的文件路径: {filepath}")
-            
-        # 检查缓存
-        if filepath in self.encoding_cache:
-            return self.encoding_cache[filepath]
-            
-        # 读取文件的前几行进行测试
-        # 逐个尝试不同的编码方式，一旦成功读取就返回该编码
-        for encoding in encodings:
-            try:
-                with open(filepath, 'r', encoding=encoding) as f:
-                    f.read(1024)  # 读取前1024个字符
-                logging.info(f"使用 {encoding} 编码成功读取文件头部")
-                self.encoding_cache[filepath] = encoding  # 缓存结果
-                return encoding
-            except UnicodeDecodeError:
-                logging.warning(f"使用 {encoding} 编码读取文件失败")
-                continue
-            except Exception as e:
-                logging.warning(f"使用 {encoding} 编码读取文件时出现其他错误: {str(e)}")
-                continue
-        return None
-    
+        try:
+            return detect_encoding(filepath, encodings)
+        except Exception as e:
+            logging.error(f"检测文件编码时出错: {str(e)}")
+            return None
+
     def _read_large_csv_in_chunks(self, pathname, encoding, chunksize=10000):
         """分块读取大型CSV文件以优化内存使用
         
