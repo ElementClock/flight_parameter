@@ -284,14 +284,21 @@ class DataLoaderHandler(BaseEventHandler):
                 else:
                     self.app_frame.content_panel.set_formatted_text("数据加载完成，但未生成分析结果")
                 
-                # 显示成功消息
-                wx.MessageBox(f"文件 {os.path.basename(pathname)} 加载成功\n使用编码: {encoding}", 
-                              "成功", wx.OK | wx.ICON_INFORMATION)
+                # 隐藏进度条
+                self.app_frame.sidebar_panel.show_progress(False)
+                
+                # 不再显示成功消息弹窗，仅在状态栏或内容区显示
+                # wx.MessageBox(f"文件 {os.path.basename(pathname)} 加载成功\n使用编码: {encoding}", 
+                #               "成功", wx.OK | wx.ICON_INFORMATION)
             else:
                 self.app_frame.content_panel.set_formatted_text("数据加载失败")
+                # 隐藏进度条
+                self.app_frame.sidebar_panel.show_progress(False)
         except Exception as e:
             logging.error(f"处理单个数据加载完成事件时出错: {str(e)}")
             self.app_frame.content_panel.set_formatted_text("数据加载完成，但处理结果时出错")
+            # 隐藏进度条
+            self.app_frame.sidebar_panel.show_progress(False)
 
     def on_data_load_error(self, pathname, error_message):
         """当数据加载出错时调用
