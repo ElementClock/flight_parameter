@@ -1,13 +1,13 @@
 """
-分析模块包
+分析模块包初始化文件
 """
 
 from .analysis_interface import AnalysisInterface, AnalysisResult
 from .data_analyzer import DataAnalyzer
-from .engine_analysis import EngineAnalysis
-from .fuel_analysis import FuelAnalysis
-from .power_analysis import PowerAnalysis
-from .cas_analysis import CasAnalysis
+from .engines import EngineAnalysis
+from .fuel import FuelAnalysis
+from .power import PowerAnalysis
+from .cas import CasAnalysis
 
 __all__ = [
     'AnalysisInterface', 

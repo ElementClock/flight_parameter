@@ -34,6 +34,7 @@ from datetime import datetime
 import pandas as pd
 
 from analysis.analysis_interface import AnalysisInterface
+from analysis.config import CAS_CONFIG
 
 # 配置日志
 logging.basicConfig(
@@ -141,7 +142,7 @@ class CasAnalysis(AnalysisInterface):
                 for start, end in periods:
                     # 添加时间范围过滤条件
                     if (engine_start_time is None or start >= engine_start_time) and (engine_end_time is None or end <= engine_end_time):
-                        duration = (end - start).total_seconds()+1
+                        duration = (end - start).total_seconds() + 1
                         minutes, seconds = divmod(int(duration), 60)
                         duration_str = f"{minutes} 分钟 {seconds} 秒" if duration >= 60 else f"{duration:.0f} 秒"
                         alarms.append({
@@ -186,7 +187,7 @@ class CasAnalysis(AnalysisInterface):
                     start_time = time
 
                 # 判断是否连续，只要存在间断，则结束当前时间段
-                if i < len(alarm_times) - 1 and (alarm_times.iloc[i + 1] - time).total_seconds() > 1:
+                if i < len(alarm_times) - 1 and (alarm_times.iloc[i + 1] - time).total_seconds() > CAS_CONFIG['ALARM_CONTINUITY_THRESHOLD']:
                     end_time = time
                     periods.append((start_time, end_time))
                     start_time = None

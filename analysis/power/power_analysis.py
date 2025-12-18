@@ -15,6 +15,8 @@ from typing import Dict, Any, List
 import pandas as pd
 
 from analysis.analysis_interface import AnalysisInterface
+from analysis.utils import safe_get_statistic
+from analysis.config import POWER_CONFIG
 
 # 配置日志
 logging.basicConfig(
@@ -149,19 +151,19 @@ class PowerAnalysis(AnalysisInterface):
                     # 计算统计数据
                     if has_voltage and voltage_col in df_selected.columns:
                         voltage_data = df_selected[voltage_col]
-                        generator_info['start_voltage'] = voltage_data.iloc[0] if len(voltage_data) > 0 else None
-                        generator_info['end_voltage'] = voltage_data.iloc[-1] if len(voltage_data) > 0 else None
-                        generator_info['avg_voltage'] = voltage_data.mean() if len(voltage_data) > 0 else None
-                        generator_info['max_voltage'] = voltage_data.max() if len(voltage_data) > 0 else None
-                        generator_info['min_voltage'] = voltage_data.min() if len(voltage_data) > 0 else None
+                        generator_info['start_voltage'] = safe_get_statistic(voltage_data, 'first')
+                        generator_info['end_voltage'] = safe_get_statistic(voltage_data, 'last')
+                        generator_info['avg_voltage'] = safe_get_statistic(voltage_data, 'mean')
+                        generator_info['max_voltage'] = safe_get_statistic(voltage_data, 'max')
+                        generator_info['min_voltage'] = safe_get_statistic(voltage_data, 'min')
                     
                     if has_current and current_col in df_selected.columns:
                         current_data = df_selected[current_col]
-                        generator_info['start_current'] = current_data.iloc[0] if len(current_data) > 0 else None
-                        generator_info['end_current'] = current_data.iloc[-1] if len(current_data) > 0 else None
-                        generator_info['avg_current'] = current_data.mean() if len(current_data) > 0 else None
-                        generator_info['max_current'] = current_data.max() if len(current_data) > 0 else None
-                        generator_info['min_current'] = current_data.min() if len(current_data) > 0 else None
+                        generator_info['start_current'] = safe_get_statistic(current_data, 'first')
+                        generator_info['end_current'] = safe_get_statistic(current_data, 'last')
+                        generator_info['avg_current'] = safe_get_statistic(current_data, 'mean')
+                        generator_info['max_current'] = safe_get_statistic(current_data, 'max')
+                        generator_info['min_current'] = safe_get_statistic(current_data, 'min')
                     
                     dc_generator_info.append(generator_info)
             
@@ -215,19 +217,19 @@ class PowerAnalysis(AnalysisInterface):
                     # 计算统计数据
                     if has_voltage and voltage_col in df_selected.columns:
                         voltage_data = df_selected[voltage_col]
-                        generator_info['start_voltage'] = voltage_data.iloc[0] if len(voltage_data) > 0 else None
-                        generator_info['end_voltage'] = voltage_data.iloc[-1] if len(voltage_data) > 0 else None
-                        generator_info['avg_voltage'] = voltage_data.mean() if len(voltage_data) > 0 else None
-                        generator_info['max_voltage'] = voltage_data.max() if len(voltage_data) > 0 else None
-                        generator_info['min_voltage'] = voltage_data.min() if len(voltage_data) > 0 else None
+                        generator_info['start_voltage'] = safe_get_statistic(voltage_data, 'first')
+                        generator_info['end_voltage'] = safe_get_statistic(voltage_data, 'last')
+                        generator_info['avg_voltage'] = safe_get_statistic(voltage_data, 'mean')
+                        generator_info['max_voltage'] = safe_get_statistic(voltage_data, 'max')
+                        generator_info['min_voltage'] = safe_get_statistic(voltage_data, 'min')
                     
                     if has_current and current_col in df_selected.columns:
                         current_data = df_selected[current_col]
-                        generator_info['start_current'] = current_data.iloc[0] if len(current_data) > 0 else None
-                        generator_info['end_current'] = current_data.iloc[-1] if len(current_data) > 0 else None
-                        generator_info['avg_current'] = current_data.mean() if len(current_data) > 0 else None
-                        generator_info['max_current'] = current_data.max() if len(current_data) > 0 else None
-                        generator_info['min_current'] = current_data.min() if len(current_data) > 0 else None
+                        generator_info['start_current'] = safe_get_statistic(current_data, 'first')
+                        generator_info['end_current'] = safe_get_statistic(current_data, 'last')
+                        generator_info['avg_current'] = safe_get_statistic(current_data, 'mean')
+                        generator_info['max_current'] = safe_get_statistic(current_data, 'max')
+                        generator_info['min_current'] = safe_get_statistic(current_data, 'min')
                     
                     ac_generator_info.append(generator_info)
             
@@ -281,19 +283,19 @@ class PowerAnalysis(AnalysisInterface):
                     # 计算统计数据
                     if has_voltage and voltage_col in df_selected.columns:
                         voltage_data = df_selected[voltage_col]
-                        bus_info['start_voltage'] = voltage_data.iloc[0] if len(voltage_data) > 0 else None
-                        bus_info['end_voltage'] = voltage_data.iloc[-1] if len(voltage_data) > 0 else None
-                        bus_info['avg_voltage'] = voltage_data.mean() if len(voltage_data) > 0 else None
-                        bus_info['max_voltage'] = voltage_data.max() if len(voltage_data) > 0 else None
-                        bus_info['min_voltage'] = voltage_data.min() if len(voltage_data) > 0 else None
+                        bus_info['start_voltage'] = safe_get_statistic(voltage_data, 'first')
+                        bus_info['end_voltage'] = safe_get_statistic(voltage_data, 'last')
+                        bus_info['avg_voltage'] = safe_get_statistic(voltage_data, 'mean')
+                        bus_info['max_voltage'] = safe_get_statistic(voltage_data, 'max')
+                        bus_info['min_voltage'] = safe_get_statistic(voltage_data, 'min')
                     
                     if has_current and current_col in df_selected.columns:
                         current_data = df_selected[current_col]
-                        bus_info['start_current'] = current_data.iloc[0] if len(current_data) > 0 else None
-                        bus_info['end_current'] = current_data.iloc[-1] if len(current_data) > 0 else None
-                        bus_info['avg_current'] = current_data.mean() if len(current_data) > 0 else None
-                        bus_info['max_current'] = current_data.max() if len(current_data) > 0 else None
-                        bus_info['min_current'] = current_data.min() if len(current_data) > 0 else None
+                        bus_info['start_current'] = safe_get_statistic(current_data, 'first')
+                        bus_info['end_current'] = safe_get_statistic(current_data, 'last')
+                        bus_info['avg_current'] = safe_get_statistic(current_data, 'mean')
+                        bus_info['max_current'] = safe_get_statistic(current_data, 'max')
+                        bus_info['min_current'] = safe_get_statistic(current_data, 'min')
                             
                     bus_bar_info.append(bus_info)
             
@@ -370,7 +372,7 @@ class PowerAnalysis(AnalysisInterface):
                     # 负载状态（基于最大电流是否超限）
                     load_status = "N/A"
                     if generator['max_current'] is not None:
-                        if generator['max_current'] > 3200:
+                        if generator['max_current'] > POWER_CONFIG['DC_GENERATOR_LOAD_THRESHOLD']:
                             load_status = "**False(超限)**"
                         else:
                             load_status = "True"
@@ -401,7 +403,7 @@ class PowerAnalysis(AnalysisInterface):
                     # 负载状态（基于最大电流是否超限）
                     load_status = "N/A"
                     if generator['max_current'] is not None:
-                        if generator['max_current'] > 400:
+                        if generator['max_current'] > POWER_CONFIG['AC_GENERATOR_LOAD_THRESHOLD']:
                             load_status = "**False(超限)**"
                         else:
                             load_status = "True"

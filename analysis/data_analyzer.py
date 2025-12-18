@@ -18,10 +18,10 @@ import pandas as pd
 # 项目模块导入
 from analysis.analysis_interface import AnalysisResult
 from analysis.plugin_manager import PluginManager, PluginConfig
-from analysis.engine_analysis import EngineAnalysis
-from analysis.fuel_analysis import FuelAnalysis
-from analysis.power_analysis import PowerAnalysis
-from analysis.cas_analysis import CasAnalysis
+from analysis.engines.engine_analysis import EngineAnalysis
+from analysis.fuel.fuel_analysis import FuelAnalysis
+from analysis.power.power_analysis import PowerAnalysis
+from analysis.cas.cas_analysis import CasAnalysis
 
 # 配置日志
 logging.basicConfig(

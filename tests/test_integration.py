@@ -17,10 +17,10 @@ import numpy as np
 
 from analysis.data_analyzer import DataAnalyzer
 from analysis.plugin_manager import PluginManager
-from analysis.engine_analysis import EngineAnalysis
-from analysis.fuel_analysis import FuelAnalysis
-from analysis.power_analysis import PowerAnalysis
-from analysis.cas_analysis import CasAnalysis
+from analysis.engines.engine_analysis import EngineAnalysis
+from analysis.fuel.fuel_analysis import FuelAnalysis
+from analysis.power.power_analysis import PowerAnalysis
+from analysis.cas.cas_analysis import CasAnalysis
 from analysis.analysis_interface import AnalysisResult
 
 
