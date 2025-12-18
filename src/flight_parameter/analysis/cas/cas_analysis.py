@@ -35,6 +35,8 @@ import pandas as pd
 
 from ..analysis_interface import AnalysisInterface
 from ..config import CAS_CONFIG
+from ..utils import merge_continuous_time_periods
+from ..column_config import CAS_COLUMNS, GENERAL_COLUMNS
 
 # 配置日志
 logging.basicConfig(
@@ -63,8 +65,6 @@ class CasAnalysis(AnalysisInterface):
     -----
     analyze(df, engine_start_time=None, engine_end_time=None, **kwargs) -> Dict[str, Any]
         告警分析主函数
-    find_alarm_periods(alarm_times) -> list
-        找到连续告警的时间段
     extract_alarm_periods(df_cas, column, time_column) -> list
         提取某一列的告警时间段
     load_alarm_levels() -> dict
@@ -110,14 +110,14 @@ class CasAnalysis(AnalysisInterface):
                 cas_result['is_empty'] = True
                 return cas_result
 
-            time_columns = [col for col in df.columns if '飞行时间' in col]
+            time_columns = [col for col in df.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col]
             if not time_columns:
                 cas_result['missing_time_column'] = True
                 return cas_result
 
             time_column = time_columns[0]  # 使用第一个找到的时间列
 
-            alarm_columns = df.filter(like='显示告警系统').columns
+            alarm_columns = df.filter(like=CAS_COLUMNS['ALARM']).columns
             if len(alarm_columns) == 0:
                 # 尝试其他可能的告警列名模式
                 alarm_columns = [col for col in df.columns if '告警' in col]
@@ -166,40 +166,6 @@ class CasAnalysis(AnalysisInterface):
                 'errors': [f"CAS分析过程中出错: {str(e)}"]
             }
     
-    def find_alarm_periods(self, alarm_times):
-        """找到连续告警的时间段
-        
-        Args:
-            alarm_times: 告警时间序列
-            
-        Returns:
-            list: 告警时间段列表
-        """
-        try:
-            if alarm_times.empty:
-                return []
-
-            periods = []
-            start_time = None
-
-            for i, time in enumerate(alarm_times):
-                if start_time is None:
-                    start_time = time
-
-                # 判断是否连续，只要存在间断，则结束当前时间段
-                if i < len(alarm_times) - 1 and (alarm_times.iloc[i + 1] - time).total_seconds() > CAS_CONFIG['ALARM_CONTINUITY_THRESHOLD']:
-                    end_time = time
-                    periods.append((start_time, end_time))
-                    start_time = None
-                elif i == len(alarm_times) - 1:
-                    end_time = time
-                    periods.append((start_time, end_time))
-
-            return periods
-        except Exception as e:
-            logging.error(f"查找告警时间段时出错: {str(e)}")
-            return []
-
     def extract_alarm_periods(self, df_cas, column, time_column):
         """
         提取某一列的告警时间段
@@ -218,7 +184,10 @@ class CasAnalysis(AnalysisInterface):
             alarm_times = df_cas.loc[mask, time_column]
             if isinstance(alarm_times, pd.DataFrame):
                 alarm_times = alarm_times.squeeze()
-            return self.find_alarm_periods(alarm_times) if not alarm_times.empty else []
+            
+            # 使用通用的时间段合并函数
+            periods = merge_continuous_time_periods(alarm_times)
+            return [(period['start_time'], period['end_time']) for period in periods]
         except KeyError:
             logging.warning(f"列 {column} 或 '{time_column}' 列存在问题")
             return []

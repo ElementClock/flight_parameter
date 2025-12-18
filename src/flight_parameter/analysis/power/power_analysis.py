@@ -17,6 +17,7 @@ import pandas as pd
 from ..analysis_interface import AnalysisInterface
 from ..utils import safe_get_statistic
 from ..config import POWER_CONFIG
+from ..column_config import POWER_COLUMNS, GENERAL_COLUMNS
 
 # 配置日志
 logging.basicConfig(
@@ -57,17 +58,17 @@ class PowerAnalysis(AnalysisInterface):
             }
             
             # 查找电源相关列
-            # 匹配直流发电机电压列，如"1号直流发电机电压"、"2号直流发电机电压"等
-            dc_voltage_pattern = re.compile(r'(\d)号直流发电机(?:输出)?电压')
-            dc_current_pattern = re.compile(r'(\d)号直流发电机(?:输出)?电流')
+            # 使用配置文件中的模式匹配直流发电机电压列，如"1号直流发电机电压"、"2号直流发电机电压"等
+            dc_voltage_pattern = re.compile(POWER_COLUMNS['DC_VOLTAGE'])
+            dc_current_pattern = re.compile(POWER_COLUMNS['DC_CURRENT'])
             
-            # 匹配交流发电机电压列，如"1号交流发电机电压"、"2号交流发电机电压"等
-            ac_voltage_pattern = re.compile(r'(\d)号交流发电机(?:输出)?电压')
-            ac_current_pattern = re.compile(r'(\d)号交流发电机(?:输出)?电流')
+            # 使用配置文件中的模式匹配交流发电机电压列，如"1号交流发电机电压"、"2号交流发电机电压"等
+            ac_voltage_pattern = re.compile(POWER_COLUMNS['AC_VOLTAGE'])
+            ac_current_pattern = re.compile(POWER_COLUMNS['AC_CURRENT'])
             
-            # 匹配汇流条列，如"左汇流条电压"、"右汇流条电流"等
-            bus_voltage_pattern = re.compile(r'(.+?)汇流条电压')
-            bus_current_pattern = re.compile(r'(.+?)汇流条电流')
+            # 使用配置文件中的模式匹配汇流条列，如"左汇流条电压"、"右汇流条电流"等
+            bus_voltage_pattern = re.compile(POWER_COLUMNS['BUS_VOLTAGE'])
+            bus_current_pattern = re.compile(POWER_COLUMNS['BUS_CURRENT'])
             
             # 提取相关列
             dc_voltage_columns = [col for col in df.columns if dc_voltage_pattern.search(col)]
@@ -85,7 +86,7 @@ class PowerAnalysis(AnalysisInterface):
                 return power_result
                 
             # 优化内存使用：只选择需要的列进行处理
-            selected_columns = ['飞行时间']
+            selected_columns = [col for col in df.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col]
             if dc_voltage_columns:
                 selected_columns.extend(dc_voltage_columns)
             if dc_current_columns:
@@ -304,8 +305,8 @@ class PowerAnalysis(AnalysisInterface):
             power_result['dc_generators'] = dc_generator_info
             power_result['ac_generators'] = ac_generator_info
             power_result['bus_bars'] = bus_bar_info
-            power_result['start_time'] = df_selected['飞行时间'].iloc[0] if not df_selected.empty and '飞行时间' in df_selected.columns else None
-            power_result['end_time'] = df_selected['飞行时间'].iloc[-1] if not df_selected.empty and '飞行时间' in df_selected.columns else None
+            power_result['start_time'] = df_selected[[col for col in df_selected.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col][0]].iloc[0] if not df_selected.empty and any(GENERAL_COLUMNS['FLIGHT_TIME'] in col for col in df_selected.columns) else None
+            power_result['end_time'] = df_selected[[col for col in df_selected.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col][0]].iloc[-1] if not df_selected.empty and any(GENERAL_COLUMNS['FLIGHT_TIME'] in col for col in df_selected.columns) else None
             
             return power_result
         except Exception as e:

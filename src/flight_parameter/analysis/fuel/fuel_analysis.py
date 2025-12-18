@@ -18,6 +18,7 @@ from ..analysis_interface import AnalysisInterface
 from ..logger import get_analysis_logger, log_step
 from ..utils import merge_continuous_time_periods
 from ..config import FUEL_CONFIG
+from ..column_config import FUEL_COLUMNS, GENERAL_COLUMNS
 
 # 获取日志记录器
 logger = get_analysis_logger(__name__)
@@ -54,10 +55,10 @@ class FuelAnalysis(AnalysisInterface):
             }
             
             # 查找燃油相关列
-            # 匹配燃油油箱列，如"Ⅰ号油箱油量"、"Ⅱ号油箱油量"等
-            fuel_tank_pattern = re.compile(r'([ⅠⅡⅢⅣ])号油箱油量')
-            fuel_temp_pattern = re.compile(r'([ⅠⅡⅢⅣ])号油箱燃油温度')
-            engine_fuel_consumption_pattern = re.compile(r'(\d)发总耗量')
+            # 使用配置文件中的模式匹配燃油油箱列，如"Ⅰ号油箱油量"、"Ⅱ号油箱油量"等
+            fuel_tank_pattern = re.compile(FUEL_COLUMNS['TANK_LEVEL'])
+            fuel_temp_pattern = re.compile(FUEL_COLUMNS['TANK_TEMPERATURE'])
+            engine_fuel_consumption_pattern = re.compile(FUEL_COLUMNS['ENGINE_CONSUMPTION'])
             
             # 提取燃油油量、温度和发动机耗油量列
             fuel_tank_columns = [col for col in df.columns if fuel_tank_pattern.search(col)]
@@ -75,7 +76,7 @@ class FuelAnalysis(AnalysisInterface):
                 return fuel_result
                 
             # 优化内存使用：只选择需要的列进行处理
-            selected_columns = ['飞行时间']
+            selected_columns = [col for col in df.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col]
             if fuel_tank_columns:
                 selected_columns.extend(fuel_tank_columns)
             if fuel_temp_columns:
@@ -190,7 +191,7 @@ class FuelAnalysis(AnalysisInterface):
                 if low_fuel_mask.any():
                     logger.debug(f"{tank_name} 检测到低油量事件")
                     # 找到所有低于200kg的时间点
-                    low_fuel_times = df_selected.loc[low_fuel_mask, '飞行时间']
+                    low_fuel_times = df_selected.loc[low_fuel_mask, [col for col in df_selected.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col][0]]
                     low_fuel_values = tank['fuel_data'][low_fuel_mask]
                     
                     # 将连续的时间点合并为时间段
@@ -229,7 +230,7 @@ class FuelAnalysis(AnalysisInterface):
                         if imbalance_mask.any():
                             logger.debug(f"检测到 {tank1_name} 和 {tank2_name} 之间存在不平衡")
                             # 找到所有不平衡的时间点
-                            imbalance_times = df_selected.loc[imbalance_mask, '飞行时间']
+                            imbalance_times = df_selected.loc[imbalance_mask, [col for col in df_selected.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col][0]]
                             imbalance_values = diff[imbalance_mask]
                             
                             # 将连续的时间点合并为时间段
@@ -255,8 +256,8 @@ class FuelAnalysis(AnalysisInterface):
                 'engine_fuel_consumptions': engine_fuel_consumption_info,
                 'total_fuel_consumption': total_fuel_consumption,
                 'total_engine_fuel_consumption': total_engine_fuel_consumption,
-                'start_time': df_selected['飞行时间'].iloc[0] if len(df_selected) > 0 else None,
-                'end_time': df_selected['飞行时间'].iloc[-1] if len(df_selected) > 0 else None,
+                'start_time': df_selected[[col for col in df_selected.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col][0]].iloc[0] if len(df_selected) > 0 else None,
+                'end_time': df_selected[[col for col in df_selected.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col][0]].iloc[-1] if len(df_selected) > 0 else None,
                 'low_fuel_events': low_fuel_events,
                 'imbalance_fuel_events': imbalance_fuel_events
             })

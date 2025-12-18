@@ -11,6 +11,7 @@
 import logging
 from typing import List, Dict, Any
 import pandas as pd
+import re
 
 # 配置日志
 logging.basicConfig(
@@ -153,3 +154,49 @@ def safe_get_statistic(series: pd.Series, statistic: str) -> Any:
             return None
     except Exception:
         return None
+
+
+def find_columns_by_pattern(df: pd.DataFrame, pattern: str) -> List[str]:
+    """根据正则表达式模式查找列名
+    
+    Args:
+        df (pd.DataFrame): 数据框
+        pattern (str): 正则表达式模式
+        
+    Returns:
+        List[str]: 匹配的列名列表
+    """
+    try:
+        compiled_pattern = re.compile(pattern)
+        return [col for col in df.columns if compiled_pattern.search(col)]
+    except Exception as e:
+        logging.error(f"查找列时出错: {str(e)}")
+        return []
+
+
+def extract_period_data(df: pd.DataFrame, time_column: str, data_column: str, condition) -> List[Dict[str, Any]]:
+    """提取满足条件的时间段数据
+    
+    Args:
+        df (pd.DataFrame): 数据框
+        time_column (str): 时间列名
+        data_column (str): 数据列名
+        condition: 条件函数或值
+        
+    Returns:
+        List[Dict[str, Any]]: 时间段数据列表
+    """
+    try:
+        if callable(condition):
+            mask = df[data_column].apply(condition)
+        else:
+            mask = df[data_column] == condition
+            
+        selected_times = df.loc[mask, time_column]
+        if isinstance(selected_times, pd.DataFrame):
+            selected_times = selected_times.squeeze()
+            
+        return merge_continuous_time_periods(selected_times) if not selected_times.empty else []
+    except Exception as e:
+        logging.error(f"提取时间段数据时出错: {str(e)}")
+        return []

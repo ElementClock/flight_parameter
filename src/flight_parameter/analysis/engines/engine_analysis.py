@@ -36,6 +36,7 @@ from datetime import datetime
 from ..analysis_interface import AnalysisInterface
 from ..logger import get_analysis_logger, log_step
 from ..config import ENGINE_CONFIG
+from ..column_config import ENGINE_COLUMNS, GENERAL_COLUMNS
 
 # 获取日志记录器
 logger = get_analysis_logger(__name__)
@@ -91,8 +92,8 @@ class EngineAnalysis(AnalysisInterface):
             logger.info(f"开始分析发动机数据，数据形状: {df.shape if hasattr(df, 'shape') else '未知'}")
             result = {}
 
-            # 检查是否存在必要的列 - 使用更灵活的方式查找发动机转速列
-            time_columns = [col for col in df.columns if '飞行时间' in col]
+            # 检查是否存在必要的列 - 使用配置文件中的模式查找列
+            time_columns = [col for col in df.columns if GENERAL_COLUMNS['FLIGHT_TIME'] in col]
             engine_rpm_columns = [col for col in df.columns if '发动机' in col and '转速' in col]
             
             logger.debug(f"找到时间列: {time_columns}")
@@ -177,9 +178,9 @@ class EngineAnalysis(AnalysisInterface):
             logger.info("开始查找发动机启停信息")
             engines_info = []
             
-            # 查找所有发动机转速列
+            # 查找所有发动机转速列，使用配置文件中的模式
             import re
-            rpm_pattern = re.compile(r'(\d)发发动机转速')
+            rpm_pattern = re.compile(ENGINE_COLUMNS['RPM'])
             engine_rpm_columns = [col for col in df.columns if rpm_pattern.search(col)]
             
             logger.debug(f"找到发动机转速列: {engine_rpm_columns}")
