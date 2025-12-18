@@ -14,9 +14,9 @@ from typing import Dict, Any, List
 
 import pandas as pd
 
-from analysis.analysis_interface import AnalysisInterface
-from analysis.utils import safe_get_statistic
-from analysis.config import POWER_CONFIG
+from ..analysis_interface import AnalysisInterface
+from ..utils import safe_get_statistic
+from ..config import POWER_CONFIG
 
 # 配置日志
 logging.basicConfig(

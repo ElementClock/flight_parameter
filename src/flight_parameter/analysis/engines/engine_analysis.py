@@ -33,9 +33,9 @@ from typing import Dict, Any, List
 import pandas as pd
 from datetime import datetime
 
-from analysis.analysis_interface import AnalysisInterface
-from analysis.logger import get_analysis_logger, log_step
-from analysis.config import ENGINE_CONFIG
+from ..analysis_interface import AnalysisInterface
+from ..logger import get_analysis_logger, log_step
+from ..config import ENGINE_CONFIG
 
 # 获取日志记录器
 logger = get_analysis_logger(__name__)

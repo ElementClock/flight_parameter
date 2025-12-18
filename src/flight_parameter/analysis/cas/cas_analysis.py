@@ -33,8 +33,8 @@ from datetime import datetime
 
 import pandas as pd
 
-from analysis.analysis_interface import AnalysisInterface
-from analysis.config import CAS_CONFIG
+from ..analysis_interface import AnalysisInterface
+from ..config import CAS_CONFIG
 
 # 配置日志
 logging.basicConfig(
