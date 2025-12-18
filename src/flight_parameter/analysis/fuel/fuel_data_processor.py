@@ -225,7 +225,7 @@ class FuelDataProcessor:
                         fuel_diff = abs(tank1['fuel_data'] - tank2['fuel_data'])
                         
                         # 检查是否有持续的不平衡
-                        imbalance_mask = fuel_diff > FUEL_CONFIG['FUEL_IMBALANCE_THRESHOLD']
+                        imbalance_mask = fuel_diff > FUEL_CONFIG['IMBALANCE_THRESHOLD']
                         if imbalance_mask.any():
                             logger.debug(f"{tank1['tank_name']} 和 {tank2['tank_name']} 检测到油量不平衡事件")
                             # 获取时间列

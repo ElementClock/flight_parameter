@@ -5,8 +5,12 @@
 配置模块单元测试
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import unittest
-from analysis.config import ENGINE_CONFIG, FUEL_CONFIG, POWER_CONFIG, CAS_CONFIG
+from src.flight_parameter.analysis.config import ENGINE_CONFIG, FUEL_CONFIG, POWER_CONFIG, CAS_CONFIG
 
 
 class TestConfig(unittest.TestCase):
@@ -29,11 +33,15 @@ class TestConfig(unittest.TestCase):
         self.assertIn('LOW_FUEL_THRESHOLD', FUEL_CONFIG)
         self.assertIn('IMBALANCE_THRESHOLD', FUEL_CONFIG)
         self.assertIn('CONTINUOUS_TIME_THRESHOLD', FUEL_CONFIG)
+        self.assertIn('CONTINUOUS_LOW_FUEL_THRESHOLD', FUEL_CONFIG)
+        self.assertIn('CONTINUOUS_IMBALANCE_THRESHOLD', FUEL_CONFIG)
         
         self.assertIsInstance(FUEL_CONFIG['SENSOR_DIFFERENCE_THRESHOLD'], (int, float))
         self.assertIsInstance(FUEL_CONFIG['LOW_FUEL_THRESHOLD'], (int, float))
         self.assertIsInstance(FUEL_CONFIG['IMBALANCE_THRESHOLD'], (int, float))
         self.assertIsInstance(FUEL_CONFIG['CONTINUOUS_TIME_THRESHOLD'], (int, float))
+        self.assertIsInstance(FUEL_CONFIG['CONTINUOUS_LOW_FUEL_THRESHOLD'], (int, float))
+        self.assertIsInstance(FUEL_CONFIG['CONTINUOUS_IMBALANCE_THRESHOLD'], (int, float))
 
     def test_power_config(self):
         """测试电源配置"""

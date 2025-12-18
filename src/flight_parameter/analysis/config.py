@@ -32,7 +32,13 @@ FUEL_CONFIG = {
     'IMBALANCE_THRESHOLD': 100,
     
     # 连续时间判断阈值(秒)
-    'CONTINUOUS_TIME_THRESHOLD': 1.0
+    'CONTINUOUS_TIME_THRESHOLD': 1.0,
+    
+    # 连续低油量判断阈值(秒)
+    'CONTINUOUS_LOW_FUEL_THRESHOLD': 1.0,
+    
+    # 连续油箱不平衡判断阈值(秒)
+    'CONTINUOUS_IMBALANCE_THRESHOLD': 1.0
 }
 
 # 电源分析配置

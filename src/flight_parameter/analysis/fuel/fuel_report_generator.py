@@ -48,44 +48,60 @@ class FuelReportGenerator:
             # 添加标题
             result.append("### 燃油系统分析结果")
             
-            # 添加油箱信息
-            if fuel_data.get('fuel_tanks'):
-                result.append("\n#### 油箱状态信息")
-                result.append("| 油箱编号 | 初始油量(kg) | 最终油量(kg) | 消耗油量(kg) |")
-                result.append("|----------|--------------|--------------|--------------|")
+            # 合并显示油箱和发动机信息在一个表格中（列合并）
+            if fuel_data.get('fuel_tanks') or fuel_data.get('engine_fuel_consumptions'):
+                result.append(f"\n燃油系统总消耗: {fuel_data.get('total_fuel_consumption', 0):.1f} kg")
+                result.append("| 油箱编号 | 初始油量(kg) | 最终油量(kg) | 消耗油量(kg) | 对应发动机编号 | 发动机总耗油量(kg) |")
+                result.append("|----------|--------------|--------------|--------------|----------------|------------------|")
                 
+                # 获取油箱和发动机数据
+                tanks = fuel_data.get('fuel_tanks', [])
+                engines = fuel_data.get('engine_fuel_consumptions', [])
+                
+                # 确定需要显示的行数（油箱和发动机数量的最大值）
+                max_rows = max(len(tanks), len(engines))
+                
+                # 逐行合并显示油箱和发动机信息
                 total_start_fuel = 0
                 total_end_fuel = 0
-                total_consumption = 0
+                total_tank_consumption = 0
+                total_engine_consumption = 0
                 
-                for tank in fuel_data['fuel_tanks']:
-                    start_fuel = tank.get('start_fuel', 0)
-                    end_fuel = tank.get('end_fuel', 0)
-                    consumption = tank.get('consumption', 0)
+                for i in range(max_rows):
+                    # 油箱信息
+                    tank_info = ""
+                    start_fuel = ""
+                    end_fuel = ""
+                    tank_consumption = ""
                     
-                    result.append(f"| {tank.get('tank_name', '未知')} | {start_fuel:.1f} | {end_fuel:.1f} | {consumption:.1f} |")
+                    if i < len(tanks):
+                        tank = tanks[i]
+                        tank_info = tank.get('tank_name', '未知')
+                        start_fuel = f"{tank.get('start_fuel', 0):.1f}"
+                        end_fuel = f"{tank.get('end_fuel', 0):.1f}"
+                        tank_consumption = f"{tank.get('consumption', 0):.1f}"
+                        
+                        total_start_fuel += tank.get('start_fuel', 0)
+                        total_end_fuel += tank.get('end_fuel', 0)
+                        total_tank_consumption += tank.get('consumption', 0)
                     
-                    total_start_fuel += start_fuel
-                    total_end_fuel += end_fuel
-                    total_consumption += consumption
+                    # 发动机信息
+                    engine_info = ""
+                    engine_consumption = ""
+                    
+                    if i < len(engines):
+                        engine = engines[i]
+                        engine_info = engine.get('engine_name', '未知')
+                        engine_consumption = f"{engine.get('total_consumption', 0):.1f}"
+                        
+                        total_engine_consumption += engine.get('total_consumption', 0)
+                    
+                    # 输出合并后的行
+                    result.append(f"| {tank_info} | {start_fuel} | {end_fuel} | {tank_consumption} | {engine_info} | {engine_consumption} |")
                 
                 # 添加总计行
-                result.append(f"| **总计** | **{total_start_fuel:.1f}** | **{total_end_fuel:.1f}** | **{total_consumption:.1f}** |")
-            
-            # 添加发动机耗油信息
-            if fuel_data.get('engine_fuel_consumptions'):
-                result.append("\n#### 发动机耗油信息")
-                result.append("| 发动机编号 | 总耗油量(kg) |")
-                result.append("|------------|--------------|")
-                
-                total_engine_consumption = 0
-                for engine in fuel_data['engine_fuel_consumptions']:
-                    consumption = engine.get('total_consumption', 0)
-                    result.append(f"| {engine.get('engine_name', '未知')} | {consumption:.1f} |")
-                    total_engine_consumption += consumption
-                
-                result.append(f"| **总计** | **{total_engine_consumption:.1f}** |")
-                result.append(f"\n燃油系统总消耗: {fuel_data.get('total_fuel_consumption', 0):.1f} kg")
+                result.append(f"| **总计** | **{total_start_fuel:.1f}** | **{total_end_fuel:.1f}** | **{total_tank_consumption:.1f}** | **-** | **{total_engine_consumption:.1f}** |")
+
             
             # 添加低油量告警
             if fuel_data.get('low_fuel_events'):
