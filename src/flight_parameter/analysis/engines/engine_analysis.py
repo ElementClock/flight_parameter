@@ -178,36 +178,22 @@ class EngineAnalysis(AnalysisInterface):
             engines_info = []
             
             # 查找所有发动机转速列
-            engine_rpm_columns = [col for col in df.columns if '发动机' in col and '转速' in col]
+            import re
+            rpm_pattern = re.compile(r'(\d)发发动机转速')
+            engine_rpm_columns = [col for col in df.columns if rpm_pattern.search(col)]
+            
             logger.debug(f"找到发动机转速列: {engine_rpm_columns}")
             
             # 遍历找到的发动机列
-            for i, rpm_column in enumerate(engine_rpm_columns):
+            for rpm_column in engine_rpm_columns:
                 logger.debug(f"处理发动机列: {rpm_column}")
                 # 从列名中提取发动机编号
-                # 使用正则表达式更精确地提取发动机编号，参考燃油专业的做法
-                import re
-                engine_id = None
-                
-                # 查找类似"发动机1"、"#1"、"1号发动机"这样的模式
-                patterns = [
-                    r'发动机[#\s]*([1-4])(?!\d)',  # 匹配"发动机1"、"发动机 1"、"发动机#1"，但不匹配"发动机11"
-                    r'([1-4])[#\s]*发动机(?!\d)',   # 匹配"1#发动机"、"1 发动机"，但不匹配"11发动机"
-                    r'#([1-4])(?!\d)',              # 匹配"#1"，但不匹配"#11"
-                    r'(?<![0-9])([1-4])号(?!\d)',   # 匹配"1号"，但不匹配"11号"
-                ]
-                
-                for pattern in patterns:
-                    match = re.search(pattern, rpm_column)
-                    if match:
-                        engine_id = int(match.group(1))
-                        logger.debug(f"通过模式 {pattern} 提取到发动机编号: {engine_id}")
-                        break
-                
-                # 如果没有找到明确的编号模式，则使用索引作为备用方案
-                if engine_id is None:
-                    engine_id = i + 1  # 使用索引作为默认编号，确保不会重复
-                    logger.debug(f"未找到明确编号，使用默认编号: {engine_id}")
+                match = rpm_pattern.search(rpm_column)
+                if match:
+                    engine_id = int(match.group(1))
+                else:
+                    # 如果没有匹配，默认使用1作为发动机编号
+                    engine_id = 1
                 
                 # 获取RPM数据
                 rpm_series = df[rpm_column]
@@ -259,38 +245,7 @@ class EngineAnalysis(AnalysisInterface):
                 
                 logger.info(f"发动机 {engine_id} 启动次数: {len(start_times)}, 关车次数: {len(end_times)}, 重启次数: {len(restart_times)}")
             
-            # 确保有指定数量的发动机信息（即使某些发动机没有数据）
-            # 先收集已存在的发动机ID
-            existing_engine_ids = {info['engine_id'] for info in engines_info}
-            
-            # 补充缺失的发动机信息
-            engine_range = ENGINE_CONFIG['ENGINE_NUMBER_RANGE']
-            for engine_id in range(engine_range[0], engine_range[1] + 1):
-                if engine_id not in existing_engine_ids:
-                    engines_info.append({
-                        'engine_id': engine_id,
-                        'start_times': [],
-                        'end_times': [],
-                        'restart_times': []
-                    })
-            
             # 按发动机编号排序
-            engines_info.sort(key=lambda x: x['engine_id'])
-            
-            # 确保发动机编号唯一性，如果有重复则重新分配编号
-            seen_ids = set()
-            for info in engines_info:
-                original_id = info['engine_id']
-                if original_id in seen_ids:
-                    # 如果编号重复，寻找下一个可用编号
-                    new_id = 1
-                    while new_id in seen_ids:
-                        new_id += 1
-                    info['engine_id'] = new_id
-                    logger.warning(f"发动机编号重复，将 {original_id} 重分配为 {new_id}")
-                seen_ids.add(info['engine_id'])
-            
-            # 再次按发动机编号排序
             engines_info.sort(key=lambda x: x['engine_id'])
             
             logger.info(f"完成查找发动机启停信息，共处理 {len(engines_info)} 个发动机")
