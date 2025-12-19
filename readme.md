@@ -285,18 +285,29 @@ flight_parameter/
 │       │   ├── utils.py             # 分析工具函数
 │       │   ├── plugin_manager.py     # 插件管理器
 │       │   ├── data_analyzer.py     # 主分析流程
+│       │   ├── column_processor.py  # 列处理器
+│       │   ├── column_config.py     # 列配置
+│       │   ├── time_processor.py    # 时间处理器
 │       │   ├── engines/             # 发动机分析模块
 │       │   │   ├── __init__.py
-│       │   │   └── engine_analysis.py
+│       │   │   ├── engine_analysis.py         # 发动机分析主模块
+│       │   │   ├── engine_data_processor.py   # 发动机数据处理器
+│       │   │   └── engine_report_generator.py # 发动机报告生成器
 │       │   ├── cas/                 # CAS告警分析模块
 │       │   │   ├── __init__.py
-│       │   │   └── cas_analysis.py
+│       │   │   ├── cas_analysis.py         # CAS分析主模块
+│       │   │   ├── cas_data_processor.py   # CAS数据处理器
+│       │   │   └── cas_report_generator.py # CAS报告生成器
 │       │   ├── fuel/                # 燃油系统分析模块
 │       │   │   ├── __init__.py
-│       │   │   └── fuel_analysis.py
+│       │   │   ├── fuel_analysis.py         # 燃油分析主模块
+│       │   │   ├── fuel_data_processor.py   # 燃油数据处理器
+│       │   │   └── fuel_report_generator.py # 燃油报告生成器
 │       │   └── power/               # 电源系统分析模块
 │       │       ├── __init__.py
-│       │       └── power_analysis.py
+│       │       ├── power_analysis.py         # 电源分析主模块
+│       │       ├── power_data_processor.py   # 电源数据处理器
+│       │       └── power_report_generator.py # 电源报告生成器
 │       ├── event_handlers/          # 事件处理器模块
 │       │   ├── __init__.py
 │       │   ├── base.py              # 基础类和常量
@@ -368,3 +379,4 @@ flight_parameter/
 - **v1.1**：重构代码结构，分离UI组件和业务逻辑
 - **v2.0**：重新设计架构，以 [src/flight_parameter/main.py](file://C:/Users/ZZY/Desktop/Test/flight_parameter/src/flight_parameter/main.py) 作为主程序，实现更清晰的模块化结构
 - **v3.0**：引入插件化架构，增强系统的可扩展性和可维护性
+- **v3.1**：完善分析模块结构，引入报告生成器模式，将报告生成功能从分析模块中分离出来，提高模块的内聚性

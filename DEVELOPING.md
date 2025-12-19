@@ -20,18 +20,29 @@ flight_parameter/
 │       │   ├── utils.py             # 分析工具函数
 │       │   ├── plugin_manager.py     # 插件管理器
 │       │   ├── data_analyzer.py     # 主分析流程
+│       │   ├── column_processor.py  # 列处理器
+│       │   ├── column_config.py     # 列配置
+│       │   ├── time_processor.py    # 时间处理器
 │       │   ├── engines/             # 发动机分析模块
 │       │   │   ├── __init__.py
-│       │   │   └── engine_analysis.py
+│       │   │   ├── engine_analysis.py         # 发动机分析主模块
+│       │   │   ├── engine_data_processor.py   # 发动机数据处理器
+│       │   │   └── engine_report_generator.py # 发动机报告生成器
 │       │   ├── cas/                 # CAS告警分析模块
 │       │   │   ├── __init__.py
-│       │   │   └── cas_analysis.py
+│       │   │   ├── cas_analysis.py         # CAS分析主模块
+│       │   │   ├── cas_data_processor.py   # CAS数据处理器
+│       │   │   └── cas_report_generator.py # CAS报告生成器
 │       │   ├── fuel/                # 燃油系统分析模块
 │       │   │   ├── __init__.py
-│       │   │   └── fuel_analysis.py
+│       │   │   ├── fuel_analysis.py         # 燃油分析主模块
+│       │   │   ├── fuel_data_processor.py   # 燃油数据处理器
+│       │   │   └── fuel_report_generator.py # 燃油报告生成器
 │       │   └── power/               # 电源系统分析模块
 │       │       ├── __init__.py
-│       │       └── power_analysis.py
+│       │       ├── power_analysis.py         # 电源分析主模块
+│       │       ├── power_data_processor.py   # 电源数据处理器
+│       │       └── power_report_generator.py # 电源报告生成器
 │       ├── event_handlers/          # 事件处理器模块
 │       │   ├── __init__.py
 │       │   ├── base.py              # 基础类和常量
@@ -174,6 +185,16 @@ class AnalysisInterface(ABC):
     def generate_text(self, analysis_data: Dict[str, Any]) -> str:
         pass
 ```
+
+### 报告生成器模式
+
+为了进一步提高模块的内聚性和降低耦合度，从v3.1版本开始，我们引入了报告生成器模式。每个分析模块都有一个对应的报告生成器类，专门负责将分析结果转换为文本格式。
+
+这种设计的优势包括：
+1. **关注点分离**：分析逻辑和报告生成逻辑分离
+2. **可维护性**：修改报告格式不会影响分析逻辑
+3. **可测试性**：可以单独测试报告生成逻辑
+4. **可扩展性**：可以轻松添加新的报告格式
 
 ## 性能优化
 
